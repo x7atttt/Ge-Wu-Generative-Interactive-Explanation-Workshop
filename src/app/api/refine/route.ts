@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sseResponse } from "@/lib/api/sse";
 import { refineDoc } from "@/lib/dsl/generate";
 import { explainDocSchema } from "@/lib/dsl/schema";
 
@@ -24,14 +25,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "当前文档结构非法，无法改造" }, { status: 400 });
   }
 
-  try {
-    const doc = await refineDoc(parsed.data, instruction.trim());
-    return NextResponse.json({ doc });
-  } catch (err) {
-    console.error("[api/refine]", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "改造失败，请稍后重试" },
-      { status: 500 }
-    );
-  }
+  return sseResponse(async (send) => {
+    try {
+      const doc = await refineDoc(parsed.data, instruction.trim(), (text) =>
+        send({ type: "delta", text })
+      );
+      send({ type: "done", doc });
+    } catch (err) {
+      console.error("[api/refine]", err);
+      send({
+        type: "error",
+        message: err instanceof Error ? err.message : "改造失败，请稍后重试",
+      });
+    }
+  });
 }

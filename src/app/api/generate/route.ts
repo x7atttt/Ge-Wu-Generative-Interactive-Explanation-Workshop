@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sseResponse } from "@/lib/api/sse";
 import { generateDoc } from "@/lib/dsl/generate";
 
 export async function POST(req: Request) {
@@ -17,14 +18,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "概念描述请控制在 200 字以内" }, { status: 400 });
   }
 
-  try {
-    const doc = await generateDoc(concept.trim());
-    return NextResponse.json({ doc });
-  } catch (err) {
-    console.error("[api/generate]", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "生成失败，请稍后重试" },
-      { status: 500 }
-    );
-  }
+  return sseResponse(async (send) => {
+    try {
+      const doc = await generateDoc(concept.trim(), (text) => send({ type: "delta", text }));
+      send({ type: "done", doc });
+    } catch (err) {
+      console.error("[api/generate]", err);
+      send({
+        type: "error",
+        message: err instanceof Error ? err.message : "生成失败，请稍后重试",
+      });
+    }
+  });
 }
