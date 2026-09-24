@@ -1,13 +1,15 @@
 /**
- * 生成管线：LLM 原始输出 → JSON 提取 → zod 校验 → 一次自修复重试。
+ * 生成管线：LLM 流式输出 → JSON 提取 → zod 校验 → 一次自修复重试。
  * 服务端专用（依赖环境变量中的 API Key）。
  */
-import { chat, type ChatMessage } from "@/lib/llm/client";
+import { chat, streamChat, type ChatMessage } from "@/lib/llm/client";
 import {
+  askSystemPrompt,
   generateSystemPrompt,
   refineSystemPrompt,
   repairSystemPrompt,
 } from "@/lib/llm/prompts";
+import { llmConfigFromEnv } from "@/lib/llm/client";
 import { validateDoc, type ExplainDoc } from "./schema";
 
 export class DslError extends Error {
@@ -43,7 +45,7 @@ function parseAndValidate(raw: string): ExplainDoc {
   return parsed as ExplainDoc;
 }
 
-/** 校验失败时携带错误让 LLM 自修复一次 */
+/** 校验失败时携带错误让 LLM 自修复一次（非流式，罕见路径不值得流式复杂度） */
 async function withRepair(raw: string, history: ChatMessage[]): Promise<ExplainDoc> {
   const toMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
   try {
@@ -69,16 +71,28 @@ async function withRepair(raw: string, history: ChatMessage[]): Promise<ExplainD
   }
 }
 
-export async function generateDoc(concept: string): Promise<ExplainDoc> {
+/** 主模型流式生成；onDelta 透出原始增量供前端构建流面板展示 */
+export async function generateDoc(
+  concept: string,
+  onDelta?: (text: string) => void
+): Promise<ExplainDoc> {
   const history: ChatMessage[] = [
     { role: "system", content: generateSystemPrompt() },
     { role: "user", content: `概念：${concept}` },
   ];
-  const raw = await chat(history, { jsonMode: true, temperature: 0.4 });
+  const raw = onDelta
+    ? await streamChat(history, { jsonMode: true, temperature: 0.4 }, onDelta)
+    : await chat(history, { jsonMode: true, temperature: 0.4 });
   return withRepair(raw, history);
 }
 
-export async function refineDoc(doc: ExplainDoc, instruction: string): Promise<ExplainDoc> {
+/** 改造走 fast 模型（未配置回落主模型） */
+export async function refineDoc(
+  doc: ExplainDoc,
+  instruction: string,
+  onDelta?: (text: string) => void
+): Promise<ExplainDoc> {
+  const { fastModel } = llmConfigFromEnv();
   const history: ChatMessage[] = [
     { role: "system", content: refineSystemPrompt() },
     {
@@ -86,6 +100,26 @@ export async function refineDoc(doc: ExplainDoc, instruction: string): Promise<E
       content: `当前文档：\n${JSON.stringify(doc, null, 2)}\n\n改造指令：${instruction}`,
     },
   ];
-  const raw = await chat(history, { jsonMode: true, temperature: 0.3 });
+  const options = { jsonMode: true, temperature: 0.3, model: fastModel };
+  const raw = onDelta
+    ? await streamChat(history, options, onDelta)
+    : await chat(history, options);
   return withRepair(raw, history);
+}
+
+/** 追问：基于当前文档的流式短回答，纯文本、不改文档 */
+export async function askQuestion(
+  doc: ExplainDoc,
+  question: string,
+  onDelta: (text: string) => void
+): Promise<string> {
+  const { fastModel } = llmConfigFromEnv();
+  return streamChat(
+    [
+      { role: "system", content: askSystemPrompt() },
+      { role: "user", content: `当前讲解文档：\n${JSON.stringify(doc, null, 2)}\n\n用户提问：${question}` },
+    ],
+    { temperature: 0.3, model: fastModel },
+    onDelta
+  );
 }

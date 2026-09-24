@@ -1,7 +1,7 @@
 /**
  * DSL v0 契约：ExplainDoc。
  * 生成层（LLM）与渲染层（React 组件）之间的唯一接口，
- * 结构与决策依据见 spec/2026-09-24-dsl-schema-v0.md。
+ * 结构与决策依据见 spec/2026-09-24-dsl-schema-v0.md（迭代 2 扩展见 iteration2 spec）。
  */
 import { z } from "zod";
 
@@ -53,11 +53,36 @@ export const wavePlotBlockSchema = z.object({
   terms: z.array(waveTermSchema).min(1),
 });
 
+export const chartBlockSchema = z.object({
+  type: z.literal("chart"),
+  chartType: z.enum(["bar", "line", "pie"]),
+  title: z.string().optional(),
+  categories: z.array(z.string()).optional(),
+  series: z
+    .array(
+      z.object({
+        name: z.string().optional(),
+        data: z.array(numberSlotSchema).min(1),
+      })
+    )
+    .min(1),
+});
+
+export const quizBlockSchema = z.object({
+  type: z.literal("quiz"),
+  question: z.string().min(1),
+  options: z.array(z.string().min(1)).min(2),
+  answer: z.number().int().nonnegative(),
+  explanation: z.string().min(1),
+});
+
 export const blockSchema = z.discriminatedUnion("type", [
   textBlockSchema,
   formulaBlockSchema,
   sliderBlockSchema,
   wavePlotBlockSchema,
+  chartBlockSchema,
+  quizBlockSchema,
 ]);
 
 export const explainDocSchema = z
@@ -99,11 +124,26 @@ export const explainDocSchema = z
     };
 
     for (const [i, block] of doc.blocks.entries()) {
-      if (block.type !== "wavePlot") continue;
-      for (const [j, term] of block.terms.entries()) {
-        checkSlot(term.amp, ["blocks", i, "terms", j, "amp"], "wavePlot.terms.amp");
-        checkSlot(term.freq, ["blocks", i, "terms", j, "freq"], "wavePlot.terms.freq");
-        checkSlot(term.phase, ["blocks", i, "terms", j, "phase"], "wavePlot.terms.phase");
+      if (block.type === "wavePlot") {
+        for (const [j, term] of block.terms.entries()) {
+          checkSlot(term.amp, ["blocks", i, "terms", j, "amp"], "wavePlot.terms.amp");
+          checkSlot(term.freq, ["blocks", i, "terms", j, "freq"], "wavePlot.terms.freq");
+          checkSlot(term.phase, ["blocks", i, "terms", j, "phase"], "wavePlot.terms.phase");
+        }
+      }
+      if (block.type === "chart") {
+        for (const [j, serie] of block.series.entries()) {
+          serie.data.forEach((slot, k) => {
+            checkSlot(slot, ["blocks", i, "series", j, "data", k], "chart.series.data");
+          });
+        }
+      }
+      if (block.type === "quiz" && block.answer >= block.options.length) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["blocks", i, "answer"],
+          message: "quiz 的 answer 必须是 options 的合法下标",
+        });
       }
     }
   });
@@ -115,6 +155,8 @@ export type FormulaBlock = z.output<typeof formulaBlockSchema>;
 export type SliderBlock = z.output<typeof sliderBlockSchema>;
 export type WavePlotBlock = z.output<typeof wavePlotBlockSchema>;
 export type WaveTerm = z.output<typeof waveTermSchema>;
+export type ChartBlock = z.output<typeof chartBlockSchema>;
+export type QuizBlock = z.output<typeof quizBlockSchema>;
 
 /** 校验并返回友好错误摘要；合法时返回 null */
 export function validateDoc(doc: unknown): string | null {
