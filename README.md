@@ -21,6 +21,7 @@ pnpm dev                     # http://localhost:3000
 | `LLM_BASE_URL` | OpenAI 兼容服务地址（如 GLM / DeepSeek / OpenAI） |
 | `LLM_API_KEY` | 对应服务的 API Key |
 | `LLM_MODEL` | 模型名（以账号可用列表为准） |
+| `LLM_MODEL_FAST` | 可选；改造/追问等轻量操作用的快速模型，未配置回落 `LLM_MODEL` |
 
 ## 目录速览
 
