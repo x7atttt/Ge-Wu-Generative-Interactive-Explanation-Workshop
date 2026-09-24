@@ -1,7 +1,9 @@
 "use client";
 
 import type { Block } from "@/lib/dsl/schema";
+import { ChartView } from "./ChartView";
 import { FormulaBlockView } from "./FormulaBlockView";
+import { QuizView } from "./QuizView";
 import { SliderControl } from "./SliderControl";
 import { TextBlockView } from "./TextBlockView";
 import { WavePlotView } from "./WavePlotView";
@@ -20,5 +22,9 @@ export function BlockRenderer({ block }: { block: Block }) {
       return <SliderControl block={block} />;
     case "wavePlot":
       return <WavePlotView block={block} />;
+    case "chart":
+      return <ChartView block={block} />;
+    case "quiz":
+      return <QuizView block={block} />;
   }
 }
