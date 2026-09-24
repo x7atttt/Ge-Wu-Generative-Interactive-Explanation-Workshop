@@ -1,36 +1,30 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 格物 Gewu —— 生成式交互讲解工坊
 
-## Getting Started
+输入任意抽象概念，AI 现场生成一篇**带滑块交互的可视化讲解**，并支持生成后用一句话继续改造。
 
-First, run the development server:
+> 传智杯 AI 创新应用挑战赛（Vibe Coding）· B 组作品
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 本地运行
+
+要求：Node >= 20.9、pnpm 10.x
+
+```shell
+pnpm install
+cp .env.example .env.local   # 填入你的 LLM 服务配置（OpenAI 兼容协议）
+pnpm dev                     # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 环境变量
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| 变量 | 说明 |
+|---|---|
+| `LLM_BASE_URL` | OpenAI 兼容服务地址（如 GLM / DeepSeek / OpenAI） |
+| `LLM_API_KEY` | 对应服务的 API Key |
+| `LLM_MODEL` | 模型名（以账号可用列表为准） |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 目录速览
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `src/lib/dsl/` DSL schema 与生成管线（核心资产）
+- `src/lib/llm/` OpenAI 兼容客户端与提示词
+- `src/components/dsl/` DSL 渲染组件（注册表模式扩展）
+- `spec/` 功能规约与设计决策记录
