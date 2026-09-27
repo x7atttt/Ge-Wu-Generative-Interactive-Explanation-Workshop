@@ -1,5 +1,6 @@
-/** 前端 API 调用层：组件不直接 fetch，统一从这里走（SSE 流式） */
+/** 前端 API 调用层：组件不直接 fetch，统一从这里走（SSE 流式 + 持久化数据加载） */
 import type { ExplainDoc } from "@/lib/dsl/schema";
+import type { AskItem } from "@/components/dsl/AskPanel";
 
 interface StreamHandlers {
   onDelta: (text: string) => void;
@@ -8,8 +9,13 @@ interface StreamHandlers {
 
 type SSEEvent =
   | { type: "delta"; text: string }
-  | { type: "done"; doc?: ExplainDoc }
+  | { type: "done"; doc?: ExplainDoc; docId?: number }
   | { type: "error"; message: string };
+
+export interface DocResult {
+  doc: ExplainDoc;
+  docId: number;
+}
 
 async function openSSE(url: string, body: unknown, signal?: AbortSignal): Promise<ReadableStreamDefaultReader<Uint8Array>> {
   const res = await fetch(url, {
@@ -47,7 +53,7 @@ async function consumeSSE<T>(
         if (!line.startsWith("data:")) continue;
         const payload = line.slice(5).trim();
         if (!payload) continue;
-        const parsed = JSON.parse(payload) as SSEEvent & { message?: string };
+        const parsed = JSON.parse(payload) as SSEEvent;
         if (parsed.type === "error") throw new Error(parsed.message ?? "服务错误");
         const early = onEvent(parsed);
         if (early !== null) return early;
@@ -60,21 +66,23 @@ export async function streamExplanation(
   kind: "generate" | "refine",
   body: unknown,
   { onDelta, signal }: StreamHandlers
-): Promise<ExplainDoc> {
+): Promise<DocResult> {
   const reader = await openSSE(`/api/${kind}`, body, signal);
   return consumeSSE(reader, (event) => {
     if (event.type === "delta" && event.text) onDelta(event.text);
-    if (event.type === "done" && event.doc) return event.doc;
+    if (event.type === "done" && event.doc && typeof event.docId === "number") {
+      return { doc: event.doc, docId: event.docId };
+    }
     return null;
   });
 }
 
 export async function streamAsk(
-  doc: ExplainDoc,
+  docId: number,
   question: string,
   { onDelta, signal }: StreamHandlers
 ): Promise<string> {
-  const reader = await openSSE("/api/ask", { doc, question }, signal);
+  const reader = await openSSE("/api/ask", { docId, question }, signal);
   let full = "";
   await consumeSSE(reader, (event) => {
     if (event.type === "delta" && event.text) {
@@ -85,4 +93,45 @@ export async function streamAsk(
     return null;
   });
   return full;
+}
+
+export interface DocSummary {
+  id: number;
+  title: string;
+  createdAt: string;
+}
+
+export async function listDocs(): Promise<DocSummary[]> {
+  const res = await fetch("/api/docs");
+  if (!res.ok) throw new Error(`历史加载失败（${res.status}）`);
+  const data = (await res.json()) as { docs: DocSummary[] };
+  return data.docs;
+}
+
+/** 恢复一篇历史讲解：文档 + 已有问答（扁平行转为问答对） */
+export async function loadDoc(
+  docId: number
+): Promise<{ doc: ExplainDoc; asks: AskItem[] }> {
+  const res = await fetch(`/api/docs/${docId}`);
+  const data: unknown = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message =
+      data && typeof data === "object" && "error" in data && typeof data.error === "string"
+        ? data.error
+        : `加载失败（${res.status}）`;
+    throw new Error(message);
+  }
+  const payload = data as {
+    doc: ExplainDoc;
+    asks: { role: "user" | "assistant"; content: string }[];
+  };
+  const asks: AskItem[] = [];
+  for (const row of payload.asks) {
+    if (row.role === "user") asks.push({ question: row.content, answer: "", done: false });
+    else if (asks.length > 0) {
+      asks[asks.length - 1].answer = row.content;
+      asks[asks.length - 1].done = true;
+    }
+  }
+  return { doc: payload.doc, asks };
 }

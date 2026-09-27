@@ -3,18 +3,20 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import { streamAsk } from "@/lib/api/explanation";
-import type { ExplainDoc } from "@/lib/dsl/schema";
 import { MarkdownView } from "./MarkdownView";
 
-interface AskItem {
+export interface AskItem {
   question: string;
   answer: string;
   done: boolean;
 }
 
-/** 文档内追问面板：会话态只存前端，不进 DSL（迭代 2 spec 决策） */
-export function AskPanel({ doc }: { doc: ExplainDoc }) {
-  const [asks, setAsks] = useState<AskItem[]>([]);
+/**
+ * 文档内追问面板：多轮记忆在服务端（DB 历史 + 最近 6 轮上下文），
+ * 前端只负责展示；refine 产生新 docId → 组件随文档卡片重挂载，历史自动隔离。
+ */
+export function AskPanel({ docId, initialAsks }: { docId: number; initialAsks: AskItem[] }) {
+  const [asks, setAsks] = useState<AskItem[]>(initialAsks);
   const [input, setInput] = useState("");
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export function AskPanel({ doc }: { doc: ExplainDoc }) {
     setInput("");
     const index = asks.length;
     try {
-      await streamAsk(doc, question, {
+      await streamAsk(docId, question, {
         onDelta: (text) =>
           setAsks((prev) =>
             prev.map((item, i) => (i === index ? { ...item, answer: item.answer + text } : item))
@@ -36,9 +38,8 @@ export function AskPanel({ doc }: { doc: ExplainDoc }) {
       });
       setAsks((prev) => prev.map((item, i) => (i === index ? { ...item, done: true } : item)));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "回答失败，请稍后重试";
       setAsks((prev) => prev.filter((_, i) => i !== index || prev[i].answer));
-      setError(message);
+      setError(err instanceof Error ? err.message : "回答失败，请稍后重试");
     } finally {
       setAsking(false);
     }
@@ -46,7 +47,9 @@ export function AskPanel({ doc }: { doc: ExplainDoc }) {
 
   return (
     <div className="mt-6 border-t border-zinc-100 pt-4">
-      <p className="mb-2 text-xs font-medium tracking-wide text-zinc-400">追问这个讲解</p>
+      <p className="mb-2 text-xs font-medium tracking-wide text-zinc-400">
+        追问这个讲解<span className="ml-1 font-normal text-zinc-300">（支持多轮，记得此前问答）</span>
+      </p>
       {asks.length > 0 && (
         <div className="mb-3 flex flex-col gap-2">
           {asks.map((item, i) => (
@@ -78,7 +81,7 @@ export function AskPanel({ doc }: { doc: ExplainDoc }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleAsk()}
-          placeholder="如：为什么振幅按 1/n 衰减？"
+          placeholder="如：为什么振幅按 1/n 衰减？也可以接着上一轮继续问"
           maxLength={300}
           className="h-10 flex-1 rounded-xl border border-zinc-200 px-3 text-sm outline-none transition-colors focus:border-indigo-400"
           disabled={asking}
