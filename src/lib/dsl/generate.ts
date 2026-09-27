@@ -107,17 +107,30 @@ export async function refineDoc(
   return withRepair(raw, history);
 }
 
-/** 追问：基于当前文档的流式短回答，纯文本、不改文档 */
+/** 追问的既有对话轮次（user/assistant 交替），由路由层从库中组装 */
+export interface AskExchange {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/** 发给 LLM 的历史上下文只取最近 6 轮（12 条消息），完整历史在库中 */
+const ASK_CONTEXT_TURNS = 6;
+
+/** 追问：基于当前文档 + 最近对话历史的流式短回答，纯文本、不改文档 */
 export async function askQuestion(
   doc: ExplainDoc,
+  history: AskExchange[],
   question: string,
   onDelta: (text: string) => void
 ): Promise<string> {
   const { fastModel } = llmConfigFromEnv();
+  const trimmed = history.slice(-ASK_CONTEXT_TURNS * 2);
   return streamChat(
     [
       { role: "system", content: askSystemPrompt() },
-      { role: "user", content: `当前讲解文档：\n${JSON.stringify(doc, null, 2)}\n\n用户提问：${question}` },
+      { role: "user", content: `当前讲解文档：\n${JSON.stringify(doc, null, 2)}` },
+      ...trimmed.map((message) => ({ role: message.role, content: message.content })),
+      { role: "user", content: question },
     ],
     { temperature: 0.3, model: fastModel },
     onDelta

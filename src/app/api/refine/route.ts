@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { sseResponse } from "@/lib/api/sse";
+import { insertDoc } from "@/lib/db/docs";
 import { refineDoc } from "@/lib/dsl/generate";
 import { explainDocSchema } from "@/lib/dsl/schema";
 
 export async function POST(req: Request) {
-  let body: { doc?: unknown; instruction?: unknown };
+  let body: { doc?: unknown; instruction?: unknown; docId?: unknown };
   try {
-    body = (await req.json()) as { doc?: unknown; instruction?: unknown };
+    body = (await req.json()) as { doc?: unknown; instruction?: unknown; docId?: unknown };
   } catch {
     return NextResponse.json({ error: "请求体必须是 JSON" }, { status: 400 });
   }
@@ -25,12 +26,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "当前文档结构非法，无法改造" }, { status: 400 });
   }
 
+  const parentDocId =
+    typeof body.docId === "number" && Number.isInteger(body.docId) && body.docId > 0
+      ? body.docId
+      : null;
+
   return sseResponse(async (send) => {
     try {
       const doc = await refineDoc(parsed.data, instruction.trim(), (text) =>
         send({ type: "delta", text })
       );
-      send({ type: "done", doc });
+      const docId = insertDoc(doc, parentDocId);
+      send({ type: "done", doc, docId });
     } catch (err) {
       console.error("[api/refine]", err);
       send({

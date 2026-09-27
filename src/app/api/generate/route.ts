@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sseResponse } from "@/lib/api/sse";
+import { insertDoc } from "@/lib/db/docs";
 import { generateDoc } from "@/lib/dsl/generate";
 
 export async function POST(req: Request) {
@@ -21,7 +22,8 @@ export async function POST(req: Request) {
   return sseResponse(async (send) => {
     try {
       const doc = await generateDoc(concept.trim(), (text) => send({ type: "delta", text }));
-      send({ type: "done", doc });
+      const docId = insertDoc(doc, null);
+      send({ type: "done", doc, docId });
     } catch (err) {
       console.error("[api/generate]", err);
       send({
