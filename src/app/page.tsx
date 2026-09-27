@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { AskPanel } from "@/components/dsl/AskPanel";
 import { ExplainDocView } from "@/components/dsl/ExplainDocView";
+import { BuildProgressPanel } from "@/components/BuildProgressPanel";
 import { streamExplanation } from "@/lib/api/explanation";
 import type { ExplainDoc } from "@/lib/dsl/schema";
 
@@ -14,63 +15,6 @@ const REFINE_EXAMPLES = [
   "出两道自测题",
   "加一个对比演示",
 ];
-
-/** 构建流面板：AI 原始输出实时滚动，过程透明（流式呈现形态的所有者决策） */
-function BuildStreamPanel({
-  text,
-  phase,
-  onCancel,
-}: {
-  text: string;
-  phase: "generate" | "refine";
-  onCancel: () => void;
-}) {
-  const [open, setOpen] = useState(true);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [text, open]);
-
-  return (
-    <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50/80">
-      <div className="flex items-center justify-between px-3 py-2">
-        <p className="flex items-center gap-2 text-xs text-zinc-500">
-          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
-          {phase === "generate" ? "AI 正在构建讲解" : "AI 正在改造讲解"}
-          <span className="text-zinc-400">· 原始构建流</span>
-        </p>
-        <div className="flex items-center gap-3">
-          <button onClick={onCancel} className="text-xs text-zinc-400 transition-colors hover:text-red-500">
-            取消
-          </button>
-          <button onClick={() => setOpen((v) => !v)} className="text-xs text-zinc-500 hover:text-zinc-800">
-            {open ? "收起" : "展开"}
-          </button>
-        </div>
-      </div>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div
-              ref={scrollRef}
-              className="mx-3 mb-3 max-h-48 overflow-y-auto whitespace-pre-wrap break-all rounded-lg bg-zinc-900 p-3 font-mono text-[11px] leading-5 text-emerald-300/90"
-            >
-              {text}
-              <span className="ml-0.5 inline-block h-3 w-[6px] animate-pulse bg-emerald-300 align-middle" />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
 
 export default function Home() {
   const [concept, setConcept] = useState("");
@@ -200,7 +144,7 @@ export default function Home() {
           </div>
 
           {busy === "generate" && (
-            <BuildStreamPanel text={buildText} phase="generate" onCancel={cancel} />
+            <BuildProgressPanel text={buildText} phase="generate" onCancel={cancel} />
           )}
           <AnimatePresence>
             {error && (
@@ -265,7 +209,7 @@ export default function Home() {
                   </button>
                 </div>
                 {busy === "refine" && (
-                  <BuildStreamPanel text={buildText} phase="refine" onCancel={cancel} />
+                  <BuildProgressPanel text={buildText} phase="refine" onCancel={cancel} />
                 )}
                 {refineError && (
                   <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
