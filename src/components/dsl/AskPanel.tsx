@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { streamAsk } from "@/lib/api/explanation";
 import type { ExplainDoc } from "@/lib/dsl/schema";
+import { MarkdownView } from "./MarkdownView";
 
 interface AskItem {
   question: string;
@@ -59,7 +60,7 @@ export function AskPanel({ doc }: { doc: ExplainDoc }) {
                   animate={{ opacity: 1 }}
                   className="self-start rounded-2xl rounded-bl-sm bg-zinc-100 px-3.5 py-2 text-sm leading-6 text-zinc-800"
                 >
-                  <span className="whitespace-pre-wrap">{item.answer}</span>
+                  <MarkdownView content={item.answer} />
                   {!item.done && (
                     <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse bg-zinc-500 align-middle" />
                   )}
