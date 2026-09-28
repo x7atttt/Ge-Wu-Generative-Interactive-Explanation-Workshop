@@ -14,19 +14,32 @@ interface Entry {
   i: number;
 }
 
+interface Segment {
+  label: string | null;
+  entries: Entry[];
+}
+
+/** 深化卡内 heading 剥离模型可能带上的"深化："前缀（分组卡 chip 已表达该语义） */
+function stripDeepenPrefix(block: Block): Block {
+  if (block.type === "heading") {
+    return { ...block, text: block.text.replace(/^深化[：:—-]\s*/, "") };
+  }
+  return block;
+}
+
 /**
  * 讲解文档容器：双栏布局——主栏阅读流（滑块除外）+ 右栏 sticky 参数台（全部滑块）；
  * 窄屏滑块双渲染为内联组（置于首个可视化块前），两份 UI 共享同一变量状态。
- * deepen：refine 新增段的分组渲染；skeletonTail：生成期流式上屏的尾部骨架。
+ * deepens：多轮深化各一张分组卡；skeletonTail：生成期流式上屏的尾部骨架。
  */
 export function ExplainDocView({
   doc,
   skeletonTail,
-  deepen,
+  deepens,
 }: {
   doc: ExplainDoc;
   skeletonTail?: string[];
-  deepen?: DeepenInfo | null;
+  deepens?: DeepenInfo[];
 }) {
   const initialValues = useMemo(() => {
     const record: Record<string, number> = {};
@@ -59,40 +72,42 @@ export function ExplainDocView({
 
   // 内联滑块组的插入位：首个可视化块之前（窄屏 fallback）
   const inlineBeforeBlockIndex = useMemo(() => {
-    const entry = items.find(
-      ({ block }) => block.type === "wavePlot" || block.type === "chart"
-    );
+    const entry = items.find(({ block }) => block.type === "wavePlot" || block.type === "chart");
     return entry ? entry.i : Number.POSITIVE_INFINITY;
   }, [items]);
 
-  const preSegment = useMemo(
-    () => (deepen ? items.filter((e) => e.i < deepen.fromIndex) : items),
-    [items, deepen]
-  );
-  const deepSegment = useMemo(
-    () => (deepen ? items.filter((e) => e.i >= deepen.fromIndex) : []),
-    [items, deepen]
-  );
+  // 按深化边界分段：段 0 为原文，之后每段对应一轮 refine
+  const segments = useMemo<Segment[]>(() => {
+    const groups: Segment[] = [{ label: null, entries: [] }];
+    for (const deepen of deepens ?? []) groups.push({ label: deepen.label, entries: [] });
+    for (const entry of items) {
+      let idx = 0;
+      (deepens ?? []).forEach((deepen, k) => {
+        if (entry.i >= deepen.fromIndex) idx = k + 1;
+      });
+      groups[idx].entries.push(entry);
+    }
+    return groups;
+  }, [items, deepens]);
 
-  /** 渲染一段主栏条目；末段按需在段尾追加内联滑块组（无可视化块的文档） */
-  const renderSegment = (segment: Entry[], isLastSegment: boolean): ReactNode[] => {
-    const nodes: ReactNode[] = segment.map(({ block, i }) => {
-      const wrappers: ReactNode[] = [];
+  /** 渲染一段条目：按需剥前缀、插内联滑块组，末段尾追加（无可视化块的文档） */
+  const renderSegment = (segment: Entry[], isLastSegment: boolean, stripPrefix: boolean): ReactNode[] => {
+    const nodes: ReactNode[] = [];
+    for (const { block, i } of segment) {
       if (i === inlineBeforeBlockIndex) {
-        wrappers.push(<InlineSliderGroup key={`inline-${i}`} sliders={sliders} />);
+        nodes.push(<InlineSliderGroup key={`inline-${i}`} sliders={sliders} />);
       }
-      wrappers.push(
+      nodes.push(
         <motion.div
           key={`b-${i}`}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 120, damping: 16 }}
         >
-          <BlockRenderer block={block} />
+          <BlockRenderer block={stripPrefix ? stripDeepenPrefix(block) : block} />
         </motion.div>
       );
-      return wrappers;
-    });
+    }
     if (
       isLastSegment &&
       inlineBeforeBlockIndex === Number.POSITIVE_INFINITY &&
@@ -100,26 +115,45 @@ export function ExplainDocView({
     ) {
       nodes.push(<InlineSliderGroup key="inline-end" sliders={sliders} />);
     }
-    return nodes.flat();
+    return nodes;
   };
 
   const mainColumn = (
     <>
-      {renderSegment(preSegment, deepSegment.length === 0)}
-      {deepen && deepSegment.length > 0 && (
-        <div className="flex flex-col gap-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
-          <p className="text-xs font-medium text-indigo-700">
-            <span className="mr-1.5 rounded bg-indigo-100 px-1.5 py-0.5">深化</span>
-            {deepen.label}
-          </p>
-          {renderSegment(deepSegment, true)}
-        </div>
-      )}
-      {deepen && deepSegment.length === 0 && (
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-xs text-indigo-700">
-          深化 · {deepen.label}（本次新增参数已加入参数台）
-        </div>
-      )}
+      {segments.map((segment, gi) => {
+        const isLast = gi === segments.length - 1;
+        if (segment.label === null) {
+          return (
+            <div key={gi} className="flex flex-col gap-4">
+              {renderSegment(segment.entries, isLast, false)}
+            </div>
+          );
+        }
+        if (segment.entries.length === 0) {
+          return (
+            <div
+              key={gi}
+              className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-xs text-indigo-700"
+            >
+              深化 · {segment.label}（本次新增参数已加入参数台）
+            </div>
+          );
+        }
+        return (
+          <div
+            key={gi}
+            className="flex flex-col gap-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4"
+          >
+            <p className="text-xs font-medium text-indigo-700">
+              <span className="mr-1.5 rounded bg-indigo-100 px-1.5 py-0.5">深化</span>
+              {segment.label}
+            </p>
+            <div className="flex flex-col gap-4">
+              {renderSegment(segment.entries, isLast, true)}
+            </div>
+          </div>
+        );
+      })}
       {skeletonTail && skeletonTail.length > 0 && (
         <div className="flex flex-col gap-4">
           {skeletonTail.map((type, i) => (

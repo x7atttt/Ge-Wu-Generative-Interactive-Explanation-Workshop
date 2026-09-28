@@ -10,7 +10,7 @@ export function QuizView({ block }: { block: QuizBlock }) {
   const isCorrect = answered && selected === block.answer;
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-4">
+    <div className="rounded-xl border border-zinc-200 bg-white p-4">
       <p className="mb-3 text-sm font-medium text-zinc-800">
         <span className="mr-1.5 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">
           自测
