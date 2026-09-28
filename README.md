@@ -22,6 +22,7 @@ pnpm dev                     # http://localhost:3000
 | `LLM_API_KEY` | 对应服务的 API Key |
 | `LLM_MODEL` | 模型名（以账号可用列表为准） |
 | `LLM_MODEL_FAST` | 可选；改造/追问等轻量操作用的快速模型，未配置回落 `LLM_MODEL` |
+| `LLM_REASONING_EFFORT` | 可选；思考强度 `low\|medium\|high`（reasoning_effort），生成偏慢时设 `low` |
 
 ## 数据存储
 

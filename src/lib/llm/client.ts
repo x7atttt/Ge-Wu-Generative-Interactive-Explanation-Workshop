@@ -57,18 +57,26 @@ export function llmConfigFromEnv(): LLMConfig {
   };
 }
 
+/** 可选：思考强度（GLM/OpenAI 兼容参数 reasoning_effort），未配置或非法值时不发送 */
+function reasoningEffort(): string | null {
+  const value = process.env.LLM_REASONING_EFFORT?.trim().toLowerCase();
+  return value === "low" || value === "medium" || value === "high" ? value : null;
+}
+
 function buildBody(
   model: string,
   messages: ChatMessage[],
   options: ChatOptions,
   stream: boolean
 ): Record<string, unknown> {
+  const effort = reasoningEffort();
   return {
     model,
     messages,
     temperature: options.temperature ?? 0.4,
     ...(options.maxTokens ? { max_tokens: options.maxTokens } : {}),
     ...(options.jsonMode ? { response_format: { type: "json_object" } } : {}),
+    ...(effort ? { reasoning_effort: effort } : {}),
     stream,
   };
 }
