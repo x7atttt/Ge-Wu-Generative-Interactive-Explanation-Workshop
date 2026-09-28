@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { listAsks } from "@/lib/db/asks";
-import { getDoc } from "@/lib/db/docs";
+import { getDoc, type DocRow } from "@/lib/db/docs";
+import type { Block } from "@/lib/dsl/schema";
+
+const MAX_CHAIN_DEPTH = 20;
 
 export async function GET(
   _req: Request,
@@ -15,13 +18,20 @@ export async function GET(
   if (!row) {
     return NextResponse.json({ error: "讲解不存在或已损坏" }, { status: 404 });
   }
-  // 父版本块供前端计算深化分组（diff + 指令标题）
-  const parent = row.parentId !== null ? getDoc(row.parentId) : null;
+
+  // 沿 parent_id 回溯版本链（根在前），供前端做多轮深化分段
+  const versions: { id: number; blocks: Block[]; instruction: string | null }[] = [];
+  let current: DocRow | null = row;
+  let guard = 0;
+  while (current && guard++ < MAX_CHAIN_DEPTH) {
+    versions.unshift({ id: current.id, blocks: current.doc.blocks, instruction: current.instruction });
+    current = current.parentId !== null ? getDoc(current.parentId) : null;
+  }
+
   return NextResponse.json({
     docId: row.id,
     doc: row.doc,
-    instruction: row.instruction,
-    parentBlocks: parent?.doc.blocks ?? null,
+    versions,
     asks: listAsks(docId),
   });
 }

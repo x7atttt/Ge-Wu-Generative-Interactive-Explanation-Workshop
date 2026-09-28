@@ -108,10 +108,16 @@ export async function listDocs(): Promise<DocSummary[]> {
   return data.docs;
 }
 
-/** 恢复一篇历史讲解：文档 + 已有问答 + 深化分组信息（指令与父版本块） */
+/** 恢复一篇历史讲解：文档 + 已有问答 + 版本链（根在前，供深化分段） */
+export interface VersionPayload {
+  id?: number;
+  blocks: Block[];
+  instruction: string | null;
+}
+
 export async function loadDoc(
   docId: number
-): Promise<{ doc: ExplainDoc; asks: AskItem[]; instruction: string | null; parentBlocks: Block[] | null }> {
+): Promise<{ doc: ExplainDoc; asks: AskItem[]; versions: VersionPayload[] }> {
   const res = await fetch(`/api/docs/${docId}`);
   const data: unknown = await res.json().catch(() => null);
   if (!res.ok) {
@@ -124,8 +130,7 @@ export async function loadDoc(
   const payload = data as {
     doc: ExplainDoc;
     asks: { role: "user" | "assistant"; content: string }[];
-    instruction: string | null;
-    parentBlocks: Block[] | null;
+    versions: VersionPayload[];
   };
   const asks: AskItem[] = [];
   for (const row of payload.asks) {
@@ -135,10 +140,5 @@ export async function loadDoc(
       asks[asks.length - 1].done = true;
     }
   }
-  return {
-    doc: payload.doc,
-    asks,
-    instruction: payload.instruction ?? null,
-    parentBlocks: payload.parentBlocks ?? null,
-  };
+  return { doc: payload.doc, asks, versions: payload.versions ?? [] };
 }
