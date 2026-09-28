@@ -12,7 +12,7 @@ import type { ExplainDoc } from "@/lib/dsl/schema";
 
 const EXAMPLE_CONCEPTS = ["正弦波的频率", "傅里叶级数", "柱状图", "供需与价格"];
 const REFINE_EXAMPLES = [
-  "深入讲讲谐波次数的影响",
+  "深入讲解最核心的概念",
   "加一个现实中的类比例子",
   "出两道自测题",
   "加一个对比演示",

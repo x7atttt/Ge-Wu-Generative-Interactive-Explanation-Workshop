@@ -105,7 +105,7 @@ export function AskPanel({ docId, initialAsks }: { docId: number; initialAsks: A
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleAsk()}
-          placeholder="如：为什么振幅按 1/n 衰减？也可以接着上一轮继续问"
+          placeholder="如：这篇讲解最需要注意的点是什么？也可以接着上一轮继续问"
           maxLength={300}
           className="h-10 flex-1 rounded-xl border border-zinc-200 px-3 text-sm outline-none transition-colors focus:border-indigo-400"
           disabled={asking}
