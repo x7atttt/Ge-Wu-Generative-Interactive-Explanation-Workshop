@@ -7,6 +7,7 @@ import { AskPanel, type AskItem } from "@/components/dsl/AskPanel";
 import { ExplainDocView } from "@/components/dsl/ExplainDocView";
 import { listDocs, loadDoc, streamExplanation, type DocSummary } from "@/lib/api/explanation";
 import { usePartialDoc } from "@/hooks/usePartialDoc";
+import { computeDeepen, type DeepenInfo } from "@/lib/dsl/deepen";
 import type { ExplainDoc } from "@/lib/dsl/schema";
 
 const EXAMPLE_CONCEPTS = ["正弦波的频率", "傅里叶级数", "柱状图", "供需与价格"];
@@ -22,12 +23,14 @@ export default function Home() {
   const [doc, setDoc] = useState<ExplainDoc | null>(null);
   const [docId, setDocId] = useState<number | null>(null);
   const [restoredAsks, setRestoredAsks] = useState<AskItem[]>([]);
+  const [deepen, setDeepen] = useState<DeepenInfo | null>(null);
   const [busy, setBusy] = useState<null | "generate" | "refine">(null);
   const [buildText, setBuildText] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const [refineInput, setRefineInput] = useState("");
   const [refineError, setRefineError] = useState<string | null>(null);
+  const [bottomTab, setBottomTab] = useState<"refine" | "ask">("refine");
 
   const [docList, setDocList] = useState<DocSummary[]>([]);
   const [loadingDoc, setLoadingDoc] = useState(false);
@@ -57,6 +60,9 @@ export default function Home() {
     };
   }, [partial, concept]);
 
+  // 双栏布局需要横向空间：文档/流式文档存在时放宽容器
+  const wide = doc !== null || streamDoc !== null;
+
   async function handleGenerate() {
     const text = concept.trim();
     if (!text || busy) return;
@@ -77,6 +83,7 @@ export default function Home() {
       setDoc(next);
       setDocId(id);
       setRestoredAsks([]);
+      setDeepen(null);
       setRefineInput("");
       setRefineError(null);
       refreshDocList();
@@ -91,7 +98,8 @@ export default function Home() {
 
   async function handleRefine() {
     const instruction = refineInput.trim();
-    if (!instruction || !doc || busy) return;
+    const parentDoc = doc;
+    if (!instruction || !parentDoc || busy) return;
     const controller = new AbortController();
     abortRef.current = controller;
     setBusy("refine");
@@ -100,12 +108,14 @@ export default function Home() {
     try {
       const { doc: next, docId: id } = await streamExplanation(
         "refine",
-        { doc, instruction, docId },
+        { doc: parentDoc, instruction, docId },
         {
           onDelta: (t) => setBuildText((prev) => prev + t),
           signal: controller.signal,
         }
       );
+      // 父版本就在闭包里：就地计算深化分组
+      setDeepen(computeDeepen(next.blocks, parentDoc.blocks, instruction));
       setDoc(next);
       setDocId(id);
       setRestoredAsks([]);
@@ -126,10 +136,11 @@ export default function Home() {
     setLoadingDoc(true);
     setError(null);
     try {
-      const { doc: loaded, asks } = await loadDoc(id);
+      const { doc: loaded, asks, instruction, parentBlocks } = await loadDoc(id);
       setDoc(loaded);
       setDocId(id);
       setRestoredAsks(asks);
+      setDeepen(computeDeepen(loaded.blocks, parentBlocks, instruction));
       setRefineError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "恢复讲解失败");
@@ -140,7 +151,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-1 flex-col items-center bg-gradient-to-b from-indigo-50/70 via-zinc-50 to-zinc-50 px-4 py-10 font-sans">
-      <main className="w-full max-w-2xl">
+      <main className={`w-full ${wide ? "max-w-5xl" : "max-w-2xl"} transition-[max-width] duration-300`}>
         <header className="mb-8 text-center">
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-500 shadow-sm">
             <span className="font-medium text-zinc-700">格物</span> Gewu · 生成式交互讲解工坊
@@ -229,7 +240,7 @@ export default function Home() {
         </section>
 
         {/* 讲解文档：生成期流式上屏（真块 + 尾骨架）；其余时间展示当前文档。
-            无 exit 等待（AnimatePresence mode="wait" 已移除）：refine 期间旧文档保留至 done 换新键 */}
+            无 exit 等待：refine 期间旧文档保留至 done 换新键 */}
         {streamDoc && busy === "generate" ? (
           <motion.section
             key="streaming"
@@ -251,54 +262,76 @@ export default function Home() {
             transition={{ type: "spring", stiffness: 140, damping: 18 }}
             className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
           >
-            <ExplainDocView doc={doc} />
+            <ExplainDocView doc={doc} deepen={deepen} />
 
-            {/* 内容级改造 */}
+            {/* 底部对话面板：深化讲解｜追问细节 双 tab（双份内容常驻 hidden 切换，保住追问会话态） */}
             <div className="mt-6 border-t border-zinc-100 pt-4">
-              <p className="mb-2 text-xs font-medium tracking-wide text-zinc-400">
-                继续深化这篇讲解
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {REFINE_EXAMPLES.map((example) => (
+              <div className="mb-3 flex w-fit gap-1 rounded-xl bg-zinc-100 p-1">
+                {(
+                  [
+                    ["refine", "深化讲解"],
+                    ["ask", "追问细节"],
+                  ] as const
+                ).map(([value, label]) => (
                   <button
-                    key={example}
-                    onClick={() => setRefineInput(example)}
-                    disabled={busy === "refine"}
-                    className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-500 transition-colors hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-50"
+                    key={value}
+                    onClick={() => setBottomTab(value)}
+                    className={`rounded-lg px-3 py-1.5 text-xs transition-colors ${
+                      bottomTab === value
+                        ? "bg-white font-medium text-zinc-800 shadow-sm"
+                        : "text-zinc-500 hover:text-zinc-700"
+                    }`}
                   >
-                    {example}
+                    {label}
                   </button>
                 ))}
               </div>
-              <div className="mt-2 flex gap-2">
-                <input
-                  value={refineInput}
-                  onChange={(e) => setRefineInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleRefine()}
-                  placeholder="或直接输入你想要的深化方向"
-                  maxLength={300}
-                  className="h-10 flex-1 rounded-xl border border-zinc-200 px-3 text-sm outline-none transition-colors focus:border-indigo-400"
-                  disabled={busy === "refine"}
-                />
-                <button
-                  onClick={handleRefine}
-                  disabled={busy !== null || !refineInput.trim()}
-                  className="h-10 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {busy === "refine" ? "改造中…" : "改造"}
-                </button>
-              </div>
-              {busy === "refine" && (
-                <BuildProgressPanel raw={buildText} phase="refine" onCancel={cancel} />
-              )}
-              {refineError && (
-                <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-                  {refineError}
-                </p>
-              )}
-            </div>
 
-            <AskPanel docId={docId} initialAsks={restoredAsks} />
+              <div className={bottomTab === "refine" ? "" : "hidden"}>
+                <div className="flex flex-wrap gap-2">
+                  {REFINE_EXAMPLES.map((example) => (
+                    <button
+                      key={example}
+                      onClick={() => setRefineInput(example)}
+                      disabled={busy === "refine"}
+                      className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-500 transition-colors hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-50"
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    value={refineInput}
+                    onChange={(e) => setRefineInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleRefine()}
+                    placeholder="或直接输入你想要的深化方向"
+                    maxLength={300}
+                    className="h-10 flex-1 rounded-xl border border-zinc-200 px-3 text-sm outline-none transition-colors focus:border-indigo-400"
+                    disabled={busy === "refine"}
+                  />
+                  <button
+                    onClick={handleRefine}
+                    disabled={busy !== null || !refineInput.trim()}
+                    className="h-10 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {busy === "refine" ? "改造中…" : "深化"}
+                  </button>
+                </div>
+                {busy === "refine" && (
+                  <BuildProgressPanel raw={buildText} phase="refine" onCancel={cancel} />
+                )}
+                {refineError && (
+                  <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                    {refineError}
+                  </p>
+                )}
+              </div>
+
+              <div className={bottomTab === "ask" ? "" : "hidden"}>
+                <AskPanel docId={docId} initialAsks={restoredAsks} />
+              </div>
+            </div>
           </motion.section>
         ) : null}
 

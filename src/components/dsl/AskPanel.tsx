@@ -47,8 +47,9 @@ const AskBubble = memo(function AskBubble({ item, active }: { item: AskItem; act
 });
 
 /**
- * 文档内追问面板：多轮记忆在服务端（DB 历史 + 最近 6 轮上下文），
- * 前端负责展示；问答区粘底滚动（上滚释放、回底重吸）。
+ * 文档内追问面板（嵌入模式：语境由外层 tab 提供）：
+ * 多轮记忆在服务端（DB 历史 + 最近 6 轮上下文），前端负责展示；
+ * 问答区粘底滚动（上滚释放、回底重吸）。
  */
 export function AskPanel({ docId, initialAsks }: { docId: number; initialAsks: AskItem[] }) {
   const [asks, setAsks] = useState<AskItem[]>(initialAsks);
@@ -88,11 +89,7 @@ export function AskPanel({ docId, initialAsks }: { docId: number; initialAsks: A
   }
 
   return (
-    <div className="mt-6 border-t border-zinc-100 pt-4">
-      <p className="mb-2 text-xs font-medium tracking-wide text-zinc-400">
-        追问这个讲解
-        <span className="ml-1 font-normal text-zinc-300">（支持多轮，记得此前问答）</span>
-      </p>
+    <div>
       {/* 常驻滚动容器（空时高度为 0），粘底与手势释放依赖它稳定存在 */}
       <div
         ref={containerRef}

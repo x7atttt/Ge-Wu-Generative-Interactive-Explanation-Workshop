@@ -1,6 +1,6 @@
 /** 前端 API 调用层：组件不直接 fetch，统一从这里走（SSE 流式 + 持久化数据加载） */
-import type { ExplainDoc } from "@/lib/dsl/schema";
 import type { AskItem } from "@/components/dsl/AskPanel";
+import type { Block, ExplainDoc } from "@/lib/dsl/schema";
 
 interface StreamHandlers {
   onDelta: (text: string) => void;
@@ -108,10 +108,10 @@ export async function listDocs(): Promise<DocSummary[]> {
   return data.docs;
 }
 
-/** 恢复一篇历史讲解：文档 + 已有问答（扁平行转为问答对） */
+/** 恢复一篇历史讲解：文档 + 已有问答 + 深化分组信息（指令与父版本块） */
 export async function loadDoc(
   docId: number
-): Promise<{ doc: ExplainDoc; asks: AskItem[] }> {
+): Promise<{ doc: ExplainDoc; asks: AskItem[]; instruction: string | null; parentBlocks: Block[] | null }> {
   const res = await fetch(`/api/docs/${docId}`);
   const data: unknown = await res.json().catch(() => null);
   if (!res.ok) {
@@ -124,6 +124,8 @@ export async function loadDoc(
   const payload = data as {
     doc: ExplainDoc;
     asks: { role: "user" | "assistant"; content: string }[];
+    instruction: string | null;
+    parentBlocks: Block[] | null;
   };
   const asks: AskItem[] = [];
   for (const row of payload.asks) {
@@ -133,5 +135,10 @@ export async function loadDoc(
       asks[asks.length - 1].done = true;
     }
   }
-  return { doc: payload.doc, asks };
+  return {
+    doc: payload.doc,
+    asks,
+    instruction: payload.instruction ?? null,
+    parentBlocks: payload.parentBlocks ?? null,
+  };
 }
