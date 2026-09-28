@@ -42,7 +42,7 @@ export function refineSystemPrompt(): string {
 
 规则：
 - version 保持 1，块类型不变；指令未提及的既有块保持逐字不变（前端靠块级 diff 做"深化"分组）
-- 新增内容以 heading 块开头，标题概括本次深化主题（如 {"type":"heading","text":"深化：谐波次数的影响"}）
+- 新增内容以 heading 块开头，标题概括本次深化主题；heading 文本**不要以「深化：」开头**（界面已用分组卡表达深化语义），直接写主题，如 {"type":"heading","text":"自测题——检验你的理解"}
 - 尽量把新增块追加在文档末尾
 - 指令通常是内容级操作：深入某主题、增加对比演示/现实例子、补充公式、出自测题、改用图表呈现等
 - 可用块类型与生成时相同：heading / text / formula / slider / wavePlot / chart / quiz

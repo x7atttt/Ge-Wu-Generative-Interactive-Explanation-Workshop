@@ -5,9 +5,9 @@ import { AnimatePresence, motion } from "motion/react";
 import { BuildProgressPanel } from "@/components/BuildProgressPanel";
 import { AskPanel, type AskItem } from "@/components/dsl/AskPanel";
 import { ExplainDocView } from "@/components/dsl/ExplainDocView";
-import { listDocs, loadDoc, streamExplanation, type DocSummary } from "@/lib/api/explanation";
+import { listDocs, loadDoc, streamExplanation, type DocSummary, type VersionPayload } from "@/lib/api/explanation";
 import { usePartialDoc } from "@/hooks/usePartialDoc";
-import { computeDeepen, type DeepenInfo } from "@/lib/dsl/deepen";
+import { computeDeepens } from "@/lib/dsl/deepen";
 import type { ExplainDoc } from "@/lib/dsl/schema";
 
 const EXAMPLE_CONCEPTS = ["正弦波的频率", "傅里叶级数", "柱状图", "供需与价格"];
@@ -23,7 +23,7 @@ export default function Home() {
   const [doc, setDoc] = useState<ExplainDoc | null>(null);
   const [docId, setDocId] = useState<number | null>(null);
   const [restoredAsks, setRestoredAsks] = useState<AskItem[]>([]);
-  const [deepen, setDeepen] = useState<DeepenInfo | null>(null);
+  const [versions, setVersions] = useState<VersionPayload[]>([]);
   const [busy, setBusy] = useState<null | "generate" | "refine">(null);
   const [buildText, setBuildText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +63,9 @@ export default function Home() {
   // 双栏布局需要横向空间：文档/流式文档存在时放宽容器
   const wide = doc !== null || streamDoc !== null;
 
+  // 深化链分段：由版本链派生（refine 追加语义下各轮 fromIndex 坐标一致）
+  const deepens = useMemo(() => computeDeepens(versions), [versions]);
+
   async function handleGenerate() {
     const text = concept.trim();
     if (!text || busy) return;
@@ -83,7 +86,7 @@ export default function Home() {
       setDoc(next);
       setDocId(id);
       setRestoredAsks([]);
-      setDeepen(null);
+      setVersions([{ blocks: next.blocks, instruction: null }]);
       setRefineInput("");
       setRefineError(null);
       refreshDocList();
@@ -114,8 +117,8 @@ export default function Home() {
           signal: controller.signal,
         }
       );
-      // 父版本就在闭包里：就地计算深化分组
-      setDeepen(computeDeepen(next.blocks, parentDoc.blocks, instruction));
+      // 父版本链就在闭包里：追加本轮版本，深化分段由 versions 派生
+      setVersions((prev) => [...prev, { blocks: next.blocks, instruction }]);
       setDoc(next);
       setDocId(id);
       setRestoredAsks([]);
@@ -136,11 +139,11 @@ export default function Home() {
     setLoadingDoc(true);
     setError(null);
     try {
-      const { doc: loaded, asks, instruction, parentBlocks } = await loadDoc(id);
+      const { doc: loaded, asks, versions: chain } = await loadDoc(id);
       setDoc(loaded);
       setDocId(id);
       setRestoredAsks(asks);
-      setDeepen(computeDeepen(loaded.blocks, parentBlocks, instruction));
+      setVersions(chain);
       setRefineError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "恢复讲解失败");
@@ -262,7 +265,7 @@ export default function Home() {
             transition={{ type: "spring", stiffness: 140, damping: 18 }}
             className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
           >
-            <ExplainDocView doc={doc} deepen={deepen} />
+            <ExplainDocView doc={doc} deepens={deepens} />
 
             {/* 底部对话面板：深化讲解｜追问细节 双 tab（双份内容常驻 hidden 切换，保住追问会话态） */}
             <div className="mt-6 border-t border-zinc-100 pt-4">
