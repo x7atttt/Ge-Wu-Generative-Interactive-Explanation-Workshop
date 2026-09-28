@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { BuildProgressPanel } from "@/components/BuildProgressPanel";
 import { AskPanel, type AskItem } from "@/components/dsl/AskPanel";
 import { ExplainDocView } from "@/components/dsl/ExplainDocView";
 import { listDocs, loadDoc, streamExplanation, type DocSummary } from "@/lib/api/explanation";
+import { usePartialDoc } from "@/hooks/usePartialDoc";
 import type { ExplainDoc } from "@/lib/dsl/schema";
 
 const EXAMPLE_CONCEPTS = ["正弦波的频率", "傅里叶级数", "柱状图", "供需与价格"];
@@ -44,6 +45,17 @@ export default function Home() {
   function cancel() {
     abortRef.current?.abort();
   }
+
+  // 流式上屏：生成期从累计原始文本派生部分文档（真块渐次上屏 + 尾部骨架）
+  const partial = usePartialDoc(busy === "generate" ? buildText : null);
+  const streamDoc = useMemo<ExplainDoc | null>(() => {
+    if (!partial || partial.blocks.length === 0) return null;
+    return {
+      version: 1,
+      title: partial.title || concept.trim() || "正在生成",
+      blocks: partial.blocks,
+    };
+  }, [partial, concept]);
 
   async function handleGenerate() {
     const text = concept.trim();
@@ -200,7 +212,7 @@ export default function Home() {
           </div>
 
           {busy === "generate" && (
-            <BuildProgressPanel text={buildText} phase="generate" onCancel={cancel} />
+            <BuildProgressPanel raw={buildText} phase="generate" onCancel={cancel} />
           )}
           <AnimatePresence>
             {error && (
@@ -216,68 +228,79 @@ export default function Home() {
           </AnimatePresence>
         </section>
 
-        {/* 讲解文档 */}
-        <AnimatePresence mode="wait">
-          {doc && docId !== null && (
-            <motion.section
-              key={docId}
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ type: "spring", stiffness: 140, damping: 18 }}
-              className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
-            >
-              <ExplainDocView doc={doc} />
+        {/* 讲解文档：生成期流式上屏（真块 + 尾骨架）；其余时间展示当前文档。
+            无 exit 等待（AnimatePresence mode="wait" 已移除）：refine 期间旧文档保留至 done 换新键 */}
+        {streamDoc && busy === "generate" ? (
+          <motion.section
+            key="streaming"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 140, damping: 18 }}
+            className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+          >
+            <ExplainDocView
+              doc={streamDoc}
+              skeletonTail={[...partial!.pending, partial!.lastType ?? "text"]}
+            />
+          </motion.section>
+        ) : doc && docId !== null ? (
+          <motion.section
+            key={docId}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 140, damping: 18 }}
+            className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+          >
+            <ExplainDocView doc={doc} />
 
-              {/* 内容级改造 */}
-              <div className="mt-6 border-t border-zinc-100 pt-4">
-                <p className="mb-2 text-xs font-medium tracking-wide text-zinc-400">
-                  继续深化这篇讲解
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {REFINE_EXAMPLES.map((example) => (
-                    <button
-                      key={example}
-                      onClick={() => setRefineInput(example)}
-                      disabled={busy === "refine"}
-                      className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-500 transition-colors hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-50"
-                    >
-                      {example}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-2 flex gap-2">
-                  <input
-                    value={refineInput}
-                    onChange={(e) => setRefineInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleRefine()}
-                    placeholder="或直接输入你想要的深化方向"
-                    maxLength={300}
-                    className="h-10 flex-1 rounded-xl border border-zinc-200 px-3 text-sm outline-none transition-colors focus:border-indigo-400"
-                    disabled={busy === "refine"}
-                  />
+            {/* 内容级改造 */}
+            <div className="mt-6 border-t border-zinc-100 pt-4">
+              <p className="mb-2 text-xs font-medium tracking-wide text-zinc-400">
+                继续深化这篇讲解
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {REFINE_EXAMPLES.map((example) => (
                   <button
-                    onClick={handleRefine}
-                    disabled={busy !== null || !refineInput.trim()}
-                    className="h-10 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    key={example}
+                    onClick={() => setRefineInput(example)}
+                    disabled={busy === "refine"}
+                    className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-500 transition-colors hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-50"
                   >
-                    {busy === "refine" ? "改造中…" : "改造"}
+                    {example}
                   </button>
-                </div>
-                {busy === "refine" && (
-                  <BuildProgressPanel text={buildText} phase="refine" onCancel={cancel} />
-                )}
-                {refineError && (
-                  <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-                    {refineError}
-                  </p>
-                )}
+                ))}
               </div>
+              <div className="mt-2 flex gap-2">
+                <input
+                  value={refineInput}
+                  onChange={(e) => setRefineInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleRefine()}
+                  placeholder="或直接输入你想要的深化方向"
+                  maxLength={300}
+                  className="h-10 flex-1 rounded-xl border border-zinc-200 px-3 text-sm outline-none transition-colors focus:border-indigo-400"
+                  disabled={busy === "refine"}
+                />
+                <button
+                  onClick={handleRefine}
+                  disabled={busy !== null || !refineInput.trim()}
+                  className="h-10 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {busy === "refine" ? "改造中…" : "改造"}
+                </button>
+              </div>
+              {busy === "refine" && (
+                <BuildProgressPanel raw={buildText} phase="refine" onCancel={cancel} />
+              )}
+              {refineError && (
+                <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                  {refineError}
+                </p>
+              )}
+            </div>
 
-              <AskPanel docId={docId} initialAsks={restoredAsks} />
-            </motion.section>
-          )}
-        </AnimatePresence>
+            <AskPanel docId={docId} initialAsks={restoredAsks} />
+          </motion.section>
+        ) : null}
 
         <footer className="mt-10 text-center text-xs text-zinc-400">
           格物 Gewu · 传智杯 AI 创新应用挑战赛（Vibe Coding）作品

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { useSmoothStreamText } from "@/hooks/useSmoothStreamText";
 
 const BLOCK_LABELS: Record<string, string> = {
   text: "讲解文字",
@@ -24,53 +25,33 @@ function parseProgress(text: string): { title: string | null; blocks: string[] }
   return { title, blocks };
 }
 
-/** 各块类型的骨架卡片形状（shimmer 占位，给"被搭建"的视觉叙事） */
-function BlockSkeleton({ type }: { type: string }) {
-  const base = "animate-pulse rounded-lg bg-zinc-200/80";
-  if (type === "text")
-    return (
-      <div className="space-y-2 py-1">
-        <div className={`${base} h-3 w-full`} />
-        <div className={`${base} h-3 w-11/12`} />
-        <div className={`${base} h-3 w-2/3`} />
-      </div>
-    );
-  if (type === "formula") return <div className={`${base} mx-auto h-12 w-1/2`} />;
-  if (type === "slider")
-    return (
-      <div className="py-1">
-        <div className={`${base} mb-2 h-2.5 w-24`} />
-        <div className={`${base} h-1.5 w-full`} />
-      </div>
-    );
-  if (type === "quiz")
-    return (
-      <div className="grid grid-cols-2 gap-2 py-1">
-        <div className={`${base} h-8 w-full`} />
-        <div className={`${base} h-8 w-full`} />
-      </div>
-    );
-  return <div className={`${base} h-40 w-full`} />; // wavePlot / chart
-}
-
+/**
+ * 构建过程面板：状态行 + 实时块清单 + 折叠的原始构建流（内部 rAF 平滑显示）。
+ * 骨架展示已移交文档区流式上屏（ExplainDocView skeletonTail）。
+ */
 export function BuildProgressPanel({
-  text,
+  raw,
   phase,
   onCancel,
 }: {
-  text: string;
+  raw: string;
   phase: "generate" | "refine";
   onCancel: () => void;
 }) {
   const [showRaw, setShowRaw] = useState(false);
   const rawScrollRef = useRef<HTMLDivElement>(null);
+  const { display, setTarget } = useSmoothStreamText();
 
-  const { title, blocks } = useMemo(() => parseProgress(text), [text]);
+  useEffect(() => {
+    setTarget(raw);
+  }, [raw, setTarget]);
 
   useEffect(() => {
     const el = rawScrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [text, showRaw]);
+    if (el && showRaw) el.scrollTop = el.scrollHeight;
+  }, [display, showRaw]);
+
+  const { title, blocks } = parseProgress(raw);
 
   return (
     <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3">
@@ -101,29 +82,10 @@ export function BuildProgressPanel({
                   isLast ? "text-indigo-600" : "text-zinc-400"
                 }`}
               >
-                <span className={isLast ? "animate-pulse" : ""}>
-                  {isLast ? "✎" : "✓"}
-                </span>
+                <span className={isLast ? "animate-pulse" : ""}>{isLast ? "✎" : "✓"}</span>
                 {BLOCK_LABELS[type] ?? type}
                 {isLast && "…"}
               </span>
-            );
-          })}
-        </div>
-      )}
-
-      {blocks.length > 0 && (
-        <div className="mt-3 flex flex-col gap-3 rounded-lg bg-white p-3 shadow-inner">
-          {blocks.map((type, i) => {
-            const isLast = i === blocks.length - 1;
-            return (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: isLast ? 0.6 : 1, y: 0 }}
-              >
-                <BlockSkeleton type={type} />
-              </motion.div>
             );
           })}
         </div>
@@ -149,7 +111,7 @@ export function BuildProgressPanel({
               ref={rawScrollRef}
               className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap break-all rounded-lg bg-zinc-900 p-3 font-mono text-[11px] leading-5 text-emerald-300/90"
             >
-              {text}
+              {display}
               <span className="ml-0.5 inline-block h-3 w-[6px] animate-pulse bg-emerald-300 align-middle" />
             </div>
           </motion.div>

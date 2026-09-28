@@ -5,12 +5,19 @@ import { motion } from "motion/react";
 import type { ExplainDoc } from "@/lib/dsl/schema";
 import { VarContext, type VarState } from "./var-context";
 import { BlockRenderer } from "./BlockRenderer";
+import { BlockSkeleton } from "./BlockSkeleton";
 
 /**
  * 讲解文档容器：管理滑块变量值域，按块顺序渲染。
- * 离散状态切换（进出场、步骤编排）用 spring；拖拽类直接操作不经过这里。
+ * skeletonTail：生成期流式上屏时，已解析真块之后待产出的骨架占位。
  */
-export function ExplainDocView({ doc }: { doc: ExplainDoc }) {
+export function ExplainDocView({
+  doc,
+  skeletonTail,
+}: {
+  doc: ExplainDoc;
+  skeletonTail?: string[];
+}) {
   const initialValues = useMemo(() => {
     const record: Record<string, number> = {};
     for (const block of doc.blocks) {
@@ -50,6 +57,20 @@ export function ExplainDocView({ doc }: { doc: ExplainDoc }) {
             <BlockRenderer block={block} />
           </motion.div>
         ))}
+        {skeletonTail && skeletonTail.length > 0 && (
+          <div className="flex flex-col gap-4">
+            {skeletonTail.map((type, i) => (
+              <motion.div
+                key={`skeleton-${i}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.7 }}
+                className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4"
+              >
+                <BlockSkeleton type={type} />
+              </motion.div>
+            ))}
+          </div>
+        )}
       </article>
     </VarContext.Provider>
   );
