@@ -3,6 +3,7 @@
 import type { Block } from "@/lib/dsl/schema";
 import { ChartView } from "./ChartView";
 import { FormulaBlockView } from "./FormulaBlockView";
+import { HeadingBlockView } from "./HeadingBlockView";
 import { QuizView } from "./QuizView";
 import { SliderControl } from "./SliderControl";
 import { TextBlockView } from "./TextBlockView";
@@ -14,6 +15,8 @@ import { WavePlotView } from "./WavePlotView";
  */
 export function BlockRenderer({ block }: { block: Block }) {
   switch (block.type) {
+    case "heading":
+      return <HeadingBlockView block={block} />;
     case "text":
       return <TextBlockView block={block} />;
     case "formula":
