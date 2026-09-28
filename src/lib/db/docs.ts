@@ -7,6 +7,7 @@ export interface DocRow {
   parentId: number | null;
   title: string;
   doc: ExplainDoc;
+  instruction: string | null;
   createdAt: string;
 }
 
@@ -21,19 +22,20 @@ interface RawRow {
   parent_id: number | null;
   title: string;
   doc: string;
+  instruction: string | null;
   created_at: string;
 }
 
-export function insertDoc(doc: ExplainDoc, parentId: number | null): number {
+export function insertDoc(doc: ExplainDoc, parentId: number | null, instruction: string | null = null): number {
   const result = getDb()
-    .prepare("INSERT INTO docs (parent_id, title, doc) VALUES (?, ?, ?)")
-    .run(parentId, doc.title, JSON.stringify(doc));
+    .prepare("INSERT INTO docs (parent_id, title, doc, instruction) VALUES (?, ?, ?, ?)")
+    .run(parentId, doc.title, JSON.stringify(doc), instruction);
   return Number(result.lastInsertRowid);
 }
 
 export function getDoc(id: number): DocRow | null {
   const row = getDb()
-    .prepare("SELECT id, parent_id, title, doc, created_at FROM docs WHERE id = ?")
+    .prepare("SELECT id, parent_id, title, doc, instruction, created_at FROM docs WHERE id = ?")
     .get(id) as unknown as RawRow | undefined;
   if (!row) return null;
   // 防御：损坏/不合法的行直接视为不存在
@@ -45,7 +47,14 @@ export function getDoc(id: number): DocRow | null {
   } catch {
     return null;
   }
-  return { id: row.id, parentId: row.parent_id, title: row.title, doc, createdAt: row.created_at };
+  return {
+    id: row.id,
+    parentId: row.parent_id,
+    title: row.title,
+    doc,
+    instruction: row.instruction,
+    createdAt: row.created_at,
+  };
 }
 
 export function listDocs(limit = 20): DocSummary[] {

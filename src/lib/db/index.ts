@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS docs (
   parent_id INTEGER REFERENCES docs(id),
   title TEXT NOT NULL,
   doc TEXT NOT NULL,
+  instruction TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS asks (
@@ -35,6 +36,12 @@ export function getDb(): DatabaseSync {
   const db = new DatabaseSync(path.join(dir, "gewu.db"));
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec(SCHEMA);
+  // 老库迁移：补 instruction 列（已存在则忽略，幂等）
+  try {
+    db.exec("ALTER TABLE docs ADD COLUMN instruction TEXT");
+  } catch {
+    // duplicate column: 列已存在
+  }
   g.__gewuDb = db;
   return db;
 }

@@ -15,6 +15,12 @@ const numberSlotSchema = z.union([z.number(), varRefSchema]);
 
 const identifierPattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+export const headingBlockSchema = z.object({
+  type: z.literal("heading"),
+  text: z.string().min(1),
+  level: z.number().int().min(2).max(3).default(3),
+});
+
 export const textBlockSchema = z.object({
   type: z.literal("text"),
   content: z.string().min(1),
@@ -77,6 +83,7 @@ export const quizBlockSchema = z.object({
 });
 
 export const blockSchema = z.discriminatedUnion("type", [
+  headingBlockSchema,
   textBlockSchema,
   formulaBlockSchema,
   sliderBlockSchema,
@@ -150,6 +157,7 @@ export const explainDocSchema = z
 
 export type ExplainDoc = z.output<typeof explainDocSchema>;
 export type Block = z.output<typeof blockSchema>;
+export type HeadingBlock = z.output<typeof headingBlockSchema>;
 export type TextBlock = z.output<typeof textBlockSchema>;
 export type FormulaBlock = z.output<typeof formulaBlockSchema>;
 export type SliderBlock = z.output<typeof sliderBlockSchema>;

@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       const doc = await refineDoc(parsed.data, instruction.trim(), (text) =>
         send({ type: "delta", text })
       );
-      const docId = insertDoc(doc, parentDocId);
+      const docId = insertDoc(doc, parentDocId, instruction.trim());
       send({ type: "done", doc, docId });
     } catch (err) {
       console.error("[api/refine]", err);

@@ -15,5 +15,13 @@ export async function GET(
   if (!row) {
     return NextResponse.json({ error: "讲解不存在或已损坏" }, { status: 404 });
   }
-  return NextResponse.json({ docId: row.id, doc: row.doc, asks: listAsks(docId) });
+  // 父版本块供前端计算深化分组（diff + 指令标题）
+  const parent = row.parentId !== null ? getDoc(row.parentId) : null;
+  return NextResponse.json({
+    docId: row.id,
+    doc: row.doc,
+    instruction: row.instruction,
+    parentBlocks: parent?.doc.blocks ?? null,
+    asks: listAsks(docId),
+  });
 }
