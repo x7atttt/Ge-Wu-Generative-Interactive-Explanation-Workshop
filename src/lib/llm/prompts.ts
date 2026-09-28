@@ -8,21 +8,23 @@ export function generateSystemPrompt(): string {
 
 结构：{"version":1,"title":标题,"blocks":[块数组]}
 
-六种块（按讲解顺序排列）：
-1. {"type":"text","content":"讲解文字"}
-2. {"type":"formula","latex":"KaTeX 公式（转义反斜杠）","caption":"符号说明（可选）"}
-3. {"type":"slider","var":"变量名","label":"显示名","min":数,"max":数,"step":正数,"initial":数}
-4. {"type":"wavePlot","title?":"","xLabel?":"","yLabel?":"","terms":[{"fn":"sin|cos","amp":槽,"freq":槽,"phase":槽}]}
+七种块（按讲解顺序排列）：
+1. {"type":"heading","text":"小节标题","level":2或3（默认3，可省略）} —— 文档超过 8 块时分节使用
+2. {"type":"text","content":"讲解文字"}
+3. {"type":"formula","latex":"KaTeX 公式（转义反斜杠）","caption":"符号说明（可选）"}
+4. {"type":"slider","var":"变量名","label":"显示名","min":数,"max":数,"step":正数,"initial":数}
+5. {"type":"wavePlot","title?":"","xLabel?":"","yLabel?":"","terms":[{"fn":"sin|cos","amp":槽,"freq":槽,"phase":槽}]}
    槽 = 数字 或 {"$var":"滑块变量名"}；图像按 y = Σ amp·fn(2π·freq·x + phase) 绘制，x 范围约 [-1,4]
-5. {"type":"chart","chartType":"bar|line|pie","title?":"","categories":["名",...],"series":[{"name?":"","data":[槽,...]}]}
+6. {"type":"chart","chartType":"bar|line|pie","title?":"","categories":["名",...],"series":[{"name?":"","data":[槽,...]}]}
    非波形概念（统计、柱状图、经济、计数）用它，别硬凑 sin/cos
-6. {"type":"quiz","question":"问题","options":["A","B","C","D"],"answer":正确项下标,"explanation":"解析"}
+7. {"type":"quiz","question":"问题","options":["A","B","C","D"],"answer":正确项下标,"explanation":"解析"}
 
 设计要求：
 - 面向中文大学生；结构：直觉引入(text) → 核心公式(formula) → 交互探索(slider × 1~3 + wavePlot 或 chart) → 小结(text) → 自测题(quiz × 1~2)
 - 图表关键参数用 {"$var":...} 绑定滑块；滑块 var 唯一且为合法标识符；$var 只能引用已定义滑块
 - 波形概念用 wavePlot（多 terms 叠加展示傅里叶等）；非波形概念用 chart（categories 用短标签，数据量级让差异直观）
 - 每个数值槽取让变化直观可见的范围
+- 布局自适应：滑块集中在参数台显示，文字中不要出现"下方/上方/右边"等位置指代，直接说"拖动 XX 滑块"
 
 示例（概念：正弦波的频率，节选）：
 {"version":1,"title":"正弦波的频率","blocks":[
@@ -39,9 +41,11 @@ export function refineSystemPrompt(): string {
   return `你是「格物」的讲解改造器。输入是当前讲解文档（JSON）与用户的一句改造指令，输出修改后的完整文档 JSON。只输出 JSON 本身，不要用 markdown 代码块包裹。
 
 规则：
-- version 保持 1，块类型不变；指令未提及的内容原样保留
+- version 保持 1，块类型不变；指令未提及的既有块保持逐字不变（前端靠块级 diff 做"深化"分组）
+- 新增内容以 heading 块开头，标题概括本次深化主题（如 {"type":"heading","text":"深化：谐波次数的影响"}）
+- 尽量把新增块追加在文档末尾
 - 指令通常是内容级操作：深入某主题、增加对比演示/现实例子、补充公式、出自测题、改用图表呈现等
-- 可用块类型与生成时相同：text / formula / slider / wavePlot / chart / quiz
+- 可用块类型与生成时相同：heading / text / formula / slider / wavePlot / chart / quiz
 - 结构约束：滑块 var 唯一；{"$var":...} 只能引用已定义滑块变量；min < max 且 step > 0；quiz 的 answer 必须小于 options 数量
 - 若指令要求“固定某参数”：把对应数值槽改为具体数字，并删除不再被引用的滑块`;
 }
