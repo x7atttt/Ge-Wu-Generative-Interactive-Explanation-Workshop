@@ -73,8 +73,31 @@ export function escapeUnknownTags(content: string): string {
   return unmask(escaped);
 }
 
+// ---------- CJK 加粗修复 ----------
+
+/**
+ * CommonMark 侧性规则在 CJK 场景失效：闭合 ** 前邻全角标点（如 ））后邻汉字时
+ * 不构成右侧定界符，加粗不成立；开启 ** 后邻全角标点同理。
+ * 修复：在定界符与 CJK 标点之间插入零宽空格（ZWSP，非空白非标点）打断邻接。
+ */
+const ZWSP = "\u200B";
+const CJK_PUNCT = "\\u3000-\\u303F\\uFF01-\\uFF60\\u2018\\u2019\\u201C\\u201D\\u2014\\u2026";
+const BOLD_AFTER_PUNCT_RE = new RegExp(`(?<=[${CJK_PUNCT}])\\*\\*`, "g");
+const BOLD_BEFORE_PUNCT_RE = new RegExp(`\\*\\*(?=[${CJK_PUNCT}])`, "g");
+
+export function repairCjkBold(content: string): string {
+  if (!content.includes("**")) return content;
+  const { mask, unmask } = createMask();
+  const masked = content.replace(BACKTICK_SPAN_RE, (match) => mask(match));
+  const repaired = masked
+    .replace(BOLD_AFTER_PUNCT_RE, (match) => ZWSP + match)
+    .replace(BOLD_BEFORE_PUNCT_RE, (match) => match + ZWSP);
+  return unmask(repaired);
+}
+
 /** MarkdownView 的统一入口 */
 export function preprocessMarkdown(content: string): string {
   const escaped = escapeUnknownTags(content);
-  return hasMath(escaped) ? preprocessMath(escaped) : escaped;
+  const repaired = repairCjkBold(escaped);
+  return hasMath(repaired) ? preprocessMath(repaired) : repaired;
 }
