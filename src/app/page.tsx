@@ -20,12 +20,14 @@ const REFINE_EXAMPLES = [
 
 export default function Home() {
   const [concept, setConcept] = useState("");
+  const [webSearchOn, setWebSearchOn] = useState(true);
   const [doc, setDoc] = useState<ExplainDoc | null>(null);
   const [docId, setDocId] = useState<number | null>(null);
   const [restoredAsks, setRestoredAsks] = useState<AskItem[]>([]);
   const [versions, setVersions] = useState<VersionPayload[]>([]);
   const [busy, setBusy] = useState<null | "generate" | "refine">(null);
   const [buildText, setBuildText] = useState("");
+  const [searchNote, setSearchNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [refineInput, setRefineInput] = useState("");
@@ -74,12 +76,14 @@ export default function Home() {
     setBusy("generate");
     setError(null);
     setBuildText("");
+    setSearchNote(null);
     try {
       const { doc: next, docId: id } = await streamExplanation(
         "generate",
-        { concept: text },
+        { concept: text, webSearch: webSearchOn },
         {
           onDelta: (t) => setBuildText((prev) => prev + t),
+          onInfo: (m) => setSearchNote(m),
           signal: controller.signal,
         }
       );
@@ -223,10 +227,27 @@ export default function Home() {
                 {example}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setWebSearchOn((v) => !v)}
+              aria-pressed={webSearchOn}
+              disabled={busy === "generate"}
+              className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-50 ${
+                webSearchOn
+                  ? "border-indigo-300 bg-indigo-50 text-indigo-600"
+                  : "border-zinc-200 text-zinc-400 hover:text-zinc-600"
+              }`}
+              title="生成前用博查检索网络资料补充事实依据"
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${webSearchOn ? "bg-indigo-500" : "bg-zinc-300"}`}
+              />
+              联网检索
+            </button>
           </div>
 
           {busy === "generate" && (
-            <BuildProgressPanel raw={buildText} phase="generate" onCancel={cancel} />
+            <BuildProgressPanel raw={buildText} phase="generate" note={searchNote} onCancel={cancel} />
           )}
           <AnimatePresence>
             {error && (

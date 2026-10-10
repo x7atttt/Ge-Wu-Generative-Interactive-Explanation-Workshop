@@ -4,11 +4,14 @@ import type { Block, ExplainDoc } from "@/lib/dsl/schema";
 
 interface StreamHandlers {
   onDelta: (text: string) => void;
+  /** 生成过程中的阶段提示（如网络检索完成）；可选 */
+  onInfo?: (message: string) => void;
   signal?: AbortSignal;
 }
 
 type SSEEvent =
   | { type: "delta"; text: string }
+  | { type: "info"; message: string }
   | { type: "done"; doc?: ExplainDoc; docId?: number }
   | { type: "error"; message: string };
 
@@ -65,11 +68,12 @@ async function consumeSSE<T>(
 export async function streamExplanation(
   kind: "generate" | "refine",
   body: unknown,
-  { onDelta, signal }: StreamHandlers
+  { onDelta, onInfo, signal }: StreamHandlers
 ): Promise<DocResult> {
   const reader = await openSSE(`/api/${kind}`, body, signal);
   return consumeSSE(reader, (event) => {
     if (event.type === "delta" && event.text) onDelta(event.text);
+    if (event.type === "info" && event.message) onInfo?.(event.message);
     if (event.type === "done" && event.doc && typeof event.docId === "number") {
       return { doc: event.doc, docId: event.docId };
     }

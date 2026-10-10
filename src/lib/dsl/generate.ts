@@ -10,6 +10,7 @@ import {
   repairSystemPrompt,
 } from "@/lib/llm/prompts";
 import { llmConfigFromEnv } from "@/lib/llm/client";
+import type { SearchRef } from "@/lib/search/bocha";
 import { validateDoc, type ExplainDoc } from "./schema";
 
 export class DslError extends Error {
@@ -71,14 +72,29 @@ async function withRepair(raw: string, history: ChatMessage[]): Promise<ExplainD
   }
 }
 
-/** 主模型流式生成；onDelta 透出原始增量供前端构建流面板展示 */
+/** 参考资料（网络检索）格式化为编号列表；只带标题/站点/日期与摘要，不带链接 */
+function formatRefs(refs: SearchRef[]): string {
+  return refs
+    .map((ref, i) => {
+      const meta = [ref.siteName, ref.date].filter(Boolean).join("，");
+      return `[${i + 1}] ${ref.title}${meta ? `（${meta}）` : ""}\n${ref.summary}`;
+    })
+    .join("\n\n");
+}
+
+/** 主模型流式生成；refs 为路由层检索的网络资料（可为空），onDelta 透出原始增量供前端构建流面板展示 */
 export async function generateDoc(
   concept: string,
+  refs: SearchRef[] = [],
   onDelta?: (text: string) => void
 ): Promise<ExplainDoc> {
+  const userContent =
+    refs.length === 0
+      ? `概念：${concept}`
+      : `概念：${concept}\n\n参考资料（网络检索结果）：\n${formatRefs(refs)}`;
   const history: ChatMessage[] = [
     { role: "system", content: generateSystemPrompt() },
-    { role: "user", content: `概念：${concept}` },
+    { role: "user", content: userContent },
   ];
   const raw = onDelta
     ? await streamChat(history, { jsonMode: true, temperature: 0.4 }, onDelta)

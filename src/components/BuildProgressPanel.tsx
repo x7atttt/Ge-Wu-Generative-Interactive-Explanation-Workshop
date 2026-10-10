@@ -37,10 +37,13 @@ function parseProgress(text: string): { title: string | null; blocks: string[] }
 export function BuildProgressPanel({
   raw,
   phase,
+  note,
   onCancel,
 }: {
   raw: string;
   phase: "generate" | "refine";
+  /** 阶段提示（如"已检索 N 条网络资料"），生成前的准备阶段 */
+  note?: string | null;
   onCancel: () => void;
 }) {
   const [showRaw, setShowRaw] = useState(false);
@@ -75,6 +78,8 @@ export function BuildProgressPanel({
           </button>
         </div>
       </div>
+
+      {note && <p className="mt-1 text-xs text-zinc-400">🌐 {note}</p>}
 
       {blocks.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
