@@ -43,7 +43,26 @@ function parseAndValidate(raw: string): ExplainDoc {
   }
   const issues = validateDoc(parsed);
   if (issues) throw new DslError(`文档结构校验失败：${issues}`);
+  const chartIssue = strictChartChecks(parsed as ExplainDoc);
+  if (chartIssue) throw new DslError(`文档结构校验失败：${chartIssue}`);
   return parsed as ExplainDoc;
+}
+
+/**
+ * 生成期严格校验（比存储 schema 更严，仅新生成/修复路径使用，存量文档仍可加载）：
+ * chart 的每个系列数据点数必须与 categories 一致——数量错位 ECharts 会静默少画，
+ * 折线断头且形状失真（实测：5 个角度只给 4 个值）。
+ */
+function strictChartChecks(doc: ExplainDoc): string | null {
+  for (const [i, block] of doc.blocks.entries()) {
+    if (block.type !== "chart" || !block.categories) continue;
+    for (const [j, serie] of block.series.entries()) {
+      if (serie.data.length !== block.categories.length) {
+        return `blocks[${i}].series[${j}].data 有 ${serie.data.length} 个值，但 categories 有 ${block.categories.length} 个，数量必须一致`;
+      }
+    }
+  }
+  return null;
 }
 
 /** 校验失败时携带错误让 LLM 自修复一次（非流式，罕见路径不值得流式复杂度） */
