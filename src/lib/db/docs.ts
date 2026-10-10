@@ -57,9 +57,9 @@ export function getDoc(id: number): DocRow | null {
   };
 }
 
-export function listDocs(limit = 20): DocSummary[] {
+export function listDocs(limit = 500): DocSummary[] {
   const rows = getDb()
     .prepare("SELECT id, title, created_at FROM docs ORDER BY id DESC LIMIT ?")
-    .all(limit) as unknown as DocSummary[];
-  return rows;
+    .all(limit) as unknown as { id: number; title: string; created_at: string }[];
+  return rows.map((row) => ({ id: row.id, title: row.title, createdAt: row.created_at }));
 }
