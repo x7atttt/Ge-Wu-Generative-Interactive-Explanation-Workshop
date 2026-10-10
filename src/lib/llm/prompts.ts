@@ -8,7 +8,7 @@ export function generateSystemPrompt(): string {
 
 结构：{"version":1,"title":标题,"blocks":[块数组]}
 
-七种块（按讲解顺序排列）：
+十种块（按讲解顺序排列）：
 1. {"type":"heading","text":"小节标题","level":2或3（默认3，可省略）} —— 文档超过 8 块时分节使用
 2. {"type":"text","content":"讲解文字"}
 3. {"type":"formula","latex":"KaTeX 公式（转义反斜杠）","caption":"符号说明（可选）"}
@@ -16,25 +16,41 @@ export function generateSystemPrompt(): string {
 5. {"type":"wavePlot","title?":"","xLabel?":"","yLabel?":"","terms":[{"fn":"sin|cos","amp":槽,"freq":槽,"phase":槽}]}
    槽 = 数字 或 {"$var":"滑块变量名"}；图像按 y = Σ amp·fn(2π·freq·x + phase) 绘制，x 范围约 [-1,4]
 6. {"type":"chart","chartType":"bar|line|pie","title?":"","categories":["名",...],"series":[{"name?":"","data":[槽,...]}]}
-   非波形概念（统计、柱状图、经济、计数）用它，别硬凑 sin/cos
-7. {"type":"quiz","question":"问题","options":["A","B","C","D"],"answer":正确项下标,"explanation":"解析"}
+   非波形概念（统计、经济、计数）用它，别硬凑 sin/cos
+7. {"type":"fillBlank","prompt?":"任务说明","text":"句子，空位用 ___ 表示","blanks":[{"options":["词1","词2","词3"],"answer":正确项下标,"explanation?":"解析"}]}
+   text 中 ___ 的个数必须等于 blanks 数量；用于语法/词汇/代码语法等在语境中回忆的练习
+8. {"type":"match","prompt":"任务说明","pairs":[{"left":"词","right":"对应项"}]} —— 2~5 对，left 与 right 各自不重复；用于术语↔含义等配对记忆
+9. {"type":"sort","prompt":"任务说明","categories":["类A","类B"],"items":[{"label":"条目","category":"所属类别"}]} —— category 必须取自 categories；用于分类判断练习
+10. {"type":"quiz","question":"问题","options":["A","B","C","D"],"answer":正确项下标,"explanation":"解析"}
 
-设计要求：
-- 面向中文大学生；结构：直觉引入(text) → 核心公式(formula) → 交互探索(slider × 1~3 + wavePlot 或 chart) → 小结(text) → 自测题(quiz × 1~2)
-- 图表关键参数用 {"$var":...} 绑定滑块；滑块 var 唯一且为合法标识符；$var 只能引用已定义滑块
-- 波形概念用 wavePlot（多 terms 叠加展示傅里叶等）；非波形概念用 chart（categories 用短标签，数据量级让差异直观）
-- 每个数值槽取让变化直观可见的范围
+交互选型（按主题选择，交互必须服务于理解，不是每篇都需要滑块）：
+- 量化规律（数学/物理/信号/统计）：formula + slider(1~3 个) + wavePlot 或 chart
+- 语法/词汇/代码语法/配置规则：fillBlank(1~2) + quiz，不要造数值参数
+- 术语与概念的对应关系：match(1 组) + quiz
+- 分类体系/判断标准：sort(1 组) + quiz
+- 叙述、流程、历史类知识：text + heading 分节 + quiz，允许没有任何参数交互
+- 禁止为凑交互生造无语义的数值（如给语法主题配"数量滑块"）
+
+通用要求：
+- 面向中文大学生；开头用直觉引入(text)，结尾给小结(text)与自测(quiz 1~2)
+- 图表关键参数用 {"$var":...} 绑定滑块；滑块 var 唯一且为合法标识符；$var 只能引用已定义滑块；min < max 且 step > 0
+- 每个数值槽取让变化直观可见的范围；波形概念用 wavePlot（多 terms 叠加），非波形数值概念用 chart（categories 用短标签）
 - 布局自适应：滑块集中在参数台显示，文字中不要出现"下方/上方/右边"等位置指代，直接说"拖动 XX 滑块"
 
-示例（概念：正弦波的频率，节选）：
+示例A（量化主题：正弦波的频率，节选）：
 {"version":1,"title":"正弦波的频率","blocks":[
  {"type":"text","content":"频率 f 决定波形在单位区间内重复多少次：f 越大，波越密。拖动滑块观察变化。"},
  {"type":"formula","latex":"y = A\\\\sin(2\\\\pi f x + \\\\varphi)","caption":"A 振幅，f 频率"},
  {"type":"slider","var":"f","label":"频率 f","min":0.5,"max":5,"step":0.1,"initial":1},
  {"type":"slider","var":"A","label":"振幅 A","min":0.2,"max":2,"step":0.1,"initial":1},
  {"type":"wavePlot","terms":[{"fn":"sin","amp":{"$var":"A"},"freq":{"$var":"f"},"phase":0}]},
- {"type":"text","content":"小结：f 翻倍则波峰数翻倍；A 只改高低。"},
- {"type":"quiz","question":"把频率 f 从 1 增大到 2，波形会？","options":["波峰数量翻倍","振幅翻倍","整体上移","不变"],"answer":0,"explanation":"频率控制疏密，振幅才控制高低。"}]}`;
+ {"type":"quiz","question":"把频率 f 从 1 增大到 2，波形会？","options":["波峰数量翻倍","振幅翻倍","整体上移","不变"],"answer":0,"explanation":"频率控制疏密，振幅才控制高低。"}]}
+
+示例B（语言主题：英语名词复数，节选）：
+{"version":1,"title":"英语名词复数","blocks":[
+ {"type":"text","content":"英语中多于一个的事物，名词要变复数：一般加 -s（book→books）；辅音字母 + y 结尾变 y 为 ies（baby→babies）；还有不规则变化（child→children）。"},
+ {"type":"fillBlank","prompt":"选词完成句子","text":"Look! Two ___ are playing in the park.","blanks":[{"options":["child","children","childs"],"answer":1,"explanation":"child 是不规则复数，变 children。"}]},
+ {"type":"quiz","question":"「三个孩子」的正确表达是？","options":["three childs","three children","three childrens","three child"],"answer":1,"explanation":"child→children 为不规则变化，复数后不再加 s。"}]}`;
 }
 
 export function refineSystemPrompt(): string {
@@ -45,7 +61,8 @@ export function refineSystemPrompt(): string {
 - 新增内容以 heading 块开头，标题概括本次深化主题；heading 文本**不要以「深化：」开头**（界面已用分组卡表达深化语义），直接写主题，如 {"type":"heading","text":"自测题——检验你的理解"}
 - 尽量把新增块追加在文档末尾
 - 指令通常是内容级操作：深入某主题、增加对比演示/现实例子、补充公式、出自测题、改用图表呈现等
-- 可用块类型与生成时相同：heading / text / formula / slider / wavePlot / chart / quiz
+- 可用块类型与生成时相同：heading / text / formula / slider / wavePlot / chart / fillBlank / match / sort / quiz
+- 新增练习时按主题选块：语法/词汇用 fillBlank，术语对应用 match，分类判断用 sort（结构与生成规范一致）
 - 结构约束：滑块 var 唯一；{"$var":...} 只能引用已定义滑块变量；min < max 且 step > 0；quiz 的 answer 必须小于 options 数量
 - 若指令要求“固定某参数”：把对应数值槽改为具体数字，并删除不再被引用的滑块`;
 }
