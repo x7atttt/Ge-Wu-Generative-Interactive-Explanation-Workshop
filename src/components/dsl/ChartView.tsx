@@ -21,17 +21,30 @@ export function ChartView({ block }: { block: ChartBlock }) {
         series: [{ type: "pie", radius: ["38%", "64%"], data }],
       };
     }
+    // 有名字的系列就常驻显示图例（单系列也一样）：系列名如 "x = r·cos θ" 是关键信息，
+    // 只在悬停 tooltip 里出现会被误读为图例且不悬停就看不到
+    const namedCount = block.series.filter((s) => s.name).length;
     return {
       tooltip: { trigger: "axis" },
-      ...(block.series.length > 1
-        ? { legend: { bottom: 0, icon: "roundRect", itemWidth: 12, itemHeight: 6 } }
+      ...(namedCount > 0
+        ? {
+            legend: {
+              bottom: 0,
+              icon: "roundRect",
+              itemWidth: 12,
+              itemHeight: 6,
+              textStyle: { color: "#71717a", fontSize: 11 },
+            },
+          }
         : {}),
-      grid: { left: 44, right: 16, top: 28, bottom: block.series.length > 1 ? 40 : 28 },
+      grid: { left: 44, right: 16, top: 28, bottom: namedCount > 0 ? 40 : 28 },
       xAxis: { type: "category", data: block.categories ?? [] },
       yAxis: { type: "value" },
       series: block.series.map((serie) => ({
         name: serie.name,
         type: block.chartType,
+        // 采样点连成的函数曲线用轻度平滑，缓解折角失真；离散对比数据也适用
+        ...(block.chartType === "line" ? { smooth: 0.3 } : {}),
         data: serie.data.map((slot) => resolveSlot(slot, values)),
       })),
     };
