@@ -25,6 +25,16 @@ CREATE TABLE IF NOT EXISTS asks (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_asks_doc ON asks(doc_id);
+CREATE TABLE IF NOT EXISTS attempts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  doc_id INTEGER NOT NULL REFERENCES docs(id),
+  block_type TEXT NOT NULL CHECK(block_type IN ('quiz','fillBlank','match','sort')),
+  correct INTEGER NOT NULL CHECK(correct IN (0,1)),
+  -- 学习统计按"天"聚合，用本地时间写日界（库内其余表沿用 UTC，仅此表面向按日分组）
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_attempts_doc ON attempts(doc_id);
+CREATE INDEX IF NOT EXISTS idx_attempts_time ON attempts(created_at);
 `;
 
 export function getDb(): DatabaseSync {
