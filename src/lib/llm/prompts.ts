@@ -15,6 +15,8 @@ export function generateSystemPrompt(): string {
 4. {"type":"slider","var":"变量名","label":"显示名","min":数,"max":数,"step":正数,"initial":数}
 5. {"type":"wavePlot","title?":"","xLabel?":"","yLabel?":"","terms":[{"fn":"sin|cos","amp":槽,"freq":槽,"phase":槽}]}
    槽 = 数字 或 {"$var":"滑块变量名"}；图像按 y = Σ amp·fn(2π·freq·x + phase) 绘制，x 范围约 [-1,4]
+   注意：多 terms 会叠加成**一条**曲线（用于展示合成/叠加效果），不是多条曲线同图——
+   要对比两条曲线，用两个 wavePlot 块上下排列，各配 title 区分
 6. {"type":"chart","chartType":"bar|line|pie","title?":"","categories":["名",...],"series":[{"name?":"","data":[槽,...]}]}
    非波形概念（统计、经济、计数）用它，别硬凑 sin/cos
 7. {"type":"fillBlank","prompt?":"任务说明","text":"句子，空位用 ___ 表示","blanks":[{"options":["词1","词2","词3"],"answer":正确项下标,"explanation?":"解析"}]}
@@ -65,6 +67,7 @@ export function refineSystemPrompt(): string {
 - 可用块类型与生成时相同：heading / text / formula / slider / wavePlot / chart / fillBlank / match / sort / quiz
 - 新增练习时按主题选块：语法/词汇用 fillBlank，术语对应用 match，分类判断用 sort（结构与生成规范一致）
 - 结构约束：滑块 var 唯一；{"$var":...} 只能引用已定义滑块变量；min < max 且 step > 0；quiz 的 answer 必须小于 options 数量
+- wavePlot 的多 terms 叠加为**一条**曲线（y=Σ）；对比两条曲线用两个 wavePlot 块上下排列；文字描述必须与实际渲染一致，不要提及不存在的曲线颜色或"两条线"
 - 若指令要求“固定某参数”：把对应数值槽改为具体数字，并删除不再被引用的滑块`;
 }
 
