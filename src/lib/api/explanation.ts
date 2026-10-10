@@ -9,6 +9,9 @@ interface StreamHandlers {
   signal?: AbortSignal;
 }
 
+/** 语气人设（服务端注入提示词，仅影响文字风格）；null/省略 = 默认 */
+export type PersonaStyle = string | null;
+
 type SSEEvent =
   | { type: "delta"; text: string }
   | { type: "info"; message: string }
@@ -84,9 +87,9 @@ export async function streamExplanation(
 export async function streamAsk(
   docId: number,
   question: string,
-  { onDelta, signal }: StreamHandlers
+  { onDelta, signal, personaStyle }: StreamHandlers & { personaStyle?: PersonaStyle }
 ): Promise<string> {
-  const reader = await openSSE("/api/ask", { docId, question }, signal);
+  const reader = await openSSE("/api/ask", { docId, question, personaStyle }, signal);
   let full = "";
   await consumeSSE(reader, (event) => {
     if (event.type === "delta" && event.text) {

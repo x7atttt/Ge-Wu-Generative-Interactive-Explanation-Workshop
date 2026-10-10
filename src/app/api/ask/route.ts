@@ -5,9 +5,9 @@ import { getDoc } from "@/lib/db/docs";
 import { askQuestion } from "@/lib/dsl/generate";
 
 export async function POST(req: Request) {
-  let body: { docId?: unknown; question?: unknown };
+  let body: { docId?: unknown; question?: unknown; personaStyle?: unknown };
   try {
-    body = (await req.json()) as { docId?: unknown; question?: unknown };
+    body = (await req.json()) as { docId?: unknown; question?: unknown; personaStyle?: unknown };
   } catch {
     return NextResponse.json({ error: "请求体必须是 JSON" }, { status: 400 });
   }
@@ -25,6 +25,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "问题请控制在 300 字以内" }, { status: 400 });
   }
 
+  const personaStyle =
+    typeof body.personaStyle === "string" && body.personaStyle.trim()
+      ? body.personaStyle.trim().slice(0, 100)
+      : null;
+
   const row = getDoc(docId);
   if (!row) {
     return NextResponse.json({ error: "讲解不存在或已损坏" }, { status: 404 });
@@ -38,7 +43,8 @@ export async function POST(req: Request) {
         row.doc,
         history,
         question.trim(),
-        (text) => send({ type: "delta", text })
+        (text) => send({ type: "delta", text }),
+        personaStyle
       );
       // 成功的问答才成对入库，失败轮次不污染后续上下文
       appendAsks(docId, [

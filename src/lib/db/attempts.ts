@@ -14,6 +14,25 @@ export function insertAttempt(docId: number, blockType: AttemptType, correct: bo
     .run(docId, blockType, correct ? 1 : 0);
 }
 
+/** 单概念的练习统计（补练模式的输入） */
+export function getDocAttemptStats(docId: number): {
+  overall: { total: number; correct: number };
+  byType: { blockType: AttemptType; total: number; correct: number }[];
+} {
+  const db = getDb();
+  const overall = db
+    .prepare("SELECT COUNT(*) AS total, COALESCE(SUM(correct), 0) AS correct FROM attempts WHERE doc_id = ?")
+    .get(docId) as { total: number; correct: number };
+  const byType = (
+    db
+      .prepare(
+        "SELECT block_type, COUNT(*) AS total, SUM(correct) AS correct FROM attempts WHERE doc_id = ? GROUP BY block_type ORDER BY total DESC"
+      )
+      .all(docId) as unknown as { block_type: AttemptType; total: number; correct: number }[]
+  ).map((r) => ({ blockType: r.block_type, total: r.total, correct: r.correct }));
+  return { overall, byType };
+}
+
 export interface DailyPoint {
   day: string; // YYYY-MM-DD（本地时区）
   total: number;
