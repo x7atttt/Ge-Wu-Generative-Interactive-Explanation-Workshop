@@ -24,9 +24,17 @@ export function useSmoothStreamText() {
     }
   }, []);
 
-  useEffect(() => () => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      // 归零不可省：StrictMode 卸载清理会取消未决 rAF，残留旧 ID 会让
+      // setTarget/append 误判"已有调度在途"而永不重启，显示停在空串
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
+    },
+    []
+  );
 
   const append = useCallback(
     (text: string) => {
