@@ -5,16 +5,21 @@ import { AnimatePresence, motion } from "motion/react";
 import { useSmoothStreamText } from "@/hooks/useSmoothStreamText";
 
 const BLOCK_LABELS: Record<string, string> = {
+  heading: "小节标题",
   text: "讲解文字",
   formula: "公式",
   slider: "交互滑块",
   wavePlot: "波形演示",
   chart: "图表",
+  fillBlank: "填空练习",
+  match: "配对练习",
+  sort: "分类练习",
   quiz: "自测题",
 };
 
 /** 正则只匹配完整字面量，流式半截块（如 "type":"sl）不会误点亮 */
-const BLOCK_RE = /"type"\s*:\s*"(text|formula|slider|wavePlot|chart|quiz)"/g;
+const BLOCK_RE =
+  /"type"\s*:\s*"(heading|text|formula|slider|wavePlot|chart|fillBlank|match|sort|quiz)"/g;
 const TITLE_RE = /"title"\s*:\s*"((?:[^"\\]|\\.)*)"/;
 
 function parseProgress(text: string): { title: string | null; blocks: string[] } {

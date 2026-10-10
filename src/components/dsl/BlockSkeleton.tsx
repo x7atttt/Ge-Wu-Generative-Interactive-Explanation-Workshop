@@ -26,5 +26,20 @@ export function BlockSkeleton({ type }: { type: string }) {
         <div className={`${base} h-8 w-full`} />
       </div>
     );
+  if (type === "fillBlank")
+    return (
+      <div className="space-y-2 py-1">
+        <div className={`${base} h-3 w-full`} />
+        <div className={`${base} h-6 w-2/3`} />
+      </div>
+    );
+  if (type === "match" || type === "sort")
+    return (
+      <div className="flex flex-col gap-2 py-1">
+        <div className={`${base} h-8 w-full`} />
+        <div className={`${base} h-8 w-full`} />
+        <div className={`${base} h-8 w-full`} />
+      </div>
+    );
   return <div className={`${base} h-40 w-full`} />; // wavePlot / chart
 }

@@ -2,10 +2,13 @@
 
 import type { Block } from "@/lib/dsl/schema";
 import { ChartView } from "./ChartView";
+import { FillBlankView } from "./FillBlankView";
 import { FormulaBlockView } from "./FormulaBlockView";
 import { HeadingBlockView } from "./HeadingBlockView";
+import { MatchView } from "./MatchView";
 import { QuizView } from "./QuizView";
 import { SliderControl } from "./SliderControl";
+import { SortView } from "./SortView";
 import { TextBlockView } from "./TextBlockView";
 import { WavePlotView } from "./WavePlotView";
 
@@ -29,5 +32,11 @@ export function BlockRenderer({ block }: { block: Block }) {
       return <ChartView block={block} />;
     case "quiz":
       return <QuizView block={block} />;
+    case "fillBlank":
+      return <FillBlankView block={block} />;
+    case "match":
+      return <MatchView block={block} />;
+    case "sort":
+      return <SortView block={block} />;
   }
 }

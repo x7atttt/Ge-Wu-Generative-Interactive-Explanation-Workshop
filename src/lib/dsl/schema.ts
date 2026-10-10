@@ -1,7 +1,8 @@
 /**
  * DSL v0 契约：ExplainDoc。
  * 生成层（LLM）与渲染层（React 组件）之间的唯一接口，
- * 结构与决策依据见 spec/2026-09-24-dsl-schema-v0.md（迭代 2 扩展见 iteration2 spec）。
+ * 结构与决策依据见 spec/2026-09-24-dsl-schema-v0.md
+ * （迭代 2 扩展见 iteration2 spec，练习块见 iteration8 spec）。
  */
 import { z } from "zod";
 
@@ -82,6 +83,47 @@ export const quizBlockSchema = z.object({
   explanation: z.string().min(1),
 });
 
+/** 完形填空的空位：text 中以 ___ 占位，数量须与 blanks 一致（superRefine 校验） */
+export const fillBlankSlotSchema = z.object({
+  options: z.array(z.string().min(1)).min(2),
+  answer: z.number().int().nonnegative(),
+  explanation: z.string().optional(),
+});
+
+export const fillBlankBlockSchema = z.object({
+  type: z.literal("fillBlank"),
+  prompt: z.string().optional(),
+  text: z.string().min(1),
+  blanks: z.array(fillBlankSlotSchema).min(1),
+});
+
+export const matchBlockSchema = z.object({
+  type: z.literal("match"),
+  prompt: z.string().min(1),
+  pairs: z
+    .array(
+      z.object({
+        left: z.string().min(1),
+        right: z.string().min(1),
+      })
+    )
+    .min(2),
+});
+
+export const sortBlockSchema = z.object({
+  type: z.literal("sort"),
+  prompt: z.string().min(1),
+  categories: z.array(z.string().min(1)).min(2),
+  items: z
+    .array(
+      z.object({
+        label: z.string().min(1),
+        category: z.string().min(1),
+      })
+    )
+    .min(1),
+});
+
 export const blockSchema = z.discriminatedUnion("type", [
   headingBlockSchema,
   textBlockSchema,
@@ -90,6 +132,9 @@ export const blockSchema = z.discriminatedUnion("type", [
   wavePlotBlockSchema,
   chartBlockSchema,
   quizBlockSchema,
+  fillBlankBlockSchema,
+  matchBlockSchema,
+  sortBlockSchema,
 ]);
 
 export const explainDocSchema = z
@@ -152,6 +197,53 @@ export const explainDocSchema = z
           message: "quiz 的 answer 必须是 options 的合法下标",
         });
       }
+      if (block.type === "fillBlank") {
+        const slots = block.text.split("___").length - 1;
+        if (slots !== block.blanks.length) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["blocks", i, "text"],
+            message: `fillBlank 的 text 中 ___ 数量（${slots}）必须等于 blanks 数量（${block.blanks.length}）`,
+          });
+        }
+        for (const [j, blank] of block.blanks.entries()) {
+          if (blank.answer >= blank.options.length) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["blocks", i, "blanks", j, "answer"],
+              message: "fillBlank 的 answer 必须是 options 的合法下标",
+            });
+          }
+        }
+      }
+      if (block.type === "match") {
+        // 配对按内容判定，任一列出现重复值会让配对结果不可判定
+        for (const key of ["left", "right"] as const) {
+          const seen = new Set<string>();
+          for (const [j, pair] of block.pairs.entries()) {
+            if (seen.has(pair[key])) {
+              ctx.addIssue({
+                code: "custom",
+                path: ["blocks", i, "pairs", j, key],
+                message: `match 的 ${key} 值重复：${pair[key]}`,
+              });
+            }
+            seen.add(pair[key]);
+          }
+        }
+      }
+      if (block.type === "sort") {
+        const categories = new Set(block.categories);
+        for (const [j, item] of block.items.entries()) {
+          if (!categories.has(item.category)) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["blocks", i, "items", j, "category"],
+              message: `sort 的 item.category "${item.category}" 必须取自 categories`,
+            });
+          }
+        }
+      }
     }
   });
 
@@ -165,6 +257,10 @@ export type WavePlotBlock = z.output<typeof wavePlotBlockSchema>;
 export type WaveTerm = z.output<typeof waveTermSchema>;
 export type ChartBlock = z.output<typeof chartBlockSchema>;
 export type QuizBlock = z.output<typeof quizBlockSchema>;
+export type FillBlankBlock = z.output<typeof fillBlankBlockSchema>;
+export type FillBlankSlot = z.output<typeof fillBlankSlotSchema>;
+export type MatchBlock = z.output<typeof matchBlockSchema>;
+export type SortBlock = z.output<typeof sortBlockSchema>;
 
 /** 校验并返回友好错误摘要；合法时返回 null */
 export function validateDoc(doc: unknown): string | null {
