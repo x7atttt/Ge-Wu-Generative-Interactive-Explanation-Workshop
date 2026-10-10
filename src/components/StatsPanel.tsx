@@ -16,9 +16,14 @@ const TYPE_LABELS: Record<string, string> = {
 /**
  * 右上角「学习统计」标签：弹出个人学习仪表盘。
  * KPI + 近 14 天做题/正确率双轴图（复用讲解图表的 ECharts 按需注册）+
- * 按题型正确率 + 弱项清单（正确率 <60% 且样本 ≥3）。
+ * 按题型正确率 + 弱项清单（正确率 <60% 且样本 ≥3，可一键生成针对性补练）。
  */
-export function StatsPanel() {
+export function StatsPanel({
+  onPractice,
+}: {
+  /** 弱项补练回调（迭代 12：以源概念统计生成针对性练习讲解） */
+  onPractice?: (docId: number, title: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [stats, setStats] = useState<StatsPayload | null>(null);
   const [loading, setLoading] = useState(false);
@@ -184,12 +189,24 @@ export function StatsPanel() {
                         return (
                           <li
                             key={c.docId}
-                            className="flex items-baseline gap-2 rounded-lg bg-orange-50/60 px-3 py-1.5 text-xs"
+                            className="flex items-center gap-2 rounded-lg bg-orange-50/60 px-3 py-1.5 text-xs"
                           >
                             <span className="min-w-0 flex-1 truncate text-zinc-700">{c.title}</span>
                             <span className="shrink-0 font-mono text-orange-500">
                               {c.correct}/{c.total} · {rate}%
                             </span>
+                            {onPractice && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpen(false);
+                                  onPractice(c.docId, c.title);
+                                }}
+                                className="shrink-0 rounded-full border border-orange-200 bg-white px-2 py-0.5 text-[11px] text-orange-600 transition-colors hover:bg-orange-100"
+                              >
+                                补练
+                              </button>
+                            )}
                           </li>
                         );
                       })}

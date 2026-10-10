@@ -51,7 +51,16 @@ const AskBubble = memo(function AskBubble({ item, active }: { item: AskItem; act
  * 多轮记忆在服务端（DB 历史 + 最近 6 轮上下文），前端负责展示；
  * 问答区粘底滚动（上滚释放、回底重吸）。
  */
-export function AskPanel({ docId, initialAsks }: { docId: number; initialAsks: AskItem[] }) {
+export function AskPanel({
+  docId,
+  initialAsks,
+  personaStyle,
+}: {
+  docId: number;
+  initialAsks: AskItem[];
+  /** 语气人设（服务端注入回答提示词）；null/省略 = 默认 */
+  personaStyle?: string | null;
+}) {
   const [asks, setAsks] = useState<AskItem[]>(initialAsks);
   const [input, setInput] = useState("");
   const [asking, setAsking] = useState(false);
@@ -74,6 +83,7 @@ export function AskPanel({ docId, initialAsks }: { docId: number; initialAsks: A
     const index = asks.length;
     try {
       await streamAsk(docId, question, {
+        personaStyle,
         onDelta: (text) =>
           setAsks((prev) =>
             prev.map((item, i) => (i === index ? { ...item, answer: item.answer + text } : item))

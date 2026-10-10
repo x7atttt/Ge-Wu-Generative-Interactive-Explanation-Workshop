@@ -9,6 +9,13 @@ import { AskPanel, type AskItem } from "@/components/dsl/AskPanel";
 import { AttemptContext, postAttempt } from "@/components/dsl/attempt-context";
 import { ExplainDocView } from "@/components/dsl/ExplainDocView";
 import { listDocs, loadDoc as loadDocById, streamExplanation, type DocSummary, type VersionPayload } from "@/lib/api/explanation";
+import {
+  CUSTOM_PERSONA_ID,
+  PERSONA_STORAGE_KEY,
+  PERSONAS,
+  resolvePersonaHint,
+  type PersonaState,
+} from "@/lib/persona";
 import { usePartialDoc } from "@/hooks/usePartialDoc";
 import { computeDeepens } from "@/lib/dsl/deepen";
 import type { ExplainDoc } from "@/lib/dsl/schema";
@@ -24,6 +31,7 @@ const REFINE_EXAMPLES = [
 export default function Home() {
   const [concept, setConcept] = useState("");
   const [webSearchOn, setWebSearchOn] = useState(true);
+  const [persona, setPersona] = useState<PersonaState>({ id: "default", custom: "" });
   const [doc, setDoc] = useState<ExplainDoc | null>(null);
   const [docId, setDocId] = useState<number | null>(null);
   const [restoredAsks, setRestoredAsks] = useState<AskItem[]>([]);
@@ -45,6 +53,26 @@ export default function Home() {
   useEffect(() => {
     listDocs().then(setDocList).catch(() => {});
   }, []);
+
+  // 人设持久化：挂载时读 localStorage（避免 SSR/客户端不一致），变更即写回
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PERSONA_STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as PersonaState;
+      if (saved && typeof saved.id === "string") {
+        setPersona({ id: saved.id, custom: typeof saved.custom === "string" ? saved.custom : "" });
+      }
+    } catch {
+      // 损坏的存储忽略，回落默认
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem(PERSONA_STORAGE_KEY, JSON.stringify(persona));
+    } catch {}
+  }, [persona]);
+  const personaHint = resolvePersonaHint(persona);
 
   function refreshDocList() {
     listDocs().then(setDocList).catch(() => {});
@@ -84,9 +112,9 @@ export default function Home() {
     [docId]
   );
 
-  async function handleGenerate() {
-    const text = concept.trim();
-    if (!text || busy) return;
+  /** 生成主流程（常规概念 / 统计面板触发的针对性补练共用） */
+  async function runGenerate(conceptText: string, extra: { practiceDocId?: number } = {}) {
+    if (busy) return;
     const controller = new AbortController();
     abortRef.current = controller;
     setBusy("generate");
@@ -96,7 +124,7 @@ export default function Home() {
     try {
       const { doc: next, docId: id } = await streamExplanation(
         "generate",
-        { concept: text, webSearch: webSearchOn },
+        { concept: conceptText, webSearch: webSearchOn, personaStyle: personaHint, ...extra },
         {
           onDelta: (t) => setBuildText((prev) => prev + t),
           onInfo: (m) => setSearchNote(m),
@@ -117,6 +145,19 @@ export default function Home() {
       setBusy(null);
       abortRef.current = null;
     }
+  }
+
+  function handleGenerate() {
+    const text = concept.trim();
+    if (!text || busy) return;
+    runGenerate(text);
+  }
+
+  /** 统计面板弱项补练：以源概念标题生成针对性练习讲解 */
+  function startPractice(docId: number, title: string) {
+    if (busy) return;
+    setConcept(title);
+    runGenerate(title, { practiceDocId: docId });
   }
 
   async function handleRefine() {
@@ -175,7 +216,7 @@ export default function Home() {
     <div className="flex flex-1 flex-col items-center bg-gradient-to-b from-indigo-50/70 via-zinc-50 to-zinc-50 px-4 py-10 font-sans">
       {/* 右上角标签组：学习统计 + 历史讲解 */}
       <div className="fixed right-4 top-4 z-40 flex items-center gap-2">
-        <StatsPanel />
+        <StatsPanel onPractice={startPractice} />
         <DocHistoryButton
           docs={docList}
           currentId={docId}
@@ -219,7 +260,7 @@ export default function Home() {
               生成讲解
             </button>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             {EXAMPLE_CONCEPTS.map((example) => (
               <button
                 key={example}
@@ -230,23 +271,49 @@ export default function Home() {
                 {example}
               </button>
             ))}
-            <button
-              type="button"
-              onClick={() => setWebSearchOn((v) => !v)}
-              aria-pressed={webSearchOn}
-              disabled={busy === "generate"}
-              className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-50 ${
-                webSearchOn
-                  ? "border-indigo-300 bg-indigo-50 text-indigo-600"
-                  : "border-zinc-200 text-zinc-400 hover:text-zinc-600"
-              }`}
-              title="生成前用博查检索网络资料补充事实依据"
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${webSearchOn ? "bg-indigo-500" : "bg-zinc-300"}`}
-              />
-              联网检索
-            </button>
+            <div className="ml-auto flex items-center gap-2">
+              <select
+                value={persona.id}
+                onChange={(e) => setPersona((p) => ({ ...p, id: e.target.value }))}
+                disabled={busy === "generate"}
+                title="讲解与追问的语气人设"
+                className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-600 outline-none transition-colors hover:border-indigo-300 focus:border-indigo-400 disabled:opacity-50"
+              >
+                {PERSONAS.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+                <option value={CUSTOM_PERSONA_ID}>自定义</option>
+              </select>
+              {persona.id === CUSTOM_PERSONA_ID && (
+                <input
+                  value={persona.custom}
+                  onChange={(e) => setPersona((p) => ({ ...p, custom: e.target.value }))}
+                  placeholder="一句话描述人设…"
+                  maxLength={100}
+                  disabled={busy === "generate"}
+                  className="w-36 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-600 outline-none transition-colors focus:border-indigo-400 disabled:opacity-50"
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => setWebSearchOn((v) => !v)}
+                aria-pressed={webSearchOn}
+                disabled={busy === "generate"}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-50 ${
+                  webSearchOn
+                    ? "border-indigo-300 bg-indigo-50 text-indigo-600"
+                    : "border-zinc-200 text-zinc-400 hover:text-zinc-600"
+                }`}
+                title="生成前用博查检索网络资料补充事实依据"
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${webSearchOn ? "bg-indigo-500" : "bg-zinc-300"}`}
+                />
+                联网检索
+              </button>
+            </div>
           </div>
 
           {busy === "generate" && (
@@ -357,7 +424,7 @@ export default function Home() {
               </div>
 
               <div className={bottomTab === "ask" ? "" : "hidden"}>
-                <AskPanel docId={docId} initialAsks={restoredAsks} />
+                <AskPanel docId={docId} initialAsks={restoredAsks} personaStyle={personaHint} />
               </div>
             </div>
             </AttemptContext.Provider>
