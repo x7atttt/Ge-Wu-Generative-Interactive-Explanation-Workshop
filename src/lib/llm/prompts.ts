@@ -39,7 +39,9 @@ export function generateSystemPrompt(opts: GeneratePromptOpts = {}): string {
    注意：多 terms 会叠加成**一条**曲线（用于展示合成/叠加效果），不是多条曲线同图——
    要对比两条曲线，用两个 wavePlot 块上下排列，各配 title 区分
 6. {"type":"chart","chartType":"bar|line|pie","title?":"","categories":["名",...],"series":[{"name?":"","data":[槽,...]}]}
-   非波形概念（统计、经济、计数）用它，别硬凑 sin/cos
+   只用于离散数据（统计、计数、类别对比）；每系列 data 个数必须与 categories 完全一致
+   **禁止**用它手写 sin/cos 等函数值表——逐点手算三角函数极易出错；函数曲线一律用 wavePlot
+   （渲染层精确计算）。wavePlot 画标准三角曲线（周期 2π，自变量为弧度）时 freq 取 0.159（即 1/(2π)）
 7. {"type":"fillBlank","prompt?":"任务说明","text":"句子，空位用 ___ 表示","blanks":[{"options":["词1","词2","词3"],"answer":正确项下标,"explanation?":"解析"}]}
    text 中 ___ 的个数必须等于 blanks 数量；用于语法/词汇/代码语法等在语境中回忆的练习
 8. {"type":"match","prompt":"任务说明","pairs":[{"left":"词","right":"对应项"}]} —— 2~5 对，left 与 right 各自不重复；用于术语↔含义等配对记忆
@@ -87,7 +89,7 @@ export function refineSystemPrompt(): string {
 - 指令通常是内容级操作：深入某主题、增加对比演示/现实例子、补充公式、出自测题、改用图表呈现等
 - 可用块类型与生成时相同：heading / text / formula / slider / wavePlot / chart / fillBlank / match / sort / quiz
 - 新增练习时按主题选块：语法/词汇用 fillBlank，术语对应用 match，分类判断用 sort（结构与生成规范一致）
-- 结构约束：滑块 var 唯一；{"$var":...} 只能引用已定义滑块变量；min < max 且 step > 0；quiz 的 answer 必须小于 options 数量
+- 结构约束：滑块 var 唯一；{"$var":...} 只能引用已定义滑块变量；min < max 且 step > 0；quiz 的 answer 必须小于 options 数量；chart 每系列 data 个数与 categories 一致且逐点核对数值
 - wavePlot 的多 terms 叠加为**一条**曲线（y=Σ）；对比两条曲线用两个 wavePlot 块上下排列；文字描述必须与实际渲染一致，不要提及不存在的曲线颜色或"两条线"
 - 若指令要求“固定某参数”：把对应数值槽改为具体数字，并删除不再被引用的滑块`;
 }
