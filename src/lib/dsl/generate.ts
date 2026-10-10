@@ -82,19 +82,36 @@ function formatRefs(refs: SearchRef[]): string {
     .join("\n\n");
 }
 
-/** 主模型流式生成；refs 为路由层检索的网络资料（可为空），onDelta 透出原始增量供前端构建流面板展示 */
+/** generateDoc 的可选输入：网络资料 / 语气人设 / 补练统计 */
+export interface GenerateExtras {
+  refs?: SearchRef[];
+  personaStyle?: string | null;
+  /** 补练模式：用户在该概念的练习统计行（服务端聚合后传入） */
+  practiceLines?: string[];
+}
+
+/** 主模型流式生成；onDelta 透出原始增量供前端构建流面板展示 */
 export async function generateDoc(
   concept: string,
-  refs: SearchRef[] = [],
+  extras: GenerateExtras = {},
   onDelta?: (text: string) => void
 ): Promise<ExplainDoc> {
-  const userContent =
-    refs.length === 0
-      ? `概念：${concept}`
-      : `概念：${concept}\n\n参考资料（网络检索结果）：\n${formatRefs(refs)}`;
+  const sections: string[] = [`概念：${concept}`];
+  if (extras.refs && extras.refs.length > 0) {
+    sections.push(`参考资料（网络检索结果）：\n${formatRefs(extras.refs)}`);
+  }
+  if (extras.practiceLines && extras.practiceLines.length > 0) {
+    sections.push(`练习统计（用户在该概念的作答记录，正确率反映薄弱点）：\n${extras.practiceLines.join("\n")}`);
+  }
   const history: ChatMessage[] = [
-    { role: "system", content: generateSystemPrompt() },
-    { role: "user", content: userContent },
+    {
+      role: "system",
+      content: generateSystemPrompt({
+        personaStyle: extras.personaStyle,
+        practice: !!extras.practiceLines?.length,
+      }),
+    },
+    { role: "user", content: sections.join("\n\n") },
   ];
   const raw = onDelta
     ? await streamChat(history, { jsonMode: true, temperature: 0.4 }, onDelta)
@@ -132,18 +149,19 @@ export interface AskExchange {
 /** 发给 LLM 的历史上下文只取最近 6 轮（12 条消息），完整历史在库中 */
 const ASK_CONTEXT_TURNS = 6;
 
-/** 追问：基于当前文档 + 最近对话历史的流式短回答，纯文本、不改文档 */
+/** 追问：基于当前文档 + 最近对话历史的流式短回答，纯文本、不改文档；personaStyle 可选语气 */
 export async function askQuestion(
   doc: ExplainDoc,
   history: AskExchange[],
   question: string,
-  onDelta: (text: string) => void
+  onDelta: (text: string) => void,
+  personaStyle?: string | null
 ): Promise<string> {
   const { fastModel } = llmConfigFromEnv();
   const trimmed = history.slice(-ASK_CONTEXT_TURNS * 2);
   return streamChat(
     [
-      { role: "system", content: askSystemPrompt() },
+      { role: "system", content: askSystemPrompt(personaStyle) },
       { role: "user", content: `当前讲解文档：\n${JSON.stringify(doc, null, 2)}` },
       ...trimmed.map((message) => ({ role: message.role, content: message.content })),
       { role: "user", content: question },
