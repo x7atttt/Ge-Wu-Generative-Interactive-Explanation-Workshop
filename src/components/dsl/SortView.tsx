@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { SortBlock } from "@/lib/dsl/schema";
 import { hashOrder } from "@/lib/dsl/order";
+import { useAttempt } from "./attempt-context";
 
 /**
  * 分类练习：每条目点类别 chip 归类，全部归完检查；题面用确定性洗牌打乱，
@@ -12,6 +13,7 @@ import { hashOrder } from "@/lib/dsl/order";
 export function SortView({ block }: { block: SortBlock }) {
   const [assigned, setAssigned] = useState<(number | null)[]>(() => block.items.map(() => null));
   const [checked, setChecked] = useState(false);
+  const attempt = useAttempt();
 
   const itemOrder = useMemo(() => hashOrder(block.items.map((it) => it.label)), [block]);
 
@@ -30,6 +32,11 @@ export function SortView({ block }: { block: SortBlock }) {
   const reset = () => {
     setAssigned(block.items.map(() => null));
     setChecked(false);
+  };
+
+  const check = () => {
+    setChecked(true);
+    attempt?.report("sort", allCorrect);
   };
 
   return (
@@ -99,7 +106,7 @@ export function SortView({ block }: { block: SortBlock }) {
           <button
             type="button"
             disabled={!allAssigned}
-            onClick={() => setChecked(true)}
+            onClick={check}
             className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
             检查

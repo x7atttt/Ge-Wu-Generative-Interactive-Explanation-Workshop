@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { FillBlankBlock } from "@/lib/dsl/schema";
+import { useAttempt } from "./attempt-context";
 
 /**
  * 完形填空：句中空位为行内 chip，下方按空位列选项；全部选完才可检查，
@@ -11,6 +12,7 @@ import type { FillBlankBlock } from "@/lib/dsl/schema";
 export function FillBlankView({ block }: { block: FillBlankBlock }) {
   const [choices, setChoices] = useState<(number | null)[]>(() => block.blanks.map(() => null));
   const [checked, setChecked] = useState(false);
+  const attempt = useAttempt();
 
   const parts = block.text.split("___");
   const allFilled = choices.every((c) => c !== null);
@@ -19,6 +21,11 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
     0
   );
   const allCorrect = correctCount === block.blanks.length;
+
+  const check = () => {
+    setChecked(true);
+    attempt?.report("fillBlank", allCorrect);
+  };
 
   const pick = (blank: number, option: number) => {
     if (checked) return;
@@ -92,7 +99,7 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
           <button
             type="button"
             disabled={!allFilled}
-            onClick={() => setChecked(true)}
+            onClick={check}
             className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
             检查

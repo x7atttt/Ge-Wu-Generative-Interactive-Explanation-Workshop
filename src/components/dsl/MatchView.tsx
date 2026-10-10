@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import type { MatchBlock } from "@/lib/dsl/schema";
 import { hashOrder } from "@/lib/dsl/order";
+import { useAttempt } from "./attempt-context";
 
 /**
  * 配对：点左列一项选中，再点右列对应项；配对按内容判定（schema 保证两列各自不重复），
@@ -14,6 +15,7 @@ export function MatchView({ block }: { block: MatchBlock }) {
   const [matched, setMatched] = useState<number[]>([]);
   const [wrong, setWrong] = useState<{ left: number; right: number } | null>(null);
   const [mistakes, setMistakes] = useState(0);
+  const attempt = useAttempt();
 
   // rightOrder[显示位 j] = 原始对下标；与 item 内容绑定，SSR/客户端一致
   const rightOrder = useMemo(
@@ -32,8 +34,12 @@ export function MatchView({ block }: { block: MatchBlock }) {
   const clickRight = (j: number) => {
     if (selected === null || matched.includes(rightOrder[j])) return;
     if (rightOrder[j] === selected) {
-      setMatched((prev) => [...prev, selected]);
+      const nextMatched = [...matched, selected];
+      setMatched(nextMatched);
       setSelected(null);
+      if (nextMatched.length === block.pairs.length) {
+        attempt?.report("match", mistakes === 0);
+      }
     } else {
       setWrong({ left: selected, right: j });
       setMistakes((m) => m + 1);

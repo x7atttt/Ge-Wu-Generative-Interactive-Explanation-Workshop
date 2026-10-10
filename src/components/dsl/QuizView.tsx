@@ -3,11 +3,18 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { QuizBlock } from "@/lib/dsl/schema";
+import { useAttempt } from "./attempt-context";
 
 export function QuizView({ block }: { block: QuizBlock }) {
   const [selected, setSelected] = useState<number | null>(null);
+  const attempt = useAttempt();
   const answered = selected !== null;
   const isCorrect = answered && selected === block.answer;
+
+  const choose = (i: number) => {
+    setSelected(i);
+    attempt?.report("quiz", i === block.answer);
+  };
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-4">
@@ -24,7 +31,7 @@ export function QuizView({ block }: { block: QuizBlock }) {
           return (
             <button
               key={i}
-              onClick={() => setSelected(i)}
+              onClick={() => choose(i)}
               disabled={answered}
               className={[
                 "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
