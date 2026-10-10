@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { BuildProgressPanel } from "@/components/BuildProgressPanel";
+import { DocHistoryButton } from "@/components/DocHistoryButton";
 import { AskPanel, type AskItem } from "@/components/dsl/AskPanel";
 import { ExplainDocView } from "@/components/dsl/ExplainDocView";
-import { listDocs, loadDoc, streamExplanation, type DocSummary, type VersionPayload } from "@/lib/api/explanation";
+import { listDocs, loadDoc as loadDocById, streamExplanation, type DocSummary, type VersionPayload } from "@/lib/api/explanation";
 import { usePartialDoc } from "@/hooks/usePartialDoc";
 import { computeDeepens } from "@/lib/dsl/deepen";
 import type { ExplainDoc } from "@/lib/dsl/schema";
@@ -137,13 +138,12 @@ export default function Home() {
     }
   }
 
-  async function handleLoadDoc(event: React.ChangeEvent<HTMLSelectElement>) {
-    const id = Number(event.target.value);
+  async function loadDoc(id: number) {
     if (!Number.isInteger(id) || id <= 0 || loadingDoc) return;
     setLoadingDoc(true);
     setError(null);
     try {
-      const { doc: loaded, asks, versions: chain } = await loadDoc(id);
+      const { doc: loaded, asks, versions: chain } = await loadDocById(id);
       setDoc(loaded);
       setDocId(id);
       setRestoredAsks(asks);
@@ -158,6 +158,12 @@ export default function Home() {
 
   return (
     <div className="flex flex-1 flex-col items-center bg-gradient-to-b from-indigo-50/70 via-zinc-50 to-zinc-50 px-4 py-10 font-sans">
+      <DocHistoryButton
+        docs={docList}
+        currentId={docId}
+        disabled={busy !== null || loadingDoc}
+        onSelect={loadDoc}
+      />
       <main className={`w-full ${wide ? "max-w-5xl" : "max-w-2xl"} transition-[max-width] duration-300`}>
         <header className="mb-8 text-center">
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-500 shadow-sm">
@@ -173,28 +179,6 @@ export default function Home() {
             AI 现场生成带滑块与图表的交互讲解——拖动参数建立直觉，追问深入细节，一句话继续改造
           </p>
         </header>
-
-        {docList.length > 0 && (
-          <div className="mb-4 flex items-center justify-center gap-2 text-xs text-zinc-500">
-            <span>最近讲解</span>
-            <select
-              value={docId ?? ""}
-              onChange={handleLoadDoc}
-              disabled={loadingDoc || busy !== null}
-              className="max-w-[280px] rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-700 outline-none focus:border-indigo-400 disabled:opacity-50"
-            >
-              <option value="" disabled>
-                选择要恢复的讲解…
-              </option>
-              {docList.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title}（#{item.id}）
-                </option>
-              ))}
-            </select>
-            {loadingDoc && <span className="text-zinc-400">恢复中…</span>}
-          </div>
-        )}
 
         {/* 生成入口 */}
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
