@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { BuildProgressPanel } from "@/components/BuildProgressPanel";
 import { DocHistoryButton } from "@/components/DocHistoryButton";
+import { StatsPanel } from "@/components/StatsPanel";
 import { AskPanel, type AskItem } from "@/components/dsl/AskPanel";
+import { AttemptContext, postAttempt } from "@/components/dsl/attempt-context";
 import { ExplainDocView } from "@/components/dsl/ExplainDocView";
 import { listDocs, loadDoc as loadDocById, streamExplanation, type DocSummary, type VersionPayload } from "@/lib/api/explanation";
 import { usePartialDoc } from "@/hooks/usePartialDoc";
@@ -68,6 +70,19 @@ export default function Home() {
 
   // 深化链分段：由版本链派生（refine 追加语义下各轮 fromIndex 坐标一致）
   const deepens = useMemo(() => computeDeepens(versions), [versions]);
+
+  // 练习判定上报通道：文档已落库（docId 存在）时提供；流式期/未落库不提供
+  const attemptValue = useMemo(
+    () =>
+      docId !== null
+        ? {
+            docId,
+            report: (blockType: "quiz" | "fillBlank" | "match" | "sort", correct: boolean) =>
+              postAttempt(docId, blockType, correct),
+          }
+        : null,
+    [docId]
+  );
 
   async function handleGenerate() {
     const text = concept.trim();
@@ -158,12 +173,16 @@ export default function Home() {
 
   return (
     <div className="flex flex-1 flex-col items-center bg-gradient-to-b from-indigo-50/70 via-zinc-50 to-zinc-50 px-4 py-10 font-sans">
-      <DocHistoryButton
-        docs={docList}
-        currentId={docId}
-        disabled={busy !== null || loadingDoc}
-        onSelect={loadDoc}
-      />
+      {/* 右上角标签组：学习统计 + 历史讲解 */}
+      <div className="fixed right-4 top-4 z-40 flex items-center gap-2">
+        <StatsPanel />
+        <DocHistoryButton
+          docs={docList}
+          currentId={docId}
+          disabled={busy !== null || loadingDoc}
+          onSelect={loadDoc}
+        />
+      </div>
       <main className={`w-full ${wide ? "max-w-5xl" : "max-w-2xl"} transition-[max-width] duration-300`}>
         <header className="mb-8 text-center">
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-500 shadow-sm">
@@ -270,6 +289,7 @@ export default function Home() {
             transition={{ type: "spring", stiffness: 140, damping: 18 }}
             className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
           >
+            <AttemptContext.Provider value={attemptValue}>
             <ExplainDocView doc={doc} deepens={deepens} />
 
             {/* 底部对话面板：深化讲解｜追问细节 双 tab（双份内容常驻 hidden 切换，保住追问会话态） */}
@@ -340,6 +360,7 @@ export default function Home() {
                 <AskPanel docId={docId} initialAsks={restoredAsks} />
               </div>
             </div>
+            </AttemptContext.Provider>
           </motion.section>
         ) : null}
 

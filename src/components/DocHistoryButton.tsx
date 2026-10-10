@@ -46,7 +46,7 @@ export function DocHistoryButton({
     : docs;
 
   return (
-    <div className="fixed right-4 top-4 z-40">
+    <div className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

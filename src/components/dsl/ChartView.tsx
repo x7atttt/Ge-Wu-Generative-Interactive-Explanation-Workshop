@@ -1,47 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
-import * as echarts from "echarts/core";
-import { BarChart, LineChart, PieChart } from "echarts/charts";
-import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
-import { CanvasRenderer } from "echarts/renderers";
+import { useMemo } from "react";
+import type * as echarts from "echarts/core";
 import type { ChartBlock } from "@/lib/dsl/schema";
+import { useEChart } from "@/components/useEChart";
 import { resolveSlot, useVars } from "./var-context";
-
-// 按需注册：只打包用到的图表类型，控制首屏体积（AGENTS 规范）
-echarts.use([
-  BarChart,
-  LineChart,
-  PieChart,
-  GridComponent,
-  LegendComponent,
-  TooltipComponent,
-  CanvasRenderer,
-]);
-
-function useEChart(option: echarts.EChartsCoreOption) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<echarts.ECharts | null>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const chart = echarts.init(containerRef.current);
-    chartRef.current = chart;
-    const observer = new ResizeObserver(() => chart.resize());
-    observer.observe(containerRef.current);
-    return () => {
-      observer.disconnect();
-      chart.dispose();
-      chartRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    chartRef.current?.setOption(option, { notMerge: true });
-  }, [option]);
-
-  return containerRef;
-}
 
 export function ChartView({ block }: { block: ChartBlock }) {
   const { values } = useVars();
