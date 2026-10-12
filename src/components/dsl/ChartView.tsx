@@ -24,6 +24,9 @@ export function ChartView({ block }: { block: ChartBlock }) {
     // 有名字的系列就常驻显示图例（单系列也一样）：系列名如 "x = r·cos θ" 是关键信息，
     // 只在悬停 tooltip 里出现会被误读为图例且不悬停就看不到
     const namedCount = block.series.filter((s) => s.name).length;
+    // 纵轴语义标签（数量级/等级→文字）：数值刻度按 yLabels 替换，数据层保持数字可比
+    const yLabels = block.yLabels ?? {};
+    const hasYLabels = Object.keys(yLabels).length > 0;
     return {
       tooltip: { trigger: "axis" },
       ...(namedCount > 0
@@ -37,9 +40,14 @@ export function ChartView({ block }: { block: ChartBlock }) {
             },
           }
         : {}),
-      grid: { left: 44, right: 16, top: 28, bottom: namedCount > 0 ? 40 : 28 },
+      grid: { left: hasYLabels ? 76 : 44, right: 16, top: 28, bottom: namedCount > 0 ? 40 : 28 },
       xAxis: { type: "category", data: block.categories ?? [] },
-      yAxis: { type: "value" },
+      yAxis: {
+        type: "value",
+        ...(hasYLabels
+          ? { axisLabel: { formatter: (value: number) => yLabels[String(value)] ?? String(value) } }
+          : {}),
+      },
       series: block.series.map((serie) => ({
         name: serie.name,
         type: block.chartType,

@@ -65,6 +65,8 @@ export const chartBlockSchema = z.object({
   chartType: z.enum(["bar", "line", "pie"]),
   title: z.string().optional(),
   categories: z.array(z.string()).optional(),
+  /** 纵轴语义标签（仅 bar/line）：key 为刻度数值（JSON 里是数字字符串），渲染层按 String(value) 匹配替换 */
+  yLabels: z.record(z.string(), z.string()).optional(),
   series: z
     .array(
       z.object({
