@@ -1,10 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { SortBlock } from "@/lib/dsl/schema";
 import { hashOrder } from "@/lib/dsl/order";
+import { playComplete, playWrong } from "@/lib/audio/sound";
+import { celebrateAt } from "@/lib/celebrate";
 import { useAttempt } from "./attempt-context";
+import { CheckDraw } from "./CheckDraw";
+import { SHAKE, SHAKE_IDLE, SHAKE_TRANSITION } from "./motion-presets";
 
 /**
  * 分类练习：每条目点类别 chip 归类，全部归完检查；题面用确定性洗牌打乱，
@@ -14,6 +18,7 @@ export function SortView({ block }: { block: SortBlock }) {
   const [assigned, setAssigned] = useState<(number | null)[]>(() => block.items.map(() => null));
   const [checked, setChecked] = useState(false);
   const attempt = useAttempt();
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const itemOrder = useMemo(() => hashOrder(block.items.map((it) => it.label)), [block]);
 
@@ -37,10 +42,16 @@ export function SortView({ block }: { block: SortBlock }) {
   const check = () => {
     setChecked(true);
     attempt?.report("sort", allCorrect);
+    if (allCorrect) {
+      playComplete();
+      void celebrateAt(cardRef.current);
+    } else {
+      playWrong();
+    }
   };
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4">
+    <div ref={cardRef} className="rounded-xl border border-zinc-200 bg-white p-4">
       <p className="mb-2 text-sm font-medium text-zinc-800">
         <span className="mr-1.5 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">
           分类
@@ -65,8 +76,10 @@ export function SortView({ block }: { block: SortBlock }) {
           const correct = checked && choice !== null && block.categories[choice] === item.category;
           const wrongRow = checked && !correct;
           return (
-            <div
+            <motion.div
               key={orig}
+              animate={wrongRow ? SHAKE : SHAKE_IDLE}
+              transition={SHAKE_TRANSITION}
               className={[
                 "flex flex-wrap items-center gap-1.5 rounded-lg border px-3 py-2 transition-colors",
                 correct
@@ -96,7 +109,7 @@ export function SortView({ block }: { block: SortBlock }) {
               {wrongRow && (
                 <span className="ml-auto text-xs text-red-500">应为 {item.category}</span>
               )}
-            </div>
+            </motion.div>
           );
         })}
       </div>
@@ -127,8 +140,9 @@ export function SortView({ block }: { block: SortBlock }) {
             className="overflow-hidden"
           >
             <p
-              className={`mt-3 text-sm font-medium ${allCorrect ? "text-emerald-600" : "text-red-600"}`}
+              className={`mt-3 flex items-center gap-1.5 text-sm font-medium ${allCorrect ? "text-emerald-600" : "text-red-600"}`}
             >
+              {allCorrect && <CheckDraw />}
               {allCorrect ? "全部分类正确！" : `${correctCount}/${block.items.length} 正确`}
             </p>
           </motion.div>

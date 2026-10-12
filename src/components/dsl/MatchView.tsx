@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import type { MatchBlock } from "@/lib/dsl/schema";
 import { hashOrder } from "@/lib/dsl/order";
+import { playComplete, playPop, playWrong } from "@/lib/audio/sound";
+import { celebrateAt } from "@/lib/celebrate";
 import { useAttempt } from "./attempt-context";
+import { CheckDraw } from "./CheckDraw";
+import { SHAKE, SHAKE_IDLE, SHAKE_TRANSITION } from "./motion-presets";
 
 /**
  * 配对：点左列一项选中，再点右列对应项；配对按内容判定（schema 保证两列各自不重复），
@@ -16,6 +20,7 @@ export function MatchView({ block }: { block: MatchBlock }) {
   const [wrong, setWrong] = useState<{ left: number; right: number } | null>(null);
   const [mistakes, setMistakes] = useState(0);
   const attempt = useAttempt();
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // rightOrder[显示位 j] = 原始对下标；与 item 内容绑定，SSR/客户端一致
   const rightOrder = useMemo(
@@ -37,13 +42,17 @@ export function MatchView({ block }: { block: MatchBlock }) {
       const nextMatched = [...matched, selected];
       setMatched(nextMatched);
       setSelected(null);
+      playPop();
       if (nextMatched.length === block.pairs.length) {
         attempt?.report("match", mistakes === 0);
+        playComplete();
+        if (mistakes === 0) void celebrateAt(cardRef.current);
       }
     } else {
       setWrong({ left: selected, right: j });
       setMistakes((m) => m + 1);
       setSelected(null);
+      playWrong();
     }
   };
 
@@ -53,7 +62,7 @@ export function MatchView({ block }: { block: MatchBlock }) {
     setMistakes(0);
   };
 
-  const shake = { x: [0, -6, 6, -4, 4, 0] };
+  const shake = SHAKE;
   const itemClass = (state: "idle" | "selected" | "matched" | "wrong") =>
     [
       "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
@@ -67,7 +76,7 @@ export function MatchView({ block }: { block: MatchBlock }) {
     ].join(" ");
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4">
+    <div ref={cardRef} className="rounded-xl border border-zinc-200 bg-white p-4">
       <p className="mb-1 text-sm font-medium text-zinc-800">
         <span className="mr-1.5 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">
           配对
@@ -90,8 +99,8 @@ export function MatchView({ block }: { block: MatchBlock }) {
               <motion.button
                 key={li}
                 type="button"
-                animate={state === "wrong" ? shake : { x: 0 }}
-                transition={{ duration: 0.4 }}
+                animate={state === "wrong" ? shake : SHAKE_IDLE}
+                transition={SHAKE_TRANSITION}
                 disabled={state === "matched"}
                 onClick={() => state !== "wrong" && setSelected(selected === li ? null : li)}
                 className={itemClass(state)}
@@ -112,8 +121,8 @@ export function MatchView({ block }: { block: MatchBlock }) {
               <motion.button
                 key={orig}
                 type="button"
-                animate={state === "wrong" ? shake : { x: 0 }}
-                transition={{ duration: 0.4 }}
+                animate={state === "wrong" ? shake : SHAKE_IDLE}
+                transition={SHAKE_TRANSITION}
                 disabled={state === "matched" || selected === null}
                 onClick={() => clickRight(j)}
                 className={`${itemClass(state)} ${selected !== null && state === "idle" ? "cursor-pointer" : "cursor-default"} disabled:opacity-100`}
@@ -131,7 +140,8 @@ export function MatchView({ block }: { block: MatchBlock }) {
           animate={{ opacity: 1 }}
           className="mt-3 flex items-center gap-3"
         >
-          <p className="text-sm font-medium text-emerald-600">
+          <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
+            <CheckDraw />
             全部配对成功{mistakes > 0 ? `（失误 ${mistakes} 次）` : "，一次通过！"}
           </p>
           <button type="button" onClick={reset} className="text-xs text-indigo-600 hover:underline">

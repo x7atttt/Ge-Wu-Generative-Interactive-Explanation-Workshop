@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { FillBlankBlock } from "@/lib/dsl/schema";
+import { playComplete, playWrong } from "@/lib/audio/sound";
+import { celebrateAt } from "@/lib/celebrate";
 import { useAttempt } from "./attempt-context";
+import { CheckDraw } from "./CheckDraw";
+import { useFeedbackMotion } from "./motion-presets";
 
 /**
  * 完形填空：句中空位为行内 chip，下方按空位列选项；全部选完才可检查，
@@ -13,6 +17,8 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
   const [choices, setChoices] = useState<(number | null)[]>(() => block.blanks.map(() => null));
   const [checked, setChecked] = useState(false);
   const attempt = useAttempt();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const { shake, shakeIdle, shakeTransition } = useFeedbackMotion();
 
   const parts = block.text.split("___");
   const allFilled = choices.every((c) => c !== null);
@@ -25,6 +31,12 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
   const check = () => {
     setChecked(true);
     attempt?.report("fillBlank", allCorrect);
+    if (allCorrect) {
+      playComplete();
+      void celebrateAt(cardRef.current);
+    } else {
+      playWrong();
+    }
   };
 
   const pick = (blank: number, option: number) => {
@@ -38,7 +50,7 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
   };
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4">
+    <div ref={cardRef} className="rounded-xl border border-zinc-200 bg-white p-4">
       <p className="mb-3 text-sm font-medium text-zinc-800">
         <span className="mr-1.5 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">
           填空
@@ -63,6 +75,9 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
                       ? "picked"
                       : "empty"
                 }
+                shake={shake}
+                shakeIdle={shakeIdle}
+                shakeTransition={shakeTransition}
               />
             )}
           </span>
@@ -120,8 +135,9 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
             className="overflow-hidden"
           >
             <p
-              className={`mt-3 text-sm font-medium ${allCorrect ? "text-emerald-600" : "text-red-600"}`}
+              className={`mt-3 flex items-center gap-1.5 text-sm font-medium ${allCorrect ? "text-emerald-600" : "text-red-600"}`}
             >
+              {allCorrect && <CheckDraw />}
               {allCorrect ? "全部正确！" : `${correctCount}/${block.blanks.length} 正确`}
             </p>
             {block.blanks.map((blank, bi) =>
@@ -144,13 +160,21 @@ function BlankChip({
   label,
   index,
   state,
+  shake,
+  shakeIdle,
+  shakeTransition,
 }: {
   label: string | null;
   index: number;
   state: "empty" | "picked" | "correct" | "wrong";
+  shake: { x: number[] } | { x: number };
+  shakeIdle: { x: number };
+  shakeTransition: { duration: number };
 }) {
   return (
-    <span
+    <motion.span
+      animate={state === "wrong" ? shake : shakeIdle}
+      transition={shakeTransition}
       className={[
         "mx-1 inline-flex min-w-14 items-center justify-center rounded-md border px-2 py-0.5 align-middle text-sm font-medium",
         state === "correct"
@@ -163,6 +187,6 @@ function BlankChip({
       ].join(" ")}
     >
       {label ?? `空${index + 1}`}
-    </span>
+    </motion.span>
   );
 }

@@ -3,17 +3,24 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { QuizBlock } from "@/lib/dsl/schema";
+import { playCorrect, playWrong } from "@/lib/audio/sound";
 import { useAttempt } from "./attempt-context";
+import { CheckDraw } from "./CheckDraw";
+import { useFeedbackMotion } from "./motion-presets";
 
 export function QuizView({ block }: { block: QuizBlock }) {
   const [selected, setSelected] = useState<number | null>(null);
   const attempt = useAttempt();
+  const { pop, popIdle, popTransition, shake, shakeIdle, shakeTransition } =
+    useFeedbackMotion();
   const answered = selected !== null;
   const isCorrect = answered && selected === block.answer;
 
   const choose = (i: number) => {
     setSelected(i);
     attempt?.report("quiz", i === block.answer);
+    if (i === block.answer) playCorrect();
+    else playWrong();
   };
 
   return (
@@ -29,10 +36,12 @@ export function QuizView({ block }: { block: QuizBlock }) {
           const correct = answered && i === block.answer;
           const wrong = answered && i === selected && i !== block.answer;
           return (
-            <button
+            <motion.button
               key={i}
               onClick={() => choose(i)}
               disabled={answered}
+              animate={correct ? pop : wrong ? shake : { ...popIdle, ...shakeIdle }}
+              transition={correct ? popTransition : shakeTransition}
               className={[
                 "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
                 correct
@@ -45,7 +54,7 @@ export function QuizView({ block }: { block: QuizBlock }) {
               ].join(" ")}
             >
               {option}
-            </button>
+            </motion.button>
           );
         })}
       </div>
@@ -58,8 +67,9 @@ export function QuizView({ block }: { block: QuizBlock }) {
             className="overflow-hidden"
           >
             <p
-              className={`mt-3 text-sm font-medium ${isCorrect ? "text-emerald-600" : "text-red-600"}`}
+              className={`mt-3 flex items-center gap-1.5 text-sm font-medium ${isCorrect ? "text-emerald-600" : "text-red-600"}`}
             >
+              {isCorrect && <CheckDraw />}
               {isCorrect ? "回答正确！" : "再想想～"}
             </p>
             <p className="mt-1 text-sm leading-6 text-zinc-600">{block.explanation}</p>
