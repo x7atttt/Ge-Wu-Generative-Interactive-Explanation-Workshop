@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { BuildProgressPanel } from "@/components/BuildProgressPanel";
 import { DocHistoryButton } from "@/components/DocHistoryButton";
+import { SourcesPanel } from "@/components/SourcesPanel";
 import { SoundToggle } from "@/components/SoundToggle";
 import { StatsPanel } from "@/components/StatsPanel";
 import { AskPanel, type AskItem } from "@/components/dsl/AskPanel";
@@ -33,6 +34,7 @@ const REFINE_EXAMPLES = [
 export default function Home() {
   const [concept, setConcept] = useState("");
   const [webSearchOn, setWebSearchOn] = useState(true);
+  const [attachedSourceIds, setAttachedSourceIds] = useState<number[]>([]);
   const [persona, setPersona] = useState<PersonaState>({ id: "default", custom: "" });
   const [doc, setDoc] = useState<ExplainDoc | null>(null);
   const [docId, setDocId] = useState<number | null>(null);
@@ -127,7 +129,13 @@ export default function Home() {
     try {
       const { doc: next, docId: id } = await streamExplanation(
         "generate",
-        { concept: conceptText, webSearch: webSearchOn, personaStyle: personaHint, ...extra },
+        {
+          concept: conceptText,
+          webSearch: webSearchOn,
+          personaStyle: personaHint,
+          sourceIds: attachedSourceIds,
+          ...extra,
+        },
         {
           onDelta: (t) => setBuildText((prev) => prev + t),
           onInfo: (m) => setSearchNote(m),
@@ -153,8 +161,17 @@ export default function Home() {
 
   function handleGenerate() {
     const text = concept.trim();
-    if (!text || busy) return;
+    // 附加了资料时概念可留空：服务端默认围绕第一份资料生成
+    if ((!text && attachedSourceIds.length === 0) || busy) return;
     runGenerate(text);
+  }
+
+  /** 资料「提炼讲解点」点击：附加该资料并把概念填进生成框 */
+  function pickSourceConcept(conceptText: string, sourceId: number) {
+    setConcept(conceptText);
+    setAttachedSourceIds((prev) =>
+      prev.includes(sourceId) ? prev : prev.length < 3 ? [...prev, sourceId] : prev
+    );
   }
 
   /** 统计面板弱项补练：以源概念标题生成针对性练习讲解 */
@@ -254,14 +271,18 @@ export default function Home() {
               value={concept}
               onChange={(e) => setConcept(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
-              placeholder="想搞懂什么概念？如：傅里叶级数、柱状图、供需与价格"
+              placeholder={
+                attachedSourceIds.length > 0
+                  ? "留空则围绕第一份资料生成，或输入具体概念"
+                  : "想搞懂什么概念？如：傅里叶级数、柱状图、供需与价格"
+              }
               maxLength={200}
               className="h-11 flex-1 rounded-xl border border-zinc-200 px-4 text-sm outline-none transition-colors focus:border-indigo-400"
               disabled={busy === "generate"}
             />
             <button
               onClick={handleGenerate}
-              disabled={busy !== null || !concept.trim()}
+              disabled={busy !== null || (!concept.trim() && attachedSourceIds.length === 0)}
               className="h-11 rounded-xl bg-indigo-600 px-5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               生成讲解
@@ -279,6 +300,12 @@ export default function Home() {
               </button>
             ))}
             <div className="ml-auto flex items-center gap-2">
+              <SourcesPanel
+                attachedIds={attachedSourceIds}
+                onAttachChange={setAttachedSourceIds}
+                onPickConcept={pickSourceConcept}
+                disabled={busy === "generate"}
+              />
               <select
                 value={persona.id}
                 onChange={(e) => setPersona((p) => ({ ...p, id: e.target.value }))}
