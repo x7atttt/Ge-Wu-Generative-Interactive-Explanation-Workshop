@@ -6,6 +6,7 @@ import {
   insertSource,
   listSourceSummaries,
   listSources,
+  setSourceProgress,
   type SourceKind,
 } from "@/lib/db/sources";
 import { fetchBatchResults, fetchFullMd, mineruToken, submitBatch } from "@/lib/mineru";
@@ -68,6 +69,8 @@ async function syncParsingRows(): Promise<void> {
         }
       } else if (item.state === "failed" || (item.state === "done" && !item.fullZipUrl)) {
         failSource(row.id, item.errMsg || "MinerU 解析失败");
+      } else if (item.extractedPages !== null && item.totalPages) {
+        setSourceProgress(row.id, `${Math.min(item.extractedPages, item.totalPages)}/${item.totalPages} 页`);
       }
       // waiting-file / pending / running 等中间态：保持 parsing
     }

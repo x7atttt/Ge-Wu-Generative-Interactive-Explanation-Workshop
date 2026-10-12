@@ -11,6 +11,8 @@ export interface SourceItem {
   chars: number;
   concepts: string[];
   error: string;
+  /** 解析进度（如 "3/12 页"），仅 parsing 期间有值 */
+  progress: string;
   createdAt: string;
 }
 

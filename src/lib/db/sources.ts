@@ -13,6 +13,8 @@ export interface SourceSummary {
   chars: number;
   concepts: string[];
   error: string;
+  /** 解析进度（如 "3/12 页"），仅 parsing 期间有值 */
+  progress: string;
   createdAt: string;
 }
 
@@ -25,6 +27,7 @@ interface RawRow {
   chars: number;
   concepts: string;
   error: string;
+  progress: string;
   batch_id: string;
   file_name: string;
   created_at: string;
@@ -55,6 +58,7 @@ function toRow(raw: RawRow): SourceRow {
     chars: raw.chars,
     concepts,
     error: raw.error,
+    progress: raw.progress ?? "",
     batchId: raw.batch_id,
     fileName: raw.file_name,
     createdAt: raw.created_at,
@@ -90,7 +94,7 @@ export function insertSource(input: {
 }
 
 const SELECT_ALL =
-  "SELECT id, title, kind, status, md_content, chars, concepts, error, batch_id, file_name, created_at FROM sources";
+  "SELECT id, title, kind, status, md_content, chars, concepts, error, progress, batch_id, file_name, created_at FROM sources";
 
 export function getSource(id: number): SourceRow | null {
   const row = getDb()
@@ -108,20 +112,33 @@ export function listSources(limit = 200): SourceRow[] {
 
 /** 面板列表：剥离正文 */
 export function listSourceSummaries(limit = 200): SourceSummary[] {
-  return listSources(limit).map(({ mdContent: _md, batchId: _b, fileName: _f, ...rest }) => rest);
+  return listSources(limit).map(
+    ({ mdContent: _md, batchId: _b, fileName: _f, ...rest }) => rest
+  );
 }
 
-/** 解析完成回填（幂等：仅 parsing 状态的行接受回填，防并发轮询重复写入） */
+/** 解析完成回填（幂等：仅 parsing 状态的行接受回填，防并发轮询重复写入；进度随终态清空） */
 export function completeSource(id: number, mdContent: string): void {
   getDb()
-    .prepare("UPDATE sources SET status = 'ready', md_content = ?, chars = ?, error = '' WHERE id = ? AND status = 'parsing'")
+    .prepare(
+      "UPDATE sources SET status = 'ready', md_content = ?, chars = ?, error = '', progress = '' WHERE id = ? AND status = 'parsing'"
+    )
     .run(mdContent, mdContent.length, id);
 }
 
 export function failSource(id: number, message: string): void {
   getDb()
-    .prepare("UPDATE sources SET status = 'error', error = ? WHERE id = ? AND status = 'parsing'")
+    .prepare(
+      "UPDATE sources SET status = 'error', error = ?, progress = '' WHERE id = ? AND status = 'parsing'"
+    )
     .run(message.slice(0, 300), id);
+}
+
+/** 解析进度展示（如 "3/12 页"）：仅 parsing 行更新，终态写入时清空 */
+export function setSourceProgress(id: number, progress: string): void {
+  getDb()
+    .prepare("UPDATE sources SET progress = ? WHERE id = ? AND status = 'parsing'")
+    .run(progress.slice(0, 60), id);
 }
 
 export function setSourceConcepts(id: number, concepts: string[]): void {

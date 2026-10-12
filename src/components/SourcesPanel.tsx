@@ -21,6 +21,14 @@ const KIND_LABEL: Record<string, string> = {
 const ACCEPT = ".txt,.md,.markdown,.pdf,.doc,.docx";
 const POLL_MS = 4000;
 
+/** MinerU 不上报页数进度的小任务兜底：显示已耗时（createdAt 为本地时间字符串） */
+function elapsedSince(createdAt: string): string {
+  const t = new Date(createdAt.replace(" ", "T")).getTime();
+  if (!Number.isFinite(t)) return "…";
+  const seconds = Math.max(0, Math.round((Date.now() - t) / 1000));
+  return seconds < 60 ? ` ${seconds}s` : ` ${Math.floor(seconds / 60)}m${seconds % 60}s`;
+}
+
 /**
  * 生成入口的「资料」面板：批量导入文档（txt/md 直读，PDF/Word 走 MinerU）、
  * 状态跟踪、勾选附加（≤3 份注入生成）、一键提炼讲解点（点击概念预填生成框）。
@@ -197,7 +205,9 @@ export function SourcesPanel({
                         </span>
                         <span className="ml-auto shrink-0 text-xs">
                           {source.status === "parsing" && (
-                            <span className="animate-pulse text-amber-600">解析中…</span>
+                            <span className="animate-pulse text-amber-600">
+                              解析中{source.progress ? ` ${source.progress}` : elapsedSince(source.createdAt)}
+                            </span>
                           )}
                           {source.status === "error" && (
                             <span className="text-red-500" title={source.error}>
