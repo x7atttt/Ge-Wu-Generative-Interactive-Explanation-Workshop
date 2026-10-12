@@ -4,9 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { BuildProgressPanel } from "@/components/BuildProgressPanel";
 import { DocHistoryButton } from "@/components/DocHistoryButton";
+import { SoundToggle } from "@/components/SoundToggle";
 import { StatsPanel } from "@/components/StatsPanel";
 import { AskPanel, type AskItem } from "@/components/dsl/AskPanel";
 import { AttemptContext, postAttempt } from "@/components/dsl/attempt-context";
+import { ensureAudio, playDone } from "@/lib/audio/sound";
 import { ExplainDocView } from "@/components/dsl/ExplainDocView";
 import { listDocs, loadDoc as loadDocById, streamExplanation, type DocSummary, type VersionPayload } from "@/lib/api/explanation";
 import {
@@ -117,6 +119,7 @@ export default function Home() {
     if (busy) return;
     const controller = new AbortController();
     abortRef.current = controller;
+    ensureAudio(); // 点击手势内预建 AudioContext，完成提示音不被自动播放策略拦截
     setBusy("generate");
     setError(null);
     setBuildText("");
@@ -138,6 +141,7 @@ export default function Home() {
       setRefineInput("");
       setRefineError(null);
       refreshDocList();
+      playDone();
     } catch (err) {
       if (controller.signal.aborted) setError("已取消本次生成");
       else setError(err instanceof Error ? err.message : "生成失败，请稍后重试");
@@ -166,6 +170,7 @@ export default function Home() {
     if (!instruction || !parentDoc || busy) return;
     const controller = new AbortController();
     abortRef.current = controller;
+    ensureAudio();
     setBusy("refine");
     setRefineError(null);
     setBuildText("");
@@ -185,6 +190,7 @@ export default function Home() {
       setRestoredAsks([]);
       setRefineInput("");
       refreshDocList();
+      playDone();
     } catch (err) {
       if (controller.signal.aborted) setRefineError("已取消本次改造");
       else setRefineError(err instanceof Error ? err.message : "改造失败，请稍后重试");
@@ -214,8 +220,9 @@ export default function Home() {
 
   return (
     <div className="flex flex-1 flex-col items-center bg-gradient-to-b from-indigo-50/70 via-zinc-50 to-zinc-50 px-4 py-10 font-sans">
-      {/* 右上角标签组：学习统计 + 历史讲解 */}
+      {/* 右上角标签组：学习统计 + 历史讲解 + 音效开关 */}
       <div className="fixed right-4 top-4 z-40 flex items-center gap-2">
+        <SoundToggle />
         <StatsPanel onPractice={startPractice} />
         <DocHistoryButton
           docs={docList}
