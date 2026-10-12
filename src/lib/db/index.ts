@@ -35,6 +35,24 @@ CREATE TABLE IF NOT EXISTS attempts (
 );
 CREATE INDEX IF NOT EXISTS idx_attempts_doc ON attempts(doc_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_time ON attempts(created_at);
+CREATE TABLE IF NOT EXISTS sources (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  -- kind: txt | md | pdf | docx | doc（pdf/word 经 MinerU 解析，txt/md 直读）
+  kind TEXT NOT NULL,
+  -- status: parsing（MinerU 解析中）| ready | error
+  status TEXT NOT NULL CHECK(status IN ('parsing','ready','error')),
+  md_content TEXT NOT NULL DEFAULT '',
+  chars INTEGER NOT NULL DEFAULT 0,
+  -- 概念提炼结果缓存（JSON 字符串数组，一键提炼按钮写入）
+  concepts TEXT NOT NULL DEFAULT '',
+  error TEXT NOT NULL DEFAULT '',
+  -- MinerU 批量任务追踪：batch 内按 file_name 对回结果
+  batch_id TEXT NOT NULL DEFAULT '',
+  file_name TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_sources_batch ON sources(batch_id);
 `;
 
 export function getDb(): DatabaseSync {
