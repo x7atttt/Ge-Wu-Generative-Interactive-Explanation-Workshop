@@ -74,7 +74,7 @@ src/
   lib/
     api/          # 前端 API 调用集中定义
     dsl/          # DSL schema 定义与校验（核心资产）
-    audio/        # Web Audio 封装（音效方案已定案、暂缓实施）
+    audio/        # Web Audio 封装（两档音效已实施：反馈音 sound.ts + 可听化 sonify.ts）
 spec/             # 需求文档 + prompt 链归档（入库）
 test/             # 测试（框架引入后）
 ```
@@ -85,7 +85,7 @@ test/             # 测试（框架引入后）
 - **动效原则**：直接操作（拖滑块）必须 1:1 即时跟手，不加动画；motion 的 spring 只用于离散状态切换、组件进出、步骤编排。
 - Mafs 需引入 `mafs/core.css`；注意 Tailwind v4 preflight 不覆盖 Mafs 的 SVG 样式。
 - echarts 用 `echarts/core` 按需注册，控制包体积；Sandpack 只在高级模式页动态 import，不进首屏 bundle。
-- 音效（UI 反馈音 + 数据可听化两档）为已定案设计、暂缓实施：DSL schema 设计时预留 `AudioOscillator` / `AudioMixer` 组件位，但不实现。
+- 音效两档已实施（迭代 13）：UI 反馈音（sound.ts 五音，静音 localStorage `gewu-sound` + 事件广播）与数据可听化（sonify.ts，wavePlot「听一听」）；AudioContext 懒创建且仅在用户手势内初始化（ensureAudio），SSR 全 no-op。练习反馈动效统一走 `components/dsl/motion-presets.ts`（reduced-motion 门控）。
 - 拆函数必须服务于复用、隔离副作用或降低认知负担；遵循向下规则：公开的高层方法在文件顶部，细节逐层下沉。
 
 ## 环境与安全
