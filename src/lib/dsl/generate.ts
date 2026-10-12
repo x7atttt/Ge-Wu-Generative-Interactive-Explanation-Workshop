@@ -101,8 +101,37 @@ function formatRefs(refs: SearchRef[]): string {
     .join("\n\n");
 }
 
-/** generateDoc 的可选输入：网络资料 / 语气人设 / 补练统计 */
+/** 单篇资料注入上限；超长头尾各半保留（开头的定义与结尾的总结通常最有讲解价值） */
+const SOURCE_SINGLE_CAP = 16_000;
+const SOURCE_HEAD_TAIL = 8_000;
+/** 多篇资料总预算：按顺序分配，装不下的整篇丢弃并标注 */
+const SOURCE_TOTAL_CAP = 40_000;
+
+function clipSourceContent(content: string): string {
+  if (content.length <= SOURCE_SINGLE_CAP) return content;
+  return `${content.slice(0, SOURCE_HEAD_TAIL)}\n\n……（中间内容过长已省略）……\n\n${content.slice(-SOURCE_HEAD_TAIL)}`;
+}
+
+/** 源文档资料格式化：带总预算的截断，保证注入用户消息的规模可控 */
+export function formatSources(sources: { title: string; content: string }[]): string {
+  let budget = SOURCE_TOTAL_CAP;
+  const parts: string[] = [];
+  for (const [i, source] of sources.entries()) {
+    const clipped = clipSourceContent(source.content);
+    if (clipped.length > budget) {
+      parts.push(`（第 ${i + 1} 篇《${source.title}》因资料总量超限未注入，仅保留标题参考）`);
+      continue;
+    }
+    budget -= clipped.length;
+    parts.push(`《${source.title}》\n${clipped}`);
+  }
+  return parts.join("\n\n---\n\n");
+}
+
+/** generateDoc 的可选输入：源文档资料 / 网络资料 / 语气人设 / 补练统计 */
 export interface GenerateExtras {
+  /** 用户导入并选用的资料（已解析为 Markdown，服务端已加载） */
+  sources?: { title: string; content: string }[];
   refs?: SearchRef[];
   personaStyle?: string | null;
   /** 补练模式：用户在该概念的练习统计行（服务端聚合后传入） */
@@ -116,6 +145,9 @@ export async function generateDoc(
   onDelta?: (text: string) => void
 ): Promise<ExplainDoc> {
   const sections: string[] = [`概念：${concept}`];
+  if (extras.sources && extras.sources.length > 0) {
+    sections.push(`源文档资料（用户导入的文档，讲解的事实依据）：\n${formatSources(extras.sources)}`);
+  }
   if (extras.refs && extras.refs.length > 0) {
     sections.push(`参考资料（网络检索结果）：\n${formatRefs(extras.refs)}`);
   }

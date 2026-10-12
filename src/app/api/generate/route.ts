@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sseResponse } from "@/lib/api/sse";
 import { getDoc, insertDoc } from "@/lib/db/docs";
+import { getReadySources } from "@/lib/db/sources";
 import { getDocAttemptStats, type AttemptType } from "@/lib/db/attempts";
 import { generateDoc, type GenerateExtras } from "@/lib/dsl/generate";
 import { webSearch } from "@/lib/search/bocha";
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
     webSearch?: unknown;
     personaStyle?: unknown;
     practiceDocId?: unknown;
+    sourceIds?: unknown;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -46,6 +48,21 @@ export async function POST(req: Request) {
       ? body.practiceDocId
       : null;
 
+  // 附加资料：最多 3 份，必须已解析完成（ready 才会被取出）
+  const sourceIds = Array.isArray(body.sourceIds)
+    ? [...new Set(body.sourceIds.filter((v): v is number => typeof v === "number" && Number.isInteger(v) && v > 0))]
+    : [];
+  if (sourceIds.length > 3) {
+    return NextResponse.json({ error: "最多附加 3 份资料" }, { status: 400 });
+  }
+  const sources =
+    sourceIds.length > 0
+      ? getReadySources(sourceIds).map((row) => ({ title: row.title, content: row.mdContent }))
+      : [];
+  if (sources.length !== sourceIds.length) {
+    return NextResponse.json({ error: "有资料不存在或还未解析完成" }, { status: 400 });
+  }
+
   // 补练模式：概念取自源文档标题，练习统计由服务端自己聚合（不信任客户端数字）
   let concept = typeof body.concept === "string" ? body.concept.trim() : "";
   let statLines: string[] | null = null;
@@ -61,6 +78,10 @@ export async function POST(req: Request) {
     concept = source.title;
   }
 
+  // 附加了资料时概念可留空：默认围绕第一份资料讲解
+  if (!concept && sources.length > 0) {
+    concept = sources[0].title.slice(0, 200);
+  }
   if (!concept) {
     return NextResponse.json({ error: "请输入要讲解的概念" }, { status: 400 });
   }
@@ -72,8 +93,12 @@ export async function POST(req: Request) {
     try {
       // 补练的用户消息已携带练习统计，资料槽不再放网络检索结果
       const refs = useWebSearch && statLines === null ? await webSearch(concept) : [];
+      if (sources.length > 0) {
+        send({ type: "info", message: `已附加 ${sources.length} 份资料（${sources.reduce((n, s) => n + s.content.length, 0)} 字）` });
+      }
       if (refs.length > 0) send({ type: "info", message: `已检索 ${refs.length} 条网络资料` });
       const extras: GenerateExtras = { refs, personaStyle };
+      if (sources.length > 0) extras.sources = sources;
       if (statLines) extras.practiceLines = statLines;
       const doc = await generateDoc(concept, extras, (text) =>
         send({ type: "delta", text })
