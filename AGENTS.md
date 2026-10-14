@@ -39,7 +39,8 @@ pnpm lint     # ESLint
 ```
 
 - **停机窗口纪律**：`pnpm build` 会清空 `.next`、`pnpm add` 会变更 `node_modules`——两者都会杀掉运行中的 dev server。这类命令只在停机窗口执行；dev server 运行期间用 `pnpm exec tsc --noEmit` 做类型检查。
-- **改 DB schema 后必须重启 dev server**：连接是 globalThis 单例，运行中的 server 永远看不到新表。
+- **改 DB schema 后必须重启 dev server**：连接是 globalThis 单例，运行中的 server 永远看不到新表（运行中的库可用 node:sqlite 跨进程在线 `ALTER`，WAL 支持并发写）。
+- **新建嵌套 API 路由目录后 404 时重启 dev server**：Turbopack 偶发不注册服务器启动后才创建的目录树（实测迭代 16 的 `spaces/[id]/map`）。
 
 ## 开发准则
 
@@ -77,7 +78,7 @@ src/
   lib/
     api/          # 前端 API 调用集中定义
     dsl/          # DSL schema 定义与校验（核心资产）
-    db/           # node:sqlite 访问层（docs/attempts/sources）
+    db/           # node:sqlite 访问层（docs/attempts/sources/spaces）
     audio/        # Web Audio 封装（两档音效已实施：反馈音 sound.ts + 可听化 sonify.ts）
     mineru.ts     # MinerU v4 文档解析客户端（PDF/Word→Markdown，迭代 14；结果取回是前端轮询驱动的懒同步）
 spec/             # 需求文档 + prompt 链归档（入库）
