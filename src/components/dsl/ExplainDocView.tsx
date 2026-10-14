@@ -184,7 +184,9 @@ export function ExplainDocView({
         {sliders.length > 0 ? (
           <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
             <div className="flex min-w-0 flex-col gap-4">{mainColumn}</div>
-            <aside className="hidden lg:block">
+            {/* self-stretch 抵消父级 items-start 的压缩：侧栏列须占满整行高，
+                否则 sticky 子元素没有滚动行程，划到下方图表时参数台"消失" */}
+            <aside className="hidden self-stretch lg:block">
               <div className="sticky top-6 flex flex-col gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
                 <p className="text-xs font-medium tracking-wide text-stone-500">参数台</p>
                 {sliders.map((block) => (
