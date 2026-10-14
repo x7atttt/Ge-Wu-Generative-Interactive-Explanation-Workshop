@@ -187,7 +187,8 @@ export function ExplainDocView({
             {/* self-stretch 抵消父级 items-start 的压缩：侧栏列须占满整行高，
                 否则 sticky 子元素没有滚动行程，划到下方图表时参数台"消失" */}
             <aside className="hidden self-stretch lg:block">
-              <div className="sticky top-6 flex flex-col gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
+              {/* top-16 避开右上角固定标签组（fixed top-4，高约 45px），防止粘附时重叠 */}
+              <div className="sticky top-16 flex flex-col gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
                 <p className="text-xs font-medium tracking-wide text-stone-500">参数台</p>
                 {sliders.map((block) => (
                   <SliderControl key={block.var} block={block} />
