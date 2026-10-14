@@ -77,13 +77,15 @@ async function syncParsingRows(): Promise<void> {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     await syncParsingRows();
   } catch (err) {
     console.error("[api/sources] sync", err);
   }
-  return NextResponse.json({ sources: listSourceSummaries() });
+  const raw = new URL(req.url).searchParams.get("spaceId");
+  const spaceId = raw !== null && /^\d+$/.test(raw) ? Number(raw) : undefined;
+  return NextResponse.json({ sources: listSourceSummaries(200, spaceId) });
 }
 
 export async function POST(req: Request) {
@@ -100,6 +102,10 @@ export async function POST(req: Request) {
   if (files.length > 50) {
     return NextResponse.json({ error: "单次最多导入 50 个文件" }, { status: 400 });
   }
+  // 空间模式下导入即归属当前空间
+  const rawSpace = form.get("spaceId");
+  const spaceId =
+    typeof rawSpace === "string" && /^\d+$/.test(rawSpace) ? Number(rawSpace) : null;
 
   const created: number[] = [];
   const mineruFiles: { name: string; data: Uint8Array<ArrayBuffer> }[] = [];
@@ -119,7 +125,7 @@ export async function POST(req: Request) {
     const data = new Uint8Array(await file.arrayBuffer());
     if (TEXT_KINDS.has(kind)) {
       created.push(
-        insertSource({ title: titleFromName(file.name), kind, status: "ready", mdContent: decodeText(data).trim() })
+        insertSource({ title: titleFromName(file.name), kind, status: "ready", mdContent: decodeText(data).trim(), spaceId })
       );
     } else {
       mineruFiles.push({ name: file.name, data });
@@ -138,7 +144,7 @@ export async function POST(req: Request) {
     const failRows = (message: string) => {
       for (const name of mineruNames) {
         created.push(
-          insertSource({ title: titleFromName(name), kind: kindFromName(name)!, status: "error", error: message })
+          insertSource({ title: titleFromName(name), kind: kindFromName(name)!, status: "error", error: message, spaceId })
         );
       }
     };
@@ -152,6 +158,7 @@ export async function POST(req: Request) {
             status: f.uploaded ? "parsing" : "error",
             error: f.uploaded ? "" : "文件上传 MinerU 失败，请重试",
             batchId,
+            spaceId,
             // 结果按批内提交名（可能去重改名过）对回
             fileName: f.submittedName,
           })

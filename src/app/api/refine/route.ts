@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sseResponse } from "@/lib/api/sse";
-import { insertDoc } from "@/lib/db/docs";
+import { getDoc, insertDoc, type DocOrigin } from "@/lib/db/docs";
 import { refineDoc } from "@/lib/dsl/generate";
 import { explainDocSchema } from "@/lib/dsl/schema";
 
@@ -36,7 +36,12 @@ export async function POST(req: Request) {
       const doc = await refineDoc(parsed.data, instruction.trim(), (text) =>
         send({ type: "delta", text })
       );
-      const docId = insertDoc(doc, parentDocId, instruction.trim());
+      // refine 子版本继承父版本的空间归属与出身概念（概念地图状态不被深化打散）
+      const parent = parentDocId !== null ? getDoc(parentDocId) : null;
+      const origin: DocOrigin = parent
+        ? { spaceId: parent.spaceId, originConcept: parent.originConcept, sourceIds: parent.sourceIds }
+        : { spaceId: null, originConcept: null };
+      const docId = insertDoc(doc, parentDocId, instruction.trim(), origin);
       send({ type: "done", doc, docId });
     } catch (err) {
       console.error("[api/refine]", err);

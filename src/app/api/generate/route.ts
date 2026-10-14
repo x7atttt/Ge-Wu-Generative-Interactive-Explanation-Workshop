@@ -31,6 +31,8 @@ export async function POST(req: Request) {
     personaStyle?: unknown;
     practiceDocId?: unknown;
     sourceIds?: unknown;
+    spaceId?: unknown;
+    originConcept?: unknown;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -47,6 +49,11 @@ export async function POST(req: Request) {
     typeof body.practiceDocId === "number" && Number.isInteger(body.practiceDocId) && body.practiceDocId > 0
       ? body.practiceDocId
       : null;
+  // 空间归属与出身概念（概念地图/资料提炼点生成时携带，refine 子版本会继承）
+  const spaceId =
+    typeof body.spaceId === "number" && Number.isInteger(body.spaceId) && body.spaceId > 0 ? body.spaceId : null;
+  const originConcept =
+    typeof body.originConcept === "string" && body.originConcept.trim() ? body.originConcept.trim().slice(0, 100) : null;
 
   // 附加资料：最多 3 份，必须已解析完成（ready 才会被取出）
   const sourceIds = Array.isArray(body.sourceIds)
@@ -103,7 +110,11 @@ export async function POST(req: Request) {
       const doc = await generateDoc(concept, extras, (text) =>
         send({ type: "delta", text })
       );
-      const docId = insertDoc(doc, null);
+      const docId = insertDoc(doc, null, null, {
+        spaceId,
+        originConcept: originConcept ?? (spaceId !== null ? concept.slice(0, 100) : null),
+        sourceIds,
+      });
       send({ type: "done", doc, docId });
     } catch (err) {
       console.error("[api/generate]", err);
