@@ -33,5 +33,6 @@ export async function GET(
     doc: row.doc,
     versions,
     asks: listAsks(docId),
+    spaceId: row.spaceId,
   });
 }
