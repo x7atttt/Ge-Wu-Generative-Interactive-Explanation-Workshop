@@ -62,24 +62,24 @@ export function BuildProgressPanel({
   const { title, blocks } = parseProgress(raw);
 
   return (
-    <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3">
+    <div className="mt-3 rounded-xl border border-stone-200 bg-stone-50/80 p-3">
       <div className="flex items-center justify-between">
-        <p className="flex items-center gap-2 text-xs text-zinc-500">
-          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
+        <p className="flex items-center gap-2 text-xs text-stone-500">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent-400 border-t-transparent" />
           {phase === "generate" ? "AI 正在构建讲解" : "AI 正在改造讲解"}
-          {title && <span className="text-zinc-700">《{title}》</span>}
+          {title && <span className="text-stone-700">《{title}》</span>}
         </p>
         <div className="flex items-center gap-3">
           <button
             onClick={onCancel}
-            className="text-xs text-zinc-400 transition-colors hover:text-red-500"
+            className="text-xs text-stone-400 transition-colors hover:text-red-500"
           >
             取消
           </button>
         </div>
       </div>
 
-      {note && <p className="mt-1 text-xs text-zinc-400">🌐 {note}</p>}
+      {note && <p className="mt-1 text-xs text-stone-400">🌐 {note}</p>}
 
       {blocks.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
@@ -89,7 +89,7 @@ export function BuildProgressPanel({
               <span
                 key={i}
                 className={`flex items-center gap-1 text-xs ${
-                  isLast ? "text-indigo-600" : "text-zinc-400"
+                  isLast ? "text-accent-600" : "text-stone-400"
                 }`}
               >
                 <span className={isLast ? "animate-pulse" : ""}>{isLast ? "✎" : "✓"}</span>
@@ -104,7 +104,7 @@ export function BuildProgressPanel({
       <div className="mt-2 text-center">
         <button
           onClick={() => setShowRaw((v) => !v)}
-          className="text-[11px] text-zinc-400 transition-colors hover:text-zinc-600"
+          className="text-[11px] text-stone-400 transition-colors hover:text-stone-600"
         >
           {showRaw ? "收起原始构建流" : "查看原始构建流"}
         </button>
@@ -119,7 +119,7 @@ export function BuildProgressPanel({
           >
             <div
               ref={rawScrollRef}
-              className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap break-all rounded-lg bg-zinc-900 p-3 font-mono text-[11px] leading-5 text-emerald-300/90"
+              className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap break-all rounded-lg bg-stone-900 p-3 font-mono text-[11px] leading-5 text-emerald-300/90"
             >
               {display}
               <span className="ml-0.5 inline-block h-3 w-[6px] animate-pulse bg-emerald-300 align-middle" />

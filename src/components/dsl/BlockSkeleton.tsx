@@ -2,7 +2,7 @@
 
 /** 各块类型的骨架占位（生成期流式上屏的尾部形状，BuildProgressPanel 与 ExplainDocView 共用） */
 export function BlockSkeleton({ type }: { type: string }) {
-  const base = "animate-pulse rounded-lg bg-zinc-200/80";
+  const base = "animate-pulse rounded-lg bg-stone-200/80";
   if (type === "text")
     return (
       <div className="space-y-2 py-1">

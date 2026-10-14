@@ -1,8 +1,39 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf7f2;
+  --foreground: #292524;
+}
+
+/*
+ * 设计令牌「纸墨朱砂」（迭代 19）：
+ * 纸色底 + 墨色字 + 朱砂点睛 + 黛青辅助，中文书面气质（格物致知）。
+ * 语义功能色（答对绿/错误红/等待琥珀）沿用 Tailwind 内置，仅换装饰层。
+ */
+@theme {
+  /* 纸（页面底色，暖白微黄） */
+  --color-paper: #faf7f2;
+  --color-card: #fffdf9;
+
+  /* 朱砂（accent：选中态/链接/点睛，按钮主色为墨不抢戏） */
+  --color-accent-50: #faf0ed;
+  --color-accent-100: #f4ddd6;
+  --color-accent-200: #e9bab0;
+  --color-accent-300: #dc9788;
+  --color-accent-400: #c96852;
+  --color-accent-500: #b34e38;
+  --color-accent-600: #a03d2a;
+  --color-accent-700: #843222;
+
+  /* 黛青（secondary：空间/已练习等信息层） */
+  --color-secondary-50: #eef3f2;
+  --color-secondary-100: #dce7e5;
+  --color-secondary-200: #b9cfcc;
+  --color-secondary-300: #8fb2ae;
+  --color-secondary-400: #5f8e89;
+  --color-secondary-500: #43736e;
+  --color-secondary-600: #365e5a;
+  --color-secondary-700: #2c4a47;
 }
 
 @theme inline {
@@ -22,5 +53,14 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans, Arial), Helvetica, sans-serif;
+}
+
+/* 标题/面板题字用衬线（宋体系），书面气质；正文保持无衬线 */
+.font-display {
+  font-family: "Noto Serif SC", "Source Han Serif SC", "STZhongsong", "SimSun", serif;
+}
+
+::selection {
+  background: var(--color-accent-100);
 }

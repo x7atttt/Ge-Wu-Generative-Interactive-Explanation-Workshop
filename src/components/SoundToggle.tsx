@@ -23,8 +23,8 @@ export function SoundToggle() {
       title={on ? "关闭所有音效" : "开启音效"}
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur transition-colors ${
         on
-          ? "border-zinc-200 bg-white/90 text-zinc-600 hover:border-indigo-300 hover:text-indigo-600"
-          : "border-zinc-200 bg-white/90 text-zinc-300 hover:text-zinc-500"
+          ? "border-stone-200 bg-card/90 text-stone-600 hover:border-accent-300 hover:text-accent-600"
+          : "border-stone-200 bg-card/90 text-stone-300 hover:text-stone-500"
       }`}
     >
       <svg

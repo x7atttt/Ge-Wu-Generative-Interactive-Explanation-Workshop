@@ -50,15 +50,15 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
   };
 
   return (
-    <div ref={cardRef} className="rounded-xl border border-zinc-200 bg-white p-4">
-      <p className="mb-3 text-sm font-medium text-zinc-800">
-        <span className="mr-1.5 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">
+    <div ref={cardRef} className="rounded-xl border border-stone-200 bg-card p-4">
+      <p className="mb-3 text-sm font-medium text-stone-800">
+        <span className="mr-1.5 rounded bg-accent-100 px-1.5 py-0.5 text-xs font-semibold text-accent-700">
           填空
         </span>
         {block.prompt ?? "选词完成下面的句子"}
       </p>
 
-      <p className="text-[15px] leading-8 text-zinc-800">
+      <p className="text-[15px] leading-8 text-stone-800">
         {parts.map((part, i) => (
           <span key={i}>
             {part}
@@ -88,7 +88,7 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
         <div className="mt-4 flex flex-col gap-2.5">
           {block.blanks.map((blank, bi) => (
             <div key={bi} className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-xs text-zinc-400">空{bi + 1}</span>
+              <span className="mr-1 text-xs text-stone-400">空{bi + 1}</span>
               {blank.options.map((option, oi) => (
                 <button
                   key={oi}
@@ -97,8 +97,8 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
                   className={[
                     "rounded-full border px-2.5 py-1 text-xs transition-colors",
                     choices[bi] === oi
-                      ? "border-indigo-400 bg-indigo-50 text-indigo-700"
-                      : "border-zinc-200 bg-white text-zinc-600 hover:border-indigo-300 hover:text-indigo-700",
+                      ? "border-accent-400 bg-accent-50 text-accent-700"
+                      : "border-stone-200 bg-card text-stone-600 hover:border-accent-300 hover:text-accent-700",
                   ].join(" ")}
                 >
                   {option}
@@ -115,12 +115,12 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
             type="button"
             disabled={!allFilled}
             onClick={check}
-            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-zinc-300"
+            className="rounded-lg bg-accent-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-500 disabled:cursor-not-allowed disabled:bg-stone-300"
           >
             检查
           </button>
         ) : (
-          <button type="button" onClick={reset} className="text-xs text-indigo-600 hover:underline">
+          <button type="button" onClick={reset} className="text-xs text-accent-600 hover:underline">
             重做
           </button>
         )}
@@ -142,9 +142,9 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
             </p>
             {block.blanks.map((blank, bi) =>
               choices[bi] === blank.answer ? null : (
-                <p key={bi} className="mt-1.5 text-sm leading-6 text-zinc-600">
+                <p key={bi} className="mt-1.5 text-sm leading-6 text-stone-600">
                   空{bi + 1}：正确答案{" "}
-                  <span className="font-medium text-zinc-800">{blank.options[blank.answer]}</span>
+                  <span className="font-medium text-stone-800">{blank.options[blank.answer]}</span>
                   {blank.explanation ? ` —— ${blank.explanation}` : ""}
                 </p>
               )
@@ -182,8 +182,8 @@ function BlankChip({
           : state === "wrong"
             ? "border-red-300 bg-red-50 text-red-600"
             : state === "picked"
-              ? "border-indigo-300 bg-indigo-50 text-indigo-700"
-              : "border-dashed border-zinc-300 bg-zinc-50 text-zinc-400",
+              ? "border-accent-300 bg-accent-50 text-accent-700"
+              : "border-dashed border-stone-300 bg-stone-50 text-stone-400",
       ].join(" ")}
     >
       {label ?? `空${index + 1}`}

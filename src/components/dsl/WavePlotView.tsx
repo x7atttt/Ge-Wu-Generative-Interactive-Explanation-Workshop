@@ -110,7 +110,7 @@ export function WavePlotView({ block }: { block: WavePlotBlock }) {
 
   // y 域固定：MVP 波形演示的振幅量级 ≤ 3，超出部分裁剪（schema 决策，见 spec）
   return (
-    <figure className="relative rounded-xl border border-zinc-200 p-2">
+    <figure className="relative rounded-xl border border-stone-200 p-2">
       <button
         type="button"
         onClick={toggleAudible}
@@ -118,8 +118,8 @@ export function WavePlotView({ block }: { block: WavePlotBlock }) {
         title={audible ? "停止听音" : "听一听：音高随频率滑块变化"}
         className={`absolute right-2 top-2 z-10 rounded-full border px-2 py-1 text-[11px] leading-none shadow-sm backdrop-blur transition-colors ${
           audible
-            ? "border-indigo-300 bg-indigo-50 text-indigo-600"
-            : "border-zinc-200 bg-white/90 text-zinc-500 hover:border-indigo-300 hover:text-indigo-600"
+            ? "border-accent-300 bg-accent-50 text-accent-600"
+            : "border-stone-200 bg-card/90 text-stone-500 hover:border-accent-300 hover:text-accent-600"
         }`}
       >
         {audible ? "🔊 听音中" : "🔊 听一听"}
@@ -135,7 +135,7 @@ export function WavePlotView({ block }: { block: WavePlotBlock }) {
         <Plot.OfX y={y} />
       </Mafs>
       {block.title ? (
-        <figcaption className="px-2 pb-1 pt-0.5 text-center text-xs text-zinc-500">
+        <figcaption className="px-2 pb-1 pt-0.5 text-center text-xs text-stone-500">
           {block.title}
           {block.xLabel
             ? `（横轴：${block.xLabel}${block.yLabel ? `，纵轴：${block.yLabel}` : ""}）`

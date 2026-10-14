@@ -8,7 +8,7 @@ export function TextBlockView({ block }: { block: TextBlock }) {
     <motion.p
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="leading-relaxed text-zinc-700"
+      className="leading-relaxed text-stone-700"
     >
       {block.content}
     </motion.p>

@@ -39,10 +39,10 @@ export function SliderControl({ block }: { block: SliderBlock }) {
     <motion.label
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="block rounded-xl border border-zinc-200 px-4 py-3"
+      className="block rounded-xl border border-stone-200 px-4 py-3"
     >
       <span className="mb-1.5 flex items-baseline justify-between gap-2 text-sm">
-        <span className="font-medium text-zinc-800">{block.label}</span>
+        <span className="font-medium text-stone-800">{block.label}</span>
         <input
           type="number"
           inputMode="decimal"
@@ -57,7 +57,7 @@ export function SliderControl({ block }: { block: SliderBlock }) {
             if (e.key === "Escape") setDraft(null);
           }}
           aria-label={`${block.label} 数值`}
-          className="w-16 rounded-md border border-transparent bg-transparent px-1 text-right font-mono text-zinc-500 outline-none transition-colors [appearance:textfield] hover:border-zinc-200 focus:border-indigo-400 focus:text-zinc-800 focus:bg-white [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="w-16 rounded-md border border-transparent bg-transparent px-1 text-right font-mono text-stone-500 outline-none transition-colors [appearance:textfield] hover:border-stone-200 focus:border-accent-400 focus:text-stone-800 focus:bg-card [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
       </span>
       <input
@@ -67,7 +67,7 @@ export function SliderControl({ block }: { block: SliderBlock }) {
         step={block.step}
         value={current}
         onChange={(e) => setValue(block.var, e.target.valueAsNumber)}
-        className="h-1.5 w-full cursor-pointer accent-indigo-600"
+        className="h-1.5 w-full cursor-pointer accent-accent-600"
         aria-label={block.label}
       />
     </motion.label>

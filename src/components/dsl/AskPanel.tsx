@@ -25,22 +25,22 @@ const AskBubble = memo(function AskBubble({ item, active }: { item: AskItem; act
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="self-end rounded-2xl rounded-br-sm bg-indigo-600 px-3.5 py-2 text-sm text-white">
+      <div className="self-end rounded-2xl rounded-br-sm bg-accent-600 px-3.5 py-2 text-sm text-white">
         {item.question}
       </div>
       {shown ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="self-start rounded-2xl rounded-bl-sm bg-zinc-100 px-3.5 py-2 text-sm leading-6 text-zinc-800"
+          className="self-start rounded-2xl rounded-bl-sm bg-stone-100 px-3.5 py-2 text-sm leading-6 text-stone-800"
         >
           <MarkdownView content={shown} />
           {!item.done && (
-            <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse bg-zinc-500 align-middle" />
+            <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse bg-stone-500 align-middle" />
           )}
         </motion.div>
       ) : (
-        <div className="self-start text-xs text-zinc-400">思考中…</div>
+        <div className="self-start text-xs text-stone-400">思考中…</div>
       )}
     </div>
   );
@@ -117,13 +117,13 @@ export function AskPanel({
           onKeyDown={(e) => e.key === "Enter" && handleAsk()}
           placeholder="如：这篇讲解最需要注意的点是什么？也可以接着上一轮继续问"
           maxLength={300}
-          className="h-10 flex-1 rounded-xl border border-zinc-200 px-3 text-sm outline-none transition-colors focus:border-indigo-400"
+          className="h-10 flex-1 rounded-xl border border-stone-200 px-3 text-sm outline-none transition-colors focus:border-accent-400"
           disabled={asking}
         />
         <button
           onClick={handleAsk}
           disabled={asking || !input.trim()}
-          className="h-10 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+          className="h-10 rounded-xl border border-accent-200 bg-accent-50 px-4 text-sm font-medium text-accent-700 transition-colors hover:bg-accent-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {asking ? "回答中…" : "追问"}
         </button>

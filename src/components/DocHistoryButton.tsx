@@ -71,7 +71,7 @@ export function DocHistoryButton({
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={disabled}
-        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white/90 px-3 py-1.5 text-xs font-medium text-zinc-600 shadow-sm backdrop-blur transition-colors hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-card/90 px-3 py-1.5 text-xs font-medium text-stone-600 shadow-sm backdrop-blur transition-colors hover:border-accent-300 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <svg
           viewBox="0 0 24 24"
@@ -86,7 +86,7 @@ export function DocHistoryButton({
         </svg>
         历史讲解
         {docs.length > 0 && (
-          <span className="rounded-full bg-indigo-50 px-1.5 py-px font-mono text-[10px] text-indigo-600">
+          <span className="rounded-full bg-accent-50 px-1.5 py-px font-mono text-[10px] text-accent-600">
             {docs.length}
           </span>
         )}
@@ -99,20 +99,20 @@ export function DocHistoryButton({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 320, damping: 26 }}
-            className="absolute right-0 top-11 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl"
+            className="absolute right-0 top-11 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-stone-200 bg-card shadow-xl"
           >
-            <div className="border-b border-zinc-100 p-2">
+            <div className="border-b border-stone-100 p-2">
               <input
                 ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="搜索标题或编号…"
-                className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700 outline-none transition-colors focus:border-indigo-400 focus:bg-white"
+                className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 outline-none transition-colors focus:border-accent-400 focus:bg-card"
               />
             </div>
             <ul className="max-h-[60vh] overflow-y-auto p-1">
               {filtered.length === 0 ? (
-                <li className="px-3 py-8 text-center text-xs text-zinc-400">
+                <li className="px-3 py-8 text-center text-xs text-stone-400">
                   没有匹配的讲解
                 </li>
               ) : (
@@ -127,12 +127,12 @@ export function DocHistoryButton({
                       className={[
                         "flex min-w-0 flex-1 items-baseline gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
                         d.id === currentId
-                          ? "bg-indigo-50 text-indigo-700"
-                          : "text-zinc-700 hover:bg-zinc-50",
+                          ? "bg-accent-50 text-accent-700"
+                          : "text-stone-700 hover:bg-stone-50",
                       ].join(" ")}
                     >
                       <span className="min-w-0 flex-1 truncate">{d.title}</span>
-                      <span className="shrink-0 font-mono text-[11px] text-zinc-400">
+                      <span className="shrink-0 font-mono text-[11px] text-stone-400">
                         #{d.id}
                         {d.createdAt ? ` · ${formatDay(d.createdAt)}` : ""}
                       </span>
@@ -142,7 +142,7 @@ export function DocHistoryButton({
                       disabled={deletingId === d.id}
                       onClick={() => handleDelete(d.id, d.title)}
                       title="删除该讲解及其深化版本（不可恢复）"
-                      className="shrink-0 rounded-lg px-2 py-2 text-xs text-zinc-300 transition-colors hover:bg-red-50 hover:text-red-500 group-hover:text-zinc-400 disabled:opacity-50"
+                      className="shrink-0 rounded-lg px-2 py-2 text-xs text-stone-300 transition-colors hover:bg-red-50 hover:text-red-500 group-hover:text-stone-400 disabled:opacity-50"
                     >
                       {deletingId === d.id ? "…" : "✕"}
                     </button>
@@ -153,7 +153,7 @@ export function DocHistoryButton({
             {error && (
               <p className="border-t border-red-100 bg-red-50 px-3 py-1.5 text-[11px] text-red-600">{error}</p>
             )}
-            <div className="border-t border-zinc-100 px-3 py-1.5 text-[11px] text-zinc-400">
+            <div className="border-t border-stone-100 px-3 py-1.5 text-[11px] text-stone-400">
               共 {docs.length} 篇
               {q && filtered.length !== docs.length ? ` · 匹配 ${filtered.length} 篇` : ""}
             </div>

@@ -19,15 +19,15 @@ export function FormulaBlockView({ block }: { block: FormulaBlock }) {
     <motion.figure
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl bg-zinc-50 px-4 py-5 text-center"
+      className="rounded-xl bg-stone-50 px-4 py-5 text-center"
     >
       {html ? (
         <div className="overflow-x-auto text-lg" dangerouslySetInnerHTML={{ __html: html }} />
       ) : (
-        <code className="text-sm text-zinc-600">{block.latex}</code>
+        <code className="text-sm text-stone-600">{block.latex}</code>
       )}
       {block.caption ? (
-        <figcaption className="mt-2 text-xs text-zinc-500">{block.caption}</figcaption>
+        <figcaption className="mt-2 text-xs text-stone-500">{block.caption}</figcaption>
       ) : null}
     </motion.figure>
   );

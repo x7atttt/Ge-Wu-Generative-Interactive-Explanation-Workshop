@@ -77,8 +77,8 @@ export function SpacePicker({
         title="空间：资料/历史/统计按空间分组，选定后显示概念地图"
         className={`rounded-full border px-2.5 py-1 text-xs outline-none transition-colors disabled:opacity-50 ${
           spaceId !== null
-            ? "border-violet-300 bg-violet-50 text-violet-700"
-            : "border-zinc-200 bg-white text-zinc-600 hover:border-violet-300 focus:border-violet-400"
+            ? "border-secondary-300 bg-secondary-50 text-secondary-700"
+            : "border-stone-200 bg-card text-stone-600 hover:border-secondary-300 focus:border-secondary-400"
         }`}
       >
         <option value="">全局</option>
@@ -96,8 +96,8 @@ export function SpacePicker({
         title="空间管理：查看所有空间与资料归属、新建/重命名/删除/移动"
         className={`rounded-full border px-2.5 py-1 text-xs transition-colors disabled:opacity-50 ${
           hubOpen
-            ? "border-violet-300 bg-violet-50 text-violet-700"
-            : "border-zinc-200 bg-white text-zinc-500 hover:border-violet-300 hover:text-violet-600"
+            ? "border-secondary-300 bg-secondary-50 text-secondary-700"
+            : "border-stone-200 bg-card text-stone-500 hover:border-secondary-300 hover:text-secondary-600"
         }`}
       >
         🗂 空间
@@ -108,7 +108,7 @@ export function SpacePicker({
           onClick={handleDelete}
           disabled={disabled}
           title="删除当前空间（资料与讲解移回未分组）"
-          className="rounded-full border border-zinc-200 px-2 py-1 text-xs text-zinc-400 transition-colors hover:border-red-300 hover:text-red-500 disabled:opacity-50"
+          className="rounded-full border border-stone-200 px-2 py-1 text-xs text-stone-400 transition-colors hover:border-red-300 hover:text-red-500 disabled:opacity-50"
         >
           ✕
         </button>
@@ -128,13 +128,13 @@ export function SpacePicker({
               placeholder="空间名，如：期末·操作系统"
               maxLength={60}
               autoFocus
-              className="w-40 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-600 outline-none focus:border-violet-400"
+              className="w-40 rounded-full border border-stone-200 bg-card px-3 py-1 text-xs text-stone-600 outline-none focus:border-secondary-400"
             />
             <button
               type="button"
               onClick={handleCreate}
               disabled={!name.trim()}
-              className="rounded-full bg-violet-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-violet-500 disabled:opacity-50"
+              className="rounded-full bg-secondary-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-secondary-500 disabled:opacity-50"
             >
               创建
             </button>
@@ -243,9 +243,9 @@ function SpaceHub({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -6 }}
         transition={{ duration: 0.16 }}
-        className="absolute left-0 z-40 mt-2 w-[380px] max-w-[calc(100vw-2rem)] rounded-xl border border-zinc-200 bg-white p-3 shadow-lg"
+        className="absolute left-0 z-40 mt-2 w-[380px] max-w-[calc(100vw-2rem)] rounded-xl border border-stone-200 bg-card p-3 shadow-lg"
       >
-        <p className="text-xs font-semibold text-zinc-700">空间管理</p>
+        <p className="text-xs font-semibold text-stone-700">空间管理</p>
         <div className="mt-2 flex items-center gap-1.5">
           <input
             value={newName}
@@ -253,13 +253,13 @@ function SpaceHub({
             onKeyDown={(e) => e.key === "Enter" && handleCreate()}
             placeholder="新建空间，如：期末·操作系统"
             maxLength={60}
-            className="h-8 flex-1 rounded-lg border border-zinc-200 px-2.5 text-xs outline-none focus:border-violet-400"
+            className="h-8 flex-1 rounded-lg border border-stone-200 px-2.5 text-xs outline-none focus:border-secondary-400"
           />
           <button
             type="button"
             onClick={handleCreate}
             disabled={!newName.trim()}
-            className="h-8 rounded-lg bg-violet-600 px-3 text-xs font-medium text-white transition-colors hover:bg-violet-500 disabled:opacity-50"
+            className="h-8 rounded-lg bg-secondary-600 px-3 text-xs font-medium text-white transition-colors hover:bg-secondary-500 disabled:opacity-50"
           >
             创建
           </button>
@@ -267,14 +267,14 @@ function SpaceHub({
 
         <div className="mt-2 max-h-64 overflow-y-auto">
           {spaces.length === 0 && !loading && (
-            <p className="py-4 text-center text-xs text-zinc-400">还没有空间——创建一个，把一场考试的资料圈起来</p>
+            <p className="py-4 text-center text-xs text-stone-400">还没有空间——创建一个，把一场考试的资料圈起来</p>
           )}
           {spaces.map((space) => {
             const mine = sources.filter((s) => s.spaceId === space.id);
             const current = space.id === spaceId;
             const expanded = expandedId === space.id;
             return (
-              <div key={space.id} className="rounded-lg border border-zinc-100 px-2.5 py-2">
+              <div key={space.id} className="rounded-lg border border-stone-100 px-2.5 py-2">
                 <div className="flex items-center gap-2">
                   {renamingId === space.id ? (
                     <>
@@ -290,7 +290,7 @@ function SpaceHub({
                         }}
                         autoFocus
                         maxLength={60}
-                        className="h-7 flex-1 rounded-md border border-violet-300 px-2 text-xs outline-none"
+                        className="h-7 flex-1 rounded-md border border-secondary-300 px-2 text-xs outline-none"
                       />
                       <button
                         type="button"
@@ -300,7 +300,7 @@ function SpaceHub({
                             setRenamingId(null);
                           }
                         }}
-                        className="text-xs text-violet-600 hover:underline"
+                        className="text-xs text-secondary-600 hover:underline"
                       >
                         保存
                       </button>
@@ -310,13 +310,13 @@ function SpaceHub({
                       <button
                         type="button"
                         onClick={() => onEnter(space.id)}
-                        className={`truncate text-sm hover:underline ${current ? "font-semibold text-violet-700" : "text-zinc-800"}`}
+                        className={`truncate text-sm hover:underline ${current ? "font-semibold text-secondary-700" : "text-stone-800"}`}
                         title="进入该空间"
                       >
                         {space.name}
                       </button>
-                      {current && <span className="shrink-0 text-[10px] text-violet-500">当前</span>}
-                      <span className="ml-auto shrink-0 text-[10px] text-zinc-400">
+                      {current && <span className="shrink-0 text-[10px] text-secondary-500">当前</span>}
+                      <span className="ml-auto shrink-0 text-[10px] text-stone-400">
                         {space.sourceCount} 资料 · {space.docCount} 讲解
                         {space.examDate ? ` · ${space.examDate}` : ""}
                       </span>
@@ -324,7 +324,7 @@ function SpaceHub({
                         type="button"
                         disabled={busyId === space.id}
                         onClick={() => setExpandedId(expanded ? null : space.id)}
-                        className="shrink-0 text-xs text-zinc-400 transition-colors hover:text-zinc-700 disabled:opacity-50"
+                        className="shrink-0 text-xs text-stone-400 transition-colors hover:text-stone-700 disabled:opacity-50"
                         title="展开资料归属"
                       >
                         {expanded ? "▾" : "▸"}
@@ -335,7 +335,7 @@ function SpaceHub({
                             type="date"
                             value={dateText}
                             onChange={(e) => setDateText(e.target.value)}
-                            className="h-6 rounded-md border border-violet-300 px-1 text-[10px] outline-none"
+                            className="h-6 rounded-md border border-secondary-300 px-1 text-[10px] outline-none"
                           />
                           <button
                             type="button"
@@ -346,14 +346,14 @@ function SpaceHub({
                               );
                               setDatingId(null);
                             }}
-                            className="text-[10px] text-violet-600 hover:underline"
+                            className="text-[10px] text-secondary-600 hover:underline"
                           >
                             存
                           </button>
                           <button
                             type="button"
                             onClick={() => setDatingId(null)}
-                            className="text-[10px] text-zinc-400 hover:underline"
+                            className="text-[10px] text-stone-400 hover:underline"
                           >
                             取消
                           </button>
@@ -366,7 +366,7 @@ function SpaceHub({
                             setDatingId(space.id);
                             setDateText(space.examDate ?? "");
                           }}
-                          className="shrink-0 text-xs text-zinc-400 transition-colors hover:text-orange-600 disabled:opacity-50"
+                          className="shrink-0 text-xs text-stone-400 transition-colors hover:text-orange-600 disabled:opacity-50"
                           title="设置考试日期（概念地图显示倒计时）"
                         >
                           日期
@@ -379,7 +379,7 @@ function SpaceHub({
                           setRenamingId(space.id);
                           setRenameText(space.name);
                         }}
-                        className="shrink-0 text-xs text-zinc-400 transition-colors hover:text-violet-600 disabled:opacity-50"
+                        className="shrink-0 text-xs text-stone-400 transition-colors hover:text-secondary-600 disabled:opacity-50"
                       >
                         改名
                       </button>
@@ -391,7 +391,7 @@ function SpaceHub({
                             run(() => deleteSpace(space.id), space.id);
                           }
                         }}
-                        className="shrink-0 text-xs text-zinc-400 transition-colors hover:text-red-500 disabled:opacity-50"
+                        className="shrink-0 text-xs text-stone-400 transition-colors hover:text-red-500 disabled:opacity-50"
                       >
                         删除
                       </button>
@@ -399,18 +399,18 @@ function SpaceHub({
                   )}
                 </div>
                 {expanded && (
-                  <div className="mt-1.5 border-t border-zinc-100 pt-1.5">
-                    {mine.length === 0 && <p className="px-1 text-[10px] text-zinc-400">空间内还没有资料</p>}
+                  <div className="mt-1.5 border-t border-stone-100 pt-1.5">
+                    {mine.length === 0 && <p className="px-1 text-[10px] text-stone-400">空间内还没有资料</p>}
                     {mine.map((source) => (
                       <div key={source.id} className="flex items-center gap-2 py-1">
-                        <span className="truncate text-xs text-zinc-600" title={source.title}>
+                        <span className="truncate text-xs text-stone-600" title={source.title}>
                           {source.title}
                         </span>
                         <button
                           type="button"
                           disabled={busyId !== null}
                           onClick={() => run(() => moveSource(source.id, null), source.id)}
-                          className="ml-auto shrink-0 text-[10px] text-zinc-400 transition-colors hover:text-violet-600 disabled:opacity-50"
+                          className="ml-auto shrink-0 text-[10px] text-stone-400 transition-colors hover:text-secondary-600 disabled:opacity-50"
                         >
                           移出
                         </button>
@@ -423,11 +423,11 @@ function SpaceHub({
           })}
 
           {ungrouped.length > 0 && (
-            <div className="mt-2 border-t border-zinc-100 pt-2">
-              <p className="px-0.5 pb-1 text-[10px] text-zinc-400">未分组资料（选择移入的空间）</p>
+            <div className="mt-2 border-t border-stone-100 pt-2">
+              <p className="px-0.5 pb-1 text-[10px] text-stone-400">未分组资料（选择移入的空间）</p>
               {ungrouped.map((source) => (
                 <div key={source.id} className="flex items-center gap-2 py-1">
-                  <span className="truncate text-xs text-zinc-600" title={source.title}>
+                  <span className="truncate text-xs text-stone-600" title={source.title}>
                     {source.title}
                   </span>
                   <select
@@ -439,7 +439,7 @@ function SpaceHub({
                         run(() => moveSource(source.id, target), source.id);
                       }
                     }}
-                    className="ml-auto shrink-0 rounded-md border border-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-500 outline-none"
+                    className="ml-auto shrink-0 rounded-md border border-stone-200 px-1.5 py-0.5 text-[10px] text-stone-500 outline-none"
                   >
                     <option value="">移入…</option>
                     {spaces.map((space) => (

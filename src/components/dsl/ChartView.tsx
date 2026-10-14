@@ -36,7 +36,7 @@ export function ChartView({ block }: { block: ChartBlock }) {
               icon: "roundRect",
               itemWidth: 12,
               itemHeight: 6,
-              textStyle: { color: "#71717a", fontSize: 11 },
+              textStyle: { color: "#78716c", fontSize: 11 },
             },
           }
         : {}),
@@ -61,10 +61,10 @@ export function ChartView({ block }: { block: ChartBlock }) {
   const containerRef = useEChart(option);
 
   return (
-    <figure className="rounded-xl border border-zinc-200 p-3">
+    <figure className="rounded-xl border border-stone-200 p-3">
       <div ref={containerRef} className="h-64 w-full" />
       {block.title ? (
-        <figcaption className="pt-1 text-center text-xs text-zinc-500">{block.title}</figcaption>
+        <figcaption className="pt-1 text-center text-xs text-stone-500">{block.title}</figcaption>
       ) : null}
     </figure>
   );

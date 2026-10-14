@@ -113,25 +113,25 @@ export function ReviewPanel({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-zinc-900/30" onClick={handleClose} />
+      <div className="fixed inset-0 z-40 bg-stone-900/30" onClick={handleClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <motion.div
           initial={reducedMotion ? false : { opacity: 0, y: 14, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ type: "spring", stiffness: 160, damping: 18 }}
-          className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl"
+          className="w-full max-w-lg rounded-2xl border border-stone-200 bg-card p-5 shadow-xl"
         >
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-zinc-800">🔖 复习</h3>
+            <h3 className="font-display text-base font-bold text-stone-900">🔖 复习</h3>
             {queue !== null && !finished && (
-              <span className="text-xs text-zinc-400">
+              <span className="text-xs text-stone-400">
                 {index + 1} / {queue.length}
               </span>
             )}
             <button
               type="button"
               onClick={handleClose}
-              className="ml-auto rounded-full border border-zinc-200 px-2 py-0.5 text-xs text-zinc-400 transition-colors hover:text-zinc-700"
+              className="ml-auto rounded-full border border-stone-200 px-2 py-0.5 text-xs text-stone-400 transition-colors hover:text-stone-700"
             >
               退出
             </button>
@@ -139,25 +139,25 @@ export function ReviewPanel({
 
           {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}
 
-          {queue === null && !error && <p className="py-10 text-center text-sm text-zinc-400">加载复习队列…</p>}
+          {queue === null && !error && <p className="py-10 text-center text-sm text-stone-400">加载复习队列…</p>}
 
           {queue !== null && queue.length === 0 && (
-            <p className="py-10 text-center text-sm leading-6 text-zinc-500">
+            <p className="py-10 text-center text-sm leading-6 text-stone-500">
               今日没有到期的复习卡
               <br />
-              <span className="text-xs text-zinc-400">在讲解底部点「制成复习卡」，题目会按遗忘曲线安排回来</span>
+              <span className="text-xs text-stone-400">在讲解底部点「制成复习卡」，题目会按遗忘曲线安排回来</span>
             </p>
           )}
 
           {card && (
             <div className="mt-4">
               {card.originConcept && (
-                <p className="mb-2 inline-block rounded-full bg-violet-50 px-2 py-0.5 text-[10px] text-violet-600">
+                <p className="mb-2 inline-block rounded-full bg-secondary-50 px-2 py-0.5 text-[10px] text-secondary-600">
                   {card.originConcept}
                 </p>
               )}
-              <div className="rounded-xl border border-zinc-100 bg-zinc-50/60 p-4">
-                <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-800">{card.front}</p>
+              <div className="rounded-xl border border-stone-100 bg-stone-50/60 p-4">
+                <p className="whitespace-pre-wrap text-sm leading-6 text-stone-800">{card.front}</p>
               </div>
 
               {revealed ? (
@@ -175,7 +175,7 @@ export function ReviewPanel({
                     setRevealed(true);
                     playPop();
                   }}
-                  className="mt-3 w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
+                  className="mt-3 w-full rounded-xl bg-accent-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-500"
                 >
                   显示答案（空格）
                 </button>
@@ -203,10 +203,10 @@ export function ReviewPanel({
 
           {finished && queue !== null && queue.length > 0 && (
             <div className="py-6 text-center">
-              <p className="text-sm font-medium text-zinc-800">
+              <p className="text-sm font-medium text-stone-800">
                 本轮过完，共 {tally.again + tally.fuzzy + tally.easy} 次评分
               </p>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-stone-500">
                 <span className="text-emerald-600">记得 {tally.easy}</span> ·{" "}
                 <span className="text-amber-600">模糊 {tally.fuzzy}</span> ·{" "}
                 <span className="text-red-500">忘记 {tally.again}</span>
@@ -216,7 +216,7 @@ export function ReviewPanel({
               <button
                 type="button"
                 onClick={handleClose}
-                className="mt-4 rounded-xl bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
+                className="mt-4 rounded-xl bg-accent-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-500"
               >
                 完成
               </button>

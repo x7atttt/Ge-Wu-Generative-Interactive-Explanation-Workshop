@@ -367,7 +367,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-gradient-to-b from-indigo-50/70 via-zinc-50 to-zinc-50 px-4 py-10 font-sans">
+    <div className="flex flex-1 flex-col items-center bg-paper px-4 py-10 font-sans">
       {/* 右上角标签组：学习统计 + 历史讲解 + 音效开关 */}
       <div className="fixed right-4 top-4 z-40 flex items-center gap-2">
         <SoundToggle />
@@ -382,22 +382,22 @@ export default function Home() {
       </div>
       <main className={`w-full ${wide ? "max-w-5xl" : "max-w-2xl"} transition-[max-width] duration-300`}>
         <header className="mb-8 text-center">
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-500 shadow-sm">
-            <span className="font-medium text-zinc-700">格物</span> Gewu · 生成式交互讲解工坊
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-card px-3 py-1 text-xs text-stone-500">
+            <span className="font-display font-medium text-stone-800">格物</span>
+            <span className="h-3 w-px bg-stone-300" />
+            <span>Gewu · 生成式交互讲解工坊</span>
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">
+          <h1 className="font-display text-3xl font-bold tracking-wide text-stone-900">
             输入一个概念，
-            <span className="bg-gradient-to-r from-indigo-600 to-violet-500 bg-clip-text text-transparent">
-              玩着懂
-            </span>
+            <span className="relative text-accent-600">玩着懂</span>
           </h1>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">
+          <p className="mt-2 text-sm leading-6 text-stone-500">
             AI 现场生成带滑块与图表的交互讲解——拖动参数建立直觉，追问深入细节，一句话继续改造
           </p>
         </header>
 
         {/* 生成入口 */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <section className="rounded-2xl border border-stone-200 bg-card p-4 shadow-sm">
           <div className="flex gap-2">
             <input
               value={concept}
@@ -412,13 +412,13 @@ export default function Home() {
                   : "想搞懂什么概念？如：正弦波的频率、英语名词复数、快速排序"
               }
               maxLength={200}
-              className="h-11 flex-1 rounded-xl border border-zinc-200 px-4 text-sm outline-none transition-colors focus:border-indigo-400"
+              className="h-11 flex-1 rounded-xl border border-stone-200 px-4 text-sm outline-none transition-colors focus:border-accent-400"
               disabled={busy === "generate"}
             />
             <button
               onClick={handleGenerate}
               disabled={busy !== null || (!concept.trim() && attachedSourceIds.length === 0)}
-              className="h-11 rounded-xl bg-indigo-600 px-5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-11 rounded-xl bg-stone-900 px-5 text-sm font-medium text-paper shadow-sm transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               生成讲解
             </button>
@@ -432,7 +432,7 @@ export default function Home() {
                   setOriginConcept(null);
                 }}
                 disabled={busy === "generate"}
-                className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-500 transition-colors hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-50"
+                className="rounded-full border border-stone-200 px-3 py-1 text-xs text-stone-500 transition-colors hover:border-accent-300 hover:text-accent-600 disabled:opacity-50"
               >
                 {example}
               </button>
@@ -457,7 +457,7 @@ export default function Home() {
                 onChange={(e) => updatePersona({ id: e.target.value, custom: persona.custom })}
                 disabled={busy === "generate"}
                 title="讲解与追问的语气人设"
-                className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-600 outline-none transition-colors hover:border-indigo-300 focus:border-indigo-400 disabled:opacity-50"
+                className="rounded-full border border-stone-200 bg-card px-2.5 py-1 text-xs text-stone-600 outline-none transition-colors hover:border-accent-300 focus:border-accent-400 disabled:opacity-50"
               >
                 {PERSONAS.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -473,7 +473,7 @@ export default function Home() {
                   placeholder="一句话描述人设…"
                   maxLength={100}
                   disabled={busy === "generate"}
-                  className="w-36 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-600 outline-none transition-colors focus:border-indigo-400 disabled:opacity-50"
+                  className="w-36 rounded-full border border-stone-200 bg-card px-3 py-1 text-xs text-stone-600 outline-none transition-colors focus:border-accent-400 disabled:opacity-50"
                 />
               )}
               <button
@@ -483,13 +483,13 @@ export default function Home() {
                 disabled={busy === "generate"}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-50 ${
                   webSearchOn
-                    ? "border-indigo-300 bg-indigo-50 text-indigo-600"
-                    : "border-zinc-200 text-zinc-400 hover:text-zinc-600"
+                    ? "border-accent-300 bg-accent-50 text-accent-600"
+                    : "border-stone-200 text-stone-400 hover:text-stone-600"
                 }`}
                 title="生成前用博查检索网络资料补充事实依据"
               >
                 <span
-                  className={`h-1.5 w-1.5 rounded-full ${webSearchOn ? "bg-indigo-500" : "bg-zinc-300"}`}
+                  className={`h-1.5 w-1.5 rounded-full ${webSearchOn ? "bg-accent-500" : "bg-stone-300"}`}
                 />
                 联网检索
               </button>
@@ -534,7 +534,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 140, damping: 18 }}
-            className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+            className="mt-6 rounded-2xl border border-stone-200 bg-card p-6 shadow-sm"
           >
             <ExplainDocView
               doc={streamDoc}
@@ -547,14 +547,14 @@ export default function Home() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 140, damping: 18 }}
-            className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+            className="mt-6 rounded-2xl border border-stone-200 bg-card p-6 shadow-sm"
           >
             <AttemptContext.Provider value={attemptValue}>
             <ExplainDocView doc={doc} deepens={deepens} />
 
             {/* 底部对话面板：深化讲解｜追问细节 双 tab（双份内容常驻 hidden 切换，保住追问会话态） */}
-            <div className="mt-6 border-t border-zinc-100 pt-4">
-              <div className="mb-3 flex w-fit gap-1 rounded-xl bg-zinc-100 p-1">
+            <div className="mt-6 border-t border-stone-100 pt-4">
+              <div className="mb-3 flex w-fit gap-1 rounded-xl bg-stone-100 p-1">
                 {(
                   [
                     ["refine", "深化讲解"],
@@ -566,8 +566,8 @@ export default function Home() {
                     onClick={() => setBottomTab(value)}
                     className={`rounded-lg px-3 py-1.5 text-xs transition-colors ${
                       bottomTab === value
-                        ? "bg-white font-medium text-zinc-800 shadow-sm"
-                        : "text-zinc-500 hover:text-zinc-700"
+                        ? "bg-card font-medium text-stone-800 shadow-sm"
+                        : "text-stone-500 hover:text-stone-700"
                     }`}
                   >
                     {label}
@@ -586,7 +586,7 @@ export default function Home() {
                     🔖 制成复习卡
                   </button>
                 )}
-                {cardsNote && <span className="text-xs text-zinc-500">{cardsNote}</span>}
+                {cardsNote && <span className="text-xs text-stone-500">{cardsNote}</span>}
               </div>
 
               <div className={bottomTab === "refine" ? "" : "hidden"}>
@@ -596,7 +596,7 @@ export default function Home() {
                       key={example}
                       onClick={() => setRefineInput(example)}
                       disabled={busy === "refine"}
-                      className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-500 transition-colors hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-50"
+                      className="rounded-full border border-stone-200 px-3 py-1 text-xs text-stone-500 transition-colors hover:border-accent-300 hover:text-accent-600 disabled:opacity-50"
                     >
                       {example}
                     </button>
@@ -609,13 +609,13 @@ export default function Home() {
                     onKeyDown={(e) => e.key === "Enter" && handleRefine()}
                     placeholder="或直接输入你想要的深化方向"
                     maxLength={300}
-                    className="h-10 flex-1 rounded-xl border border-zinc-200 px-3 text-sm outline-none transition-colors focus:border-indigo-400"
+                    className="h-10 flex-1 rounded-xl border border-stone-200 px-3 text-sm outline-none transition-colors focus:border-accent-400"
                     disabled={busy === "refine"}
                   />
                   <button
                     onClick={handleRefine}
                     disabled={busy !== null || !refineInput.trim()}
-                    className="h-10 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="h-10 rounded-xl border border-accent-200 bg-accent-50 px-4 text-sm font-medium text-accent-700 transition-colors hover:bg-accent-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {busy === "refine" ? "改造中…" : "深化"}
                   </button>
@@ -638,7 +638,7 @@ export default function Home() {
           </motion.section>
         ) : null}
 
-        <footer className="mt-10 text-center text-xs text-zinc-400">
+        <footer className="mt-10 text-center text-xs text-stone-400">
           格物 Gewu · 传智杯 AI 创新应用挑战赛（Vibe Coding）作品
         </footer>
       </main>

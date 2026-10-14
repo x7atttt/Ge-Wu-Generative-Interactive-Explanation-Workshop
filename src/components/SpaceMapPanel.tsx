@@ -10,7 +10,7 @@ const STATUS_META: Record<
 > = {
   new: {
     label: "未学",
-    chip: "border-zinc-200 bg-white text-zinc-600 hover:border-violet-300 hover:text-violet-700",
+    chip: "border-stone-200 bg-card text-stone-600 hover:border-secondary-300 hover:text-secondary-700",
     hint: "点击生成讲解",
   },
   explained: {
@@ -20,7 +20,7 @@ const STATUS_META: Record<
   },
   practiced: {
     label: "已练习",
-    chip: "border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-400",
+    chip: "border-secondary-200 bg-secondary-50 text-secondary-700 hover:border-secondary-400",
     hint: "点击打开讲解",
   },
   weak: {
@@ -37,8 +37,8 @@ function countdownText(examDate: string): string {
   const exam = new Date(`${examDate}T00:00:00`);
   if (Number.isNaN(exam.getTime())) return "";
   const days = Math.round((exam.getTime() - today.getTime()) / 86_400_000);
-  if (days === 0) return "⏰ 今天开考";
-  return days > 0 ? `⏰ 距考试 ${days} 天` : `⏰ 考试已过 ${-days} 天`;
+  if (days === 0) return "今天开考";
+  return days > 0 ? `距考试 ${days} 天` : `考试已过 ${-days} 天`;
 }
 
 /**
@@ -104,20 +104,20 @@ export function SpaceMapPanel({
 
   if (error) {
     return (
-      <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-stone-200 bg-card p-4 shadow-sm">
         <p className="text-sm text-red-600">{error}</p>
       </section>
     );
   }
 
   return (
-    <section className="mt-4 rounded-2xl border border-violet-100 bg-white/80 p-4 shadow-sm">
+    <section className="mt-4 rounded-2xl border border-secondary-100 bg-card/80 p-4 shadow-sm">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h2 className="text-sm font-semibold text-zinc-800">
+        <h2 className="font-display text-base font-bold text-stone-900">
           📖 概念地图{map ? ` · ${map.space.name}` : ""}
         </h2>
         {map && (
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-stone-500">
             {map.summary.sources} 份资料 · {map.concepts.length} 个概念 · 已讲 {map.summary.explained}
             {map.summary.weak > 0 && (
               <span className="ml-1 font-medium text-red-500">· {map.summary.weak} 个薄弱</span>
@@ -136,14 +136,14 @@ export function SpaceMapPanel({
               className={`rounded-full border px-2.5 py-1 text-xs transition-colors disabled:opacity-50 ${
                 map.cards.due > 0
                   ? "border-orange-300 bg-orange-50 font-medium text-orange-700 hover:border-orange-400"
-                  : "border-zinc-200 text-zinc-400 hover:border-orange-200 hover:text-orange-600"
+                  : "border-stone-200 text-stone-400 hover:border-orange-200 hover:text-orange-600"
               }`}
               title="SM-2 间隔复习：讲解底部的题目按遗忘曲线安排回来"
             >
               🔖 复习{map.cards.due > 0 ? ` ${map.cards.due}` : "·已清"}
             </button>
           )}
-          <div className="flex items-center gap-2 text-[10px] text-zinc-400">
+          <div className="flex items-center gap-2 text-[10px] text-stone-400">
             {(["weak", "new", "practiced", "explained"] as const).map((status) => (
               <span key={status} className="flex items-center gap-1">
                 <span
@@ -151,9 +151,9 @@ export function SpaceMapPanel({
                     status === "weak"
                       ? "bg-red-400"
                       : status === "new"
-                        ? "bg-zinc-300"
+                        ? "bg-stone-300"
                         : status === "practiced"
-                          ? "bg-blue-400"
+                          ? "bg-secondary-400"
                           : "bg-emerald-400"
                   }`}
                 />
@@ -165,7 +165,7 @@ export function SpaceMapPanel({
       </div>
 
       {map && map.concepts.length === 0 && (
-        <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-4 text-center text-xs leading-5 text-zinc-500">
+        <p className="mt-3 rounded-lg bg-stone-50 px-3 py-4 text-center text-xs leading-5 text-stone-500">
           {map.summary.sources === 0
             ? "还没有资料——用上方「资料」面板导入本空间的讲义/真题，然后在各资料上「提炼讲解点」"
             : "资料还没有提炼讲解点——在「资料」面板点各资料的「提炼讲解点」，概念会自动出现在这张地图上"}
@@ -199,7 +199,7 @@ export function SpaceMapPanel({
           );
         })}
       </div>
-      {loading && <p className="mt-2 text-xs text-zinc-300">刷新中…</p>}
+      {loading && <p className="mt-2 text-xs text-stone-300">刷新中…</p>}
 
       {reviewOpen && (
         <ReviewPanel spaceId={spaceId} onClose={() => setReviewOpen(false)} onFinish={refresh} />

@@ -175,12 +175,12 @@ export function SourcesPanel({
         disabled={disabled}
         className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-50 ${
           attachedIds.length > 0
-            ? "border-indigo-300 bg-indigo-50 text-indigo-600"
-            : "border-zinc-200 text-zinc-400 hover:text-zinc-600"
+            ? "border-accent-300 bg-accent-50 text-accent-600"
+            : "border-stone-200 text-stone-400 hover:text-stone-600"
         }`}
         title="批量导入文档资料，生成讲解时作为事实依据"
       >
-        <span className={`h-1.5 w-1.5 rounded-full ${attachedIds.length > 0 ? "bg-indigo-500" : "bg-zinc-300"}`} />
+        <span className={`h-1.5 w-1.5 rounded-full ${attachedIds.length > 0 ? "bg-accent-500" : "bg-stone-300"}`} />
         资料{attachedIds.length > 0 ? ` ${attachedIds.length}` : ""}
       </button>
 
@@ -193,7 +193,7 @@ export function SourcesPanel({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.16 }}
-              className="absolute right-0 z-40 mt-2 w-[380px] max-w-[calc(100vw-2rem)] rounded-xl border border-zinc-200 bg-white p-3 shadow-lg"
+              className="absolute right-0 z-40 mt-2 w-[380px] max-w-[calc(100vw-2rem)] rounded-xl border border-stone-200 bg-card p-3 shadow-lg"
             >
               <div className="flex items-center gap-2">
                 <input
@@ -208,19 +208,19 @@ export function SourcesPanel({
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={importing}
-                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
+                  className="rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-accent-500 disabled:opacity-50"
                 >
                   {importing ? "导入中…" : "导入文件"}
                 </button>
-                <p className="text-xs text-zinc-400">txt / md 本地解析 · PDF / Word 走 MinerU</p>
-                <span className="ml-auto text-xs text-zinc-300">{loading ? "加载中…" : ""}</span>
+                <p className="text-xs text-stone-400">txt / md 本地解析 · PDF / Word 走 MinerU</p>
+                <span className="ml-auto text-xs text-stone-300">{loading ? "加载中…" : ""}</span>
               </div>
 
               {error && <p className="mt-2 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs text-red-600">{error}</p>}
 
               <div className="mt-2 max-h-72 overflow-y-auto">
                 {visible.length === 0 && !loading && (
-                  <p className="py-6 text-center text-xs leading-5 text-zinc-400">
+                  <p className="py-6 text-center text-xs leading-5 text-stone-400">
                     {inSpaceMode ? (
                       <>本空间还没有资料——点「导入文件」，或把下方未分组资料移入</>
                     ) : (
@@ -236,12 +236,12 @@ export function SourcesPanel({
                   const attached = attachedIds.includes(source.id);
                   const ready = source.status === "ready";
                   return (
-                    <div key={source.id} className="rounded-lg border border-zinc-100 px-2.5 py-2">
+                    <div key={source.id} className="rounded-lg border border-stone-100 px-2.5 py-2">
                       <div className="flex items-center gap-2">
-                        <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
+                        <span className="shrink-0 rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium text-stone-500">
                           {KIND_LABEL[source.kind] ?? source.kind.toUpperCase()}
                         </span>
-                        <span className="truncate text-sm text-zinc-800" title={source.title}>
+                        <span className="truncate text-sm text-stone-800" title={source.title}>
                           {source.title}
                         </span>
                         <span className="ml-auto shrink-0 text-xs">
@@ -264,8 +264,8 @@ export function SourcesPanel({
                           type="button"
                           disabled={!ready}
                           onClick={() => toggleAttach(source.id)}
-                          className={`transition-colors disabled:cursor-default disabled:text-zinc-300 ${
-                            attached ? "font-medium text-indigo-600" : "text-zinc-500 hover:text-indigo-600"
+                          className={`transition-colors disabled:cursor-default disabled:text-stone-300 ${
+                            attached ? "font-medium text-accent-600" : "text-stone-500 hover:text-accent-600"
                           }`}
                         >
                           {attached ? "✓ 已附加" : "附加"}
@@ -274,14 +274,14 @@ export function SourcesPanel({
                           type="button"
                           disabled={!ready || extractingId !== null}
                           onClick={() => handleExtract(source.id)}
-                          className="text-zinc-500 transition-colors hover:text-indigo-600 disabled:cursor-default disabled:text-zinc-300"
+                          className="text-stone-500 transition-colors hover:text-accent-600 disabled:cursor-default disabled:text-stone-300"
                         >
                           {extractingId === source.id ? "提炼中…" : "提炼讲解点"}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(source.id)}
-                          className="ml-auto text-zinc-400 transition-colors hover:text-red-500"
+                          className="ml-auto text-stone-400 transition-colors hover:text-red-500"
                         >
                           删除
                         </button>
@@ -294,7 +294,7 @@ export function SourcesPanel({
                               key={concept}
                               type="button"
                               onClick={() => onPickConcept(concept, source.id)}
-                              className="rounded-full border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700 transition-colors hover:border-indigo-300"
+                              className="rounded-full border border-accent-100 bg-accent-50 px-2 py-0.5 text-xs text-accent-700 transition-colors hover:border-accent-300"
                             >
                               {concept}
                             </button>
@@ -306,23 +306,23 @@ export function SourcesPanel({
                 })}
 
                 {ungrouped.length > 0 && (
-                  <div className="mt-2 border-t border-zinc-100 pt-2">
-                    <p className="px-0.5 pb-1 text-[10px] text-zinc-400">
+                  <div className="mt-2 border-t border-stone-100 pt-2">
+                    <p className="px-0.5 pb-1 text-[10px] text-stone-400">
                       未分组资料（点「移入」加入本空间）
                     </p>
                     {ungrouped.map((source) => (
                       <div key={source.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5">
-                        <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
+                        <span className="shrink-0 rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium text-stone-500">
                           {KIND_LABEL[source.kind] ?? source.kind.toUpperCase()}
                         </span>
-                        <span className="truncate text-sm text-zinc-500" title={source.title}>
+                        <span className="truncate text-sm text-stone-500" title={source.title}>
                           {source.title}
                         </span>
                         <button
                           type="button"
                           disabled={movingId !== null}
                           onClick={() => handleMove(source.id)}
-                          className="ml-auto shrink-0 text-xs text-violet-500 transition-colors hover:text-violet-700 disabled:opacity-50"
+                          className="ml-auto shrink-0 text-xs text-secondary-500 transition-colors hover:text-secondary-700 disabled:opacity-50"
                         >
                           {movingId === source.id ? "移入中…" : "移入"}
                         </button>

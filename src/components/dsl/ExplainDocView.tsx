@@ -133,7 +133,7 @@ export function ExplainDocView({
           return (
             <div
               key={gi}
-              className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-xs text-indigo-700"
+              className="rounded-xl border border-accent-100 bg-accent-50/60 px-4 py-3 text-xs text-accent-700"
             >
               深化 · {segment.label}（本次新增参数已加入参数台）
             </div>
@@ -142,10 +142,10 @@ export function ExplainDocView({
         return (
           <div
             key={gi}
-            className="flex flex-col gap-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4"
+            className="flex flex-col gap-4 rounded-xl border border-accent-100 bg-accent-50/60 p-4"
           >
-            <p className="text-xs font-medium text-indigo-700">
-              <span className="mr-1.5 rounded bg-indigo-100 px-1.5 py-0.5">深化</span>
+            <p className="text-xs font-medium text-accent-700">
+              <span className="mr-1.5 rounded bg-accent-100 px-1.5 py-0.5">深化</span>
               {segment.label}
             </p>
             <div className="flex flex-col gap-4">
@@ -161,7 +161,7 @@ export function ExplainDocView({
               key={`skeleton-${i}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.7 }}
-              className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4"
+              className="rounded-xl border border-dashed border-stone-200 bg-stone-50 p-4"
             >
               <BlockSkeleton type={type} />
             </motion.div>
@@ -177,7 +177,7 @@ export function ExplainDocView({
         <motion.h2
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-xl font-semibold text-zinc-900"
+          className="font-display text-2xl font-bold tracking-wide text-stone-900"
         >
           {doc.title}
         </motion.h2>
@@ -185,12 +185,12 @@ export function ExplainDocView({
           <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
             <div className="flex min-w-0 flex-col gap-4">{mainColumn}</div>
             <aside className="hidden lg:block">
-              <div className="sticky top-6 flex flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-                <p className="text-xs font-medium tracking-wide text-zinc-500">参数台</p>
+              <div className="sticky top-6 flex flex-col gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
+                <p className="text-xs font-medium tracking-wide text-stone-500">参数台</p>
                 {sliders.map((block) => (
                   <SliderControl key={block.var} block={block} />
                 ))}
-                <p className="text-[11px] leading-4 text-zinc-400">
+                <p className="text-[11px] leading-4 text-stone-400">
                   拖动参数，图表与公式即时反馈
                 </p>
               </div>
@@ -208,8 +208,8 @@ export function ExplainDocView({
 function InlineSliderGroup({ sliders }: { sliders: SliderBlock[] }) {
   if (sliders.length === 0) return null;
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 lg:hidden">
-      <p className="text-xs font-medium tracking-wide text-zinc-500">参数台</p>
+    <div className="flex flex-col gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3 lg:hidden">
+      <p className="text-xs font-medium tracking-wide text-stone-500">参数台</p>
       {sliders.map((block) => (
         <SliderControl key={block.var} block={block} />
       ))}

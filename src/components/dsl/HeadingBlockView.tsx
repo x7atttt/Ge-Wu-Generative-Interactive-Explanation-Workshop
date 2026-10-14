@@ -8,7 +8,7 @@ export function HeadingBlockView({ block }: { block: HeadingBlock }) {
   const size = block.level === 2 ? "text-lg" : "text-base";
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="pt-2">
-      <Tag className={`${size} font-semibold text-zinc-900`}>{block.text}</Tag>
+      <Tag className={`${size} font-semibold text-stone-900`}>{block.text}</Tag>
     </motion.div>
   );
 }

@@ -24,9 +24,9 @@ export function QuizView({ block }: { block: QuizBlock }) {
   };
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4">
-      <p className="mb-3 text-sm font-medium text-zinc-800">
-        <span className="mr-1.5 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">
+    <div className="rounded-xl border border-stone-200 bg-card p-4">
+      <p className="mb-3 text-sm font-medium text-stone-800">
+        <span className="mr-1.5 rounded bg-accent-100 px-1.5 py-0.5 text-xs font-semibold text-accent-700">
           自测
         </span>
         {block.question}
@@ -49,8 +49,8 @@ export function QuizView({ block }: { block: QuizBlock }) {
                   : wrong
                     ? "border-red-300 bg-red-50 text-red-600"
                     : answered
-                      ? "border-zinc-200 bg-white text-zinc-400"
-                      : "border-zinc-200 bg-white text-zinc-700 hover:border-indigo-300 hover:text-indigo-700",
+                      ? "border-stone-200 bg-card text-stone-400"
+                      : "border-stone-200 bg-card text-stone-700 hover:border-accent-300 hover:text-accent-700",
               ].join(" ")}
             >
               {option}
@@ -72,10 +72,10 @@ export function QuizView({ block }: { block: QuizBlock }) {
               {isCorrect && <CheckDraw />}
               {isCorrect ? "回答正确！" : "再想想～"}
             </p>
-            <p className="mt-1 text-sm leading-6 text-zinc-600">{block.explanation}</p>
+            <p className="mt-1 text-sm leading-6 text-stone-600">{block.explanation}</p>
             <button
               onClick={() => setSelected(null)}
-              className="mt-2 text-xs text-indigo-600 hover:underline"
+              className="mt-2 text-xs text-accent-600 hover:underline"
             >
               再试一次
             </button>

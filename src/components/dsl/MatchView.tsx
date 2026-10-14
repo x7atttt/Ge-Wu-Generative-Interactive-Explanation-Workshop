@@ -69,21 +69,21 @@ export function MatchView({ block }: { block: MatchBlock }) {
       state === "matched"
         ? "border-emerald-300 bg-emerald-50 text-emerald-700"
         : state === "selected"
-          ? "border-indigo-400 bg-indigo-50 text-indigo-700"
+          ? "border-accent-400 bg-accent-50 text-accent-700"
           : state === "wrong"
             ? "border-red-300 bg-red-50 text-red-600"
-            : "border-zinc-200 bg-white text-zinc-700 hover:border-indigo-300 hover:text-indigo-700",
+            : "border-stone-200 bg-card text-stone-700 hover:border-accent-300 hover:text-accent-700",
     ].join(" ");
 
   return (
-    <div ref={cardRef} className="rounded-xl border border-zinc-200 bg-white p-4">
-      <p className="mb-1 text-sm font-medium text-zinc-800">
-        <span className="mr-1.5 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">
+    <div ref={cardRef} className="rounded-xl border border-stone-200 bg-card p-4">
+      <p className="mb-1 text-sm font-medium text-stone-800">
+        <span className="mr-1.5 rounded bg-accent-100 px-1.5 py-0.5 text-xs font-semibold text-accent-700">
           配对
         </span>
         {block.prompt}
       </p>
-      <p className="mb-3 text-xs text-zinc-400">点击左列一项，再点右列中与它对应的项</p>
+      <p className="mb-3 text-xs text-stone-400">点击左列一项，再点右列中与它对应的项</p>
 
       <div className="grid gap-2 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
@@ -144,7 +144,7 @@ export function MatchView({ block }: { block: MatchBlock }) {
             <CheckDraw />
             全部配对成功{mistakes > 0 ? `（失误 ${mistakes} 次）` : "，一次通过！"}
           </p>
-          <button type="button" onClick={reset} className="text-xs text-indigo-600 hover:underline">
+          <button type="button" onClick={reset} className="text-xs text-accent-600 hover:underline">
             重做
           </button>
         </motion.div>

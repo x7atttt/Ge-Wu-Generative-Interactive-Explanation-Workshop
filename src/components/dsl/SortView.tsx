@@ -51,9 +51,9 @@ export function SortView({ block }: { block: SortBlock }) {
   };
 
   return (
-    <div ref={cardRef} className="rounded-xl border border-zinc-200 bg-white p-4">
-      <p className="mb-2 text-sm font-medium text-zinc-800">
-        <span className="mr-1.5 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">
+    <div ref={cardRef} className="rounded-xl border border-stone-200 bg-card p-4">
+      <p className="mb-2 text-sm font-medium text-stone-800">
+        <span className="mr-1.5 rounded bg-accent-100 px-1.5 py-0.5 text-xs font-semibold text-accent-700">
           分类
         </span>
         {block.prompt}
@@ -62,7 +62,7 @@ export function SortView({ block }: { block: SortBlock }) {
         {block.categories.map((c, ci) => (
           <span
             key={ci}
-            className="rounded-full border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700"
+            className="rounded-full border border-accent-100 bg-accent-50 px-2.5 py-1 text-xs text-accent-700"
           >
             {c}
           </span>
@@ -86,10 +86,10 @@ export function SortView({ block }: { block: SortBlock }) {
                   ? "border-emerald-300 bg-emerald-50/60"
                   : wrongRow
                     ? "border-red-200 bg-red-50/40"
-                    : "border-zinc-200",
+                    : "border-stone-200",
               ].join(" ")}
             >
-              <span className="mr-1 text-sm text-zinc-800">{item.label}</span>
+              <span className="mr-1 text-sm text-stone-800">{item.label}</span>
               {block.categories.map((c, ci) => (
                 <button
                   key={ci}
@@ -99,8 +99,8 @@ export function SortView({ block }: { block: SortBlock }) {
                   className={[
                     "rounded-full border px-2.5 py-0.5 text-xs transition-colors disabled:cursor-default",
                     choice === ci
-                      ? "border-indigo-400 bg-indigo-50 text-indigo-700"
-                      : "border-zinc-200 bg-white text-zinc-600 hover:border-indigo-300 hover:text-indigo-700",
+                      ? "border-accent-400 bg-accent-50 text-accent-700"
+                      : "border-stone-200 bg-card text-stone-600 hover:border-accent-300 hover:text-accent-700",
                   ].join(" ")}
                 >
                   {c}
@@ -120,12 +120,12 @@ export function SortView({ block }: { block: SortBlock }) {
             type="button"
             disabled={!allAssigned}
             onClick={check}
-            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-zinc-300"
+            className="rounded-lg bg-accent-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-500 disabled:cursor-not-allowed disabled:bg-stone-300"
           >
             检查
           </button>
         ) : (
-          <button type="button" onClick={reset} className="text-xs text-indigo-600 hover:underline">
+          <button type="button" onClick={reset} className="text-xs text-accent-600 hover:underline">
             重做
           </button>
         )}
