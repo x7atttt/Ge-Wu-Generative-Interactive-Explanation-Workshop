@@ -67,6 +67,8 @@ export const chartBlockSchema = z.object({
   categories: z.array(z.string()).optional(),
   /** 纵轴语义标签（仅 bar/line）：key 为刻度数值（JSON 里是数字字符串），渲染层按 String(value) 匹配替换 */
   yLabels: z.record(z.string(), z.string()).optional(),
+  /** 纵轴刻度：默认 linear；数据全为正且跨数量级时可用/自动切换 log（含 0 或负值不可用） */
+  yType: z.enum(["linear", "log"]).optional(),
   series: z
     .array(
       z.object({

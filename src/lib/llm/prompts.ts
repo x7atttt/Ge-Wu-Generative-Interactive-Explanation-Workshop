@@ -41,6 +41,7 @@ export function generateSystemPrompt(opts: GeneratePromptOpts = {}): string {
 6. {"type":"chart","chartType":"bar|line|pie","title?":"","categories":["名",...],"yLabels?":{"2":"O(n)","3":"O(n·log n)"},"series":[{"name?":"","data":[槽,...]}]}
    只用于离散数据（统计、计数、类别对比）；每系列 data 个数必须与 categories 完全一致
    可选 yLabels 把数值纵轴映射为语义标签（数量级/等级/档位）：key 是刻度数值，data 仍用数字保证大小可比
+   同一图数据跨数量级（如 0.02 与 2000）线性轴会压扁小值：数据全为正时加 "yType":"log"（对数轴，渲染层自动标注）；含 0 或负值则拆成两张图
    **禁止**用它手写 sin/cos 等函数值表——逐点手算三角函数极易出错；函数曲线一律用 wavePlot
    （渲染层精确计算）。wavePlot 画标准三角曲线（周期 2π，自变量为弧度）时 freq 取 0.159（即 1/(2π)）
 7. {"type":"fillBlank","prompt?":"任务说明","text":"句子，空位用 ___ 表示","blanks":[{"options":["词1","词2","词3"],"answer":正确项下标,"explanation?":"解析"}]}
@@ -91,7 +92,7 @@ export function refineSystemPrompt(): string {
 - 指令通常是内容级操作：深入某主题、增加对比演示/现实例子、补充公式、出自测题、改用图表呈现等
 - 可用块类型与生成时相同：heading / text / formula / slider / wavePlot / chart / fillBlank / match / sort / quiz
 - 新增练习时按主题选块：语法/词汇用 fillBlank，术语对应用 match，分类判断用 sort（结构与生成规范一致）
-- 结构约束：滑块 var 唯一；{"$var":...} 只能引用已定义滑块变量；min < max 且 step > 0；quiz 的 answer 必须小于 options 数量；chart 每系列 data 个数与 categories 一致且逐点核对数值；chart 可用可选 yLabels（{"数值":"标签"}）把数值纵轴映射为语义标签（如复杂度数量级→O(n²)），data 保持数字
+- 结构约束：滑块 var 唯一；{"$var":...} 只能引用已定义滑块变量；min < max 且 step > 0；quiz 的 answer 必须小于 options 数量；chart 每系列 data 个数与 categories 一致且逐点核对数值；chart 可用可选 yLabels（{"数值":"标签"}）把数值纵轴映射为语义标签（如复杂度数量级→O(n²)），data 保持数字；chart 数据全为正且跨数量级时用 "yType":"log"
 - wavePlot 的多 terms 叠加为**一条**曲线（y=Σ）；对比两条曲线用两个 wavePlot 块上下排列；文字描述必须与实际渲染一致，不要提及不存在的曲线颜色或"两条线"
 - 若指令要求“固定某参数”：把对应数值槽改为具体数字，并删除不再被引用的滑块`;
 }
