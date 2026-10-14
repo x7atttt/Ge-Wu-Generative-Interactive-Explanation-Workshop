@@ -12,6 +12,9 @@ export interface SpaceRow {
   note: string;
   examDate: string | null;
   createdAt: string;
+  /** 面板/枢纽用计数（聚合子查询带出） */
+  sourceCount: number;
+  docCount: number;
 }
 
 interface RawSpace {
@@ -20,20 +23,40 @@ interface RawSpace {
   note: string;
   exam_date: string | null;
   created_at: string;
+  source_count: number;
+  doc_count: number;
 }
+
+function toSpace(raw: RawSpace): SpaceRow {
+  return {
+    id: raw.id,
+    name: raw.name,
+    note: raw.note,
+    examDate: raw.exam_date,
+    createdAt: raw.created_at,
+    sourceCount: Number(raw.source_count),
+    docCount: Number(raw.doc_count),
+  };
+}
+
+const SELECT_SPACE =
+  "SELECT id, name, note, exam_date, created_at, " +
+  "(SELECT COUNT(*) FROM sources WHERE space_id = spaces.id) AS source_count, " +
+  "(SELECT COUNT(*) FROM docs WHERE space_id = spaces.id) AS doc_count " +
+  "FROM spaces";
 
 export function getSpace(id: number): SpaceRow | null {
   const row = getDb()
-    .prepare("SELECT id, name, note, exam_date, created_at FROM spaces WHERE id = ?")
+    .prepare(`${SELECT_SPACE} WHERE id = ?`)
     .get(id) as unknown as RawSpace | undefined;
-  return row ? { ...row, examDate: row.exam_date, createdAt: row.created_at } : null;
+  return row ? toSpace(row) : null;
 }
 
 export function listSpaces(): SpaceRow[] {
   const rows = getDb()
-    .prepare("SELECT id, name, note, exam_date, created_at FROM spaces ORDER BY id DESC")
+    .prepare(`${SELECT_SPACE} ORDER BY id DESC`)
     .all() as unknown as RawSpace[];
-  return rows.map((row) => ({ ...row, examDate: row.exam_date, createdAt: row.created_at }));
+  return rows.map(toSpace);
 }
 
 export function createSpace(input: { name: string; note?: string; examDate?: string | null }): number {

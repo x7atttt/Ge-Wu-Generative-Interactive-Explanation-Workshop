@@ -8,6 +8,9 @@ export interface SpaceInfo {
   note: string;
   examDate: string | null;
   createdAt: string;
+  /** 枢纽面板用计数 */
+  sourceCount: number;
+  docCount: number;
 }
 
 export interface ConceptState {
@@ -53,6 +56,15 @@ export async function createSpace(name: string, note = ""): Promise<number> {
 
 export async function deleteSpace(id: number): Promise<void> {
   const res = await fetch(`/api/spaces/${id}`, { method: "DELETE" });
+  if (!res.ok) throw await readError(res);
+}
+
+export async function renameSpace(id: number, name: string): Promise<void> {
+  const res = await fetch(`/api/spaces/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
   if (!res.ok) throw await readError(res);
 }
 
