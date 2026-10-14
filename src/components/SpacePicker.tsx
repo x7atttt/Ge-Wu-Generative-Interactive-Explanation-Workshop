@@ -7,6 +7,7 @@ import {
   deleteSpace,
   moveSource,
   renameSpace,
+  setSpaceExamDate,
   type SpaceInfo,
 } from "@/lib/api/spaces";
 import { listSources, type SourceItem } from "@/lib/api/sources";
@@ -182,6 +183,8 @@ function SpaceHub({
   const [busyId, setBusyId] = useState<number | null>(null);
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renameText, setRenameText] = useState("");
+  const [datingId, setDatingId] = useState<number | null>(null);
+  const [dateText, setDateText] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [newName, setNewName] = useState("");
 
@@ -315,6 +318,7 @@ function SpaceHub({
                       {current && <span className="shrink-0 text-[10px] text-violet-500">当前</span>}
                       <span className="ml-auto shrink-0 text-[10px] text-zinc-400">
                         {space.sourceCount} 资料 · {space.docCount} 讲解
+                        {space.examDate ? ` · ${space.examDate}` : ""}
                       </span>
                       <button
                         type="button"
@@ -325,6 +329,49 @@ function SpaceHub({
                       >
                         {expanded ? "▾" : "▸"}
                       </button>
+                      {datingId === space.id ? (
+                        <span className="flex shrink-0 items-center gap-1">
+                          <input
+                            type="date"
+                            value={dateText}
+                            onChange={(e) => setDateText(e.target.value)}
+                            className="h-6 rounded-md border border-violet-300 px-1 text-[10px] outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              run(
+                                () => setSpaceExamDate(space.id, dateText || null),
+                                space.id
+                              );
+                              setDatingId(null);
+                            }}
+                            className="text-[10px] text-violet-600 hover:underline"
+                          >
+                            存
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDatingId(null)}
+                            className="text-[10px] text-zinc-400 hover:underline"
+                          >
+                            取消
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={busyId === space.id}
+                          onClick={() => {
+                            setDatingId(space.id);
+                            setDateText(space.examDate ?? "");
+                          }}
+                          className="shrink-0 text-xs text-zinc-400 transition-colors hover:text-orange-600 disabled:opacity-50"
+                          title="设置考试日期（概念地图显示倒计时）"
+                        >
+                          日期
+                        </button>
+                      )}
                       <button
                         type="button"
                         disabled={busyId === space.id}

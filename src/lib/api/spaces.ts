@@ -25,6 +25,8 @@ export interface SpaceMap {
   space: SpaceInfo;
   concepts: ConceptState[];
   summary: { sources: number; explained: number; weak: number };
+  /** 复习卡概况（迭代 18） */
+  cards: { total: number; due: number };
 }
 
 async function readError(res: Response): Promise<Error> {
@@ -64,6 +66,16 @@ export async function renameSpace(id: number, name: string): Promise<void> {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw await readError(res);
+}
+
+/** 设置/清除考试日期（YYYY-MM-DD 或 null，倒计时锚点） */
+export async function setSpaceExamDate(id: number, examDate: string | null): Promise<void> {
+  const res = await fetch(`/api/spaces/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ examDate }),
   });
   if (!res.ok) throw await readError(res);
 }

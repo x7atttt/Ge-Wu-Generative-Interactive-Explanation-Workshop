@@ -115,7 +115,7 @@ export async function listDocs(spaceId?: number): Promise<DocSummary[]> {
   return data.docs;
 }
 
-/** 恢复一篇历史讲解：文档 + 已有问答 + 版本链（根在前，供深化分段） */
+/** 恢复一篇历史讲解：文档 + 已有问答 + 版本链（根在前，供深化分段）+ 空间归属 */
 export interface VersionPayload {
   id?: number;
   blocks: Block[];
@@ -124,7 +124,7 @@ export interface VersionPayload {
 
 export async function loadDoc(
   docId: number
-): Promise<{ doc: ExplainDoc; asks: AskItem[]; versions: VersionPayload[] }> {
+): Promise<{ doc: ExplainDoc; asks: AskItem[]; versions: VersionPayload[]; spaceId: number | null }> {
   const res = await fetch(`/api/docs/${docId}`);
   const data: unknown = await res.json().catch(() => null);
   if (!res.ok) {
@@ -138,6 +138,7 @@ export async function loadDoc(
     doc: ExplainDoc;
     asks: { role: "user" | "assistant"; content: string }[];
     versions: VersionPayload[];
+    spaceId?: number | null;
   };
   const asks: AskItem[] = [];
   for (const row of payload.asks) {
@@ -147,5 +148,5 @@ export async function loadDoc(
       asks[asks.length - 1].done = true;
     }
   }
-  return { doc: payload.doc, asks, versions: payload.versions ?? [] };
+  return { doc: payload.doc, asks, versions: payload.versions ?? [], spaceId: payload.spaceId ?? null };
 }

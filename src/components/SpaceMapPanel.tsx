@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getSpaceMap, type SpaceMap } from "@/lib/api/spaces";
+import { ReviewPanel } from "@/components/ReviewPanel";
 
 const STATUS_META: Record<
   string,
@@ -29,12 +30,25 @@ const STATUS_META: Record<
   },
 };
 
+/** 距考试天数文案（examDate 为 YYYY-MM-DD；过期显示已过天数） */
+function countdownText(examDate: string): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const exam = new Date(`${examDate}T00:00:00`);
+  if (Number.isNaN(exam.getTime())) return "";
+  const days = Math.round((exam.getTime() - today.getTime()) / 86_400_000);
+  if (days === 0) return "⏰ 今天开考";
+  return days > 0 ? `⏰ 距考试 ${days} 天` : `⏰ 考试已过 ${-days} 天`;
+}
+
 /**
  * 概念地图（空间核心视图）：资料提炼概念 × 讲解/练习状态。
  * 点击行为按状态分派：未学→生成 / 已讲解·已练习→打开讲解 / 薄弱→补练。
+ * 头部：考试倒计时（枢纽里设日期）+ SM-2 复习入口（到期 n 张）。
  */
 export function SpaceMapPanel({
   spaceId,
+  examDate,
   refreshKey,
   disabled,
   onPick,
@@ -42,6 +56,8 @@ export function SpaceMapPanel({
   onOpenDoc,
 }: {
   spaceId: number;
+  /** 考试日期（来自空间列表，枢纽改日期后即时生效） */
+  examDate?: string | null;
   /** 父级事件后自增以重拉地图（生成完成/切换文档等） */
   refreshKey: number;
   disabled?: boolean;
@@ -54,6 +70,7 @@ export function SpaceMapPanel({
   const [map, setMap] = useState<SpaceMap | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -107,23 +124,43 @@ export function SpaceMapPanel({
             )}
           </p>
         )}
-        <div className="ml-auto flex items-center gap-2 text-[10px] text-zinc-400">
-          {(["weak", "new", "practiced", "explained"] as const).map((status) => (
-            <span key={status} className="flex items-center gap-1">
-              <span
-                className={`h-2 w-2 rounded-full ${
-                  status === "weak"
-                    ? "bg-red-400"
-                    : status === "new"
-                      ? "bg-zinc-300"
-                      : status === "practiced"
-                        ? "bg-blue-400"
-                        : "bg-emerald-400"
-                }`}
-              />
-              {STATUS_META[status].label}
-            </span>
-          ))}
+        <div className="ml-auto flex items-center gap-2">
+          {examDate && countdownText(examDate) && (
+            <span className="text-xs font-medium text-orange-600">{countdownText(examDate)}</span>
+          )}
+          {map && map.cards.total > 0 && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setReviewOpen(true)}
+              className={`rounded-full border px-2.5 py-1 text-xs transition-colors disabled:opacity-50 ${
+                map.cards.due > 0
+                  ? "border-orange-300 bg-orange-50 font-medium text-orange-700 hover:border-orange-400"
+                  : "border-zinc-200 text-zinc-400 hover:border-orange-200 hover:text-orange-600"
+              }`}
+              title="SM-2 间隔复习：讲解底部的题目按遗忘曲线安排回来"
+            >
+              🔖 复习{map.cards.due > 0 ? ` ${map.cards.due}` : "·已清"}
+            </button>
+          )}
+          <div className="flex items-center gap-2 text-[10px] text-zinc-400">
+            {(["weak", "new", "practiced", "explained"] as const).map((status) => (
+              <span key={status} className="flex items-center gap-1">
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    status === "weak"
+                      ? "bg-red-400"
+                      : status === "new"
+                        ? "bg-zinc-300"
+                        : status === "practiced"
+                          ? "bg-blue-400"
+                          : "bg-emerald-400"
+                  }`}
+                />
+                {STATUS_META[status].label}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -163,6 +200,10 @@ export function SpaceMapPanel({
         })}
       </div>
       {loading && <p className="mt-2 text-xs text-zinc-300">刷新中…</p>}
+
+      {reviewOpen && (
+        <ReviewPanel spaceId={spaceId} onClose={() => setReviewOpen(false)} onFinish={refresh} />
+      )}
     </section>
   );
 }

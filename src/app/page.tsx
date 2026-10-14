@@ -11,9 +11,10 @@ import { SpacePicker } from "@/components/SpacePicker";
 import { StatsPanel } from "@/components/StatsPanel";
 import { AskPanel, type AskItem } from "@/components/dsl/AskPanel";
 import { AttemptContext, postAttempt } from "@/components/dsl/attempt-context";
-import { ensureAudio, playDone } from "@/lib/audio/sound";
+import { ensureAudio, playComplete, playDone } from "@/lib/audio/sound";
 import { ExplainDocView } from "@/components/dsl/ExplainDocView";
 import { listDocs, loadDoc as loadDocById, streamExplanation, type DocSummary, type VersionPayload } from "@/lib/api/explanation";
+import { makeCardsFromDoc } from "@/lib/api/cards";
 import {
   CUSTOM_PERSONA_ID,
   PERSONA_STORAGE_KEY,
@@ -50,6 +51,9 @@ export default function Home() {
   const [persona, setPersona] = useState<PersonaState>({ id: "default", custom: "" });
   const [doc, setDoc] = useState<ExplainDoc | null>(null);
   const [docId, setDocId] = useState<number | null>(null);
+  /** 当前讲解的空间归属（决定是否显示"制成复习卡"） */
+  const [docSpaceId, setDocSpaceId] = useState<number | null>(null);
+  const [cardsNote, setCardsNote] = useState<string | null>(null);
   const [restoredAsks, setRestoredAsks] = useState<AskItem[]>([]);
   const [versions, setVersions] = useState<VersionPayload[]>([]);
   const [busy, setBusy] = useState<null | "generate" | "refine">(null);
@@ -217,6 +221,7 @@ export default function Home() {
       );
       setDoc(next);
       setDocId(id);
+      setDocSpaceId(spaceId);
       setRestoredAsks([]);
       setVersions([{ blocks: next.blocks, instruction: null }]);
       setRefineInput("");
@@ -317,9 +322,11 @@ export default function Home() {
     setLoadingDoc(true);
     setError(null);
     try {
-      const { doc: loaded, asks, versions: chain } = await loadDocById(id);
+      const { doc: loaded, asks, versions: chain, spaceId } = await loadDocById(id);
       setDoc(loaded);
       setDocId(id);
+      setDocSpaceId(spaceId);
+      setCardsNote(null);
       setRestoredAsks(asks);
       setVersions(chain);
       setRefineError(null);
@@ -327,6 +334,20 @@ export default function Home() {
       setError(err instanceof Error ? err.message : "恢复讲解失败");
     } finally {
       setLoadingDoc(false);
+    }
+  }
+
+  /** 讲解底部「制成复习卡」：quiz/填空机械提取为 SM-2 卡（空间复习入口用） */
+  async function handleMakeCards() {
+    if (docId === null || docSpaceId === null) return;
+    setCardsNote(null);
+    try {
+      const { added, skipped } = await makeCardsFromDoc(docId);
+      setCardsNote(`已新增 ${added} 张复习卡${skipped > 0 ? `（跳过 ${skipped} 张重复）` : ""}，到概念地图点「复习」开始`);
+      setMapRefresh((k) => k + 1);
+      playComplete();
+    } catch (err) {
+      setCardsNote(err instanceof Error ? err.message : "制卡失败，请重试");
     }
   }
 
@@ -480,6 +501,7 @@ export default function Home() {
         {spaceId !== null && (
           <SpaceMapPanel
             spaceId={spaceId}
+            examDate={spaces.find((s) => s.id === spaceId)?.examDate ?? null}
             refreshKey={mapRefresh}
             disabled={busy !== null}
             onPick={pickMapConcept}
@@ -535,6 +557,20 @@ export default function Home() {
                     {label}
                   </button>
                 ))}
+              </div>
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                {docSpaceId !== null && (
+                  <button
+                    type="button"
+                    onClick={handleMakeCards}
+                    disabled={busy !== null}
+                    className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs text-orange-700 transition-colors hover:border-orange-400 disabled:opacity-50"
+                    title="把本篇的自测题/填空提取为 SM-2 复习卡（空间概念地图的复习入口）"
+                  >
+                    🔖 制成复习卡
+                  </button>
+                )}
+                {cardsNote && <span className="text-xs text-zinc-500">{cardsNote}</span>}
               </div>
 
               <div className={bottomTab === "refine" ? "" : "hidden"}>
