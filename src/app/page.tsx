@@ -318,6 +318,20 @@ export default function Home() {
     }
   }
 
+  /** 历史删除完成：被删集合含当前打开的讲解时清空视图，并刷新历史/地图/统计 */
+  function handleDocsDeleted(deletedIds: number[]) {
+    if (docId !== null && deletedIds.includes(docId)) {
+      setDoc(null);
+      setDocId(null);
+      setDocSpaceId(null);
+      setCardsNote(null);
+      setVersions([]);
+      setRestoredAsks([]);
+    }
+    refreshDocList();
+    setMapRefresh((k) => k + 1);
+  }
+
   async function loadDoc(id: number) {
     if (!Number.isInteger(id) || id <= 0 || loadingDoc) return;
     setLoadingDoc(true);
@@ -363,6 +377,7 @@ export default function Home() {
           currentId={docId}
           disabled={busy !== null || loadingDoc}
           onSelect={loadDoc}
+          onDeleted={handleDocsDeleted}
         />
       </div>
       <main className={`w-full ${wide ? "max-w-5xl" : "max-w-2xl"} transition-[max-width] duration-300`}>
