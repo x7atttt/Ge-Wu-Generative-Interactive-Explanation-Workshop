@@ -61,11 +61,24 @@ export function SourcesPanel({
 
   const refresh = useCallback(async () => {
     try {
-      setSources(await listSources());
+      const list = await listSources();
+      setSources(list);
+      // 对账：附加状态里已不存在/未就绪的资料一律摘除——删除可能发生在任何路径
+      // （面板删除、空间清理、外部操作），高亮的资料数必须与实际资料一致
+      const valid = new Set(list.filter((s) => s.status === "ready").map((s) => s.id));
+      if (attachedIds.some((id) => !valid.has(id))) {
+        onAttachChange(attachedIds.filter((id) => valid.has(id)));
+      }
     } catch {
       // 列表加载失败不打断面板，保持旧数据
     }
-  }, []);
+  }, [attachedIds, onAttachChange]);
+
+  // 挂载即加载一次：附加态从 localStorage 恢复后需要列表来校验有效性；
+  // attachedIds 变化 → refresh 重建 → 重取列表并及时对账（收敛，无循环）
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   // 打开时加载 + 解析中轮询（GET 惰性驱动服务端向 MinerU 同步结果）
   useEffect(() => {

@@ -86,6 +86,22 @@ export default function Home() {
     } catch {
       // 损坏存储忽略
     }
+    // 恢复附加的资料工作集（SourcesPanel 挂载取列表后会对账修剪失效 id）。
+    // 持久化不走 effect 写回：StrictMode 双挂载下初始空态会把存储清掉（实测），
+    // 改为各变更入口（updateAttached）直接写存储，恢复只读
+    try {
+      const raw = localStorage.getItem("gewu-attached");
+      if (raw !== null) {
+        const ids = JSON.parse(raw) as unknown;
+        if (Array.isArray(ids)) {
+          setAttachedSourceIds(
+            ids.filter((v): v is number => Number.isInteger(v) && v > 0).slice(0, 3)
+          );
+        }
+      }
+    } catch {
+      // 损坏存储忽略
+    }
   }, []);
 
   // 空间切换：持久化 + 历史列表按空间过滤
@@ -101,7 +117,8 @@ export default function Home() {
     if (spaceId !== null) setMapRefresh((k) => k + 1);
   }, [docId, spaceId]);
 
-  // 人设持久化：挂载时读 localStorage（避免 SSR/客户端不一致），变更即写回
+  // 人设持久化：挂载时读 localStorage（避免 SSR/客户端不一致）。写回不走 effect——
+  // StrictMode 双挂载下初始默认态会清掉存储（同 gewu-attached 的实测竞态），改为变更处直写
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PERSONA_STORAGE_KEY);
@@ -114,11 +131,14 @@ export default function Home() {
       // 损坏的存储忽略，回落默认
     }
   }, []);
-  useEffect(() => {
+
+  /** 人设唯一变更入口：改状态同时写 localStorage */
+  function updatePersona(next: PersonaState) {
+    setPersona(next);
     try {
-      localStorage.setItem(PERSONA_STORAGE_KEY, JSON.stringify(persona));
+      localStorage.setItem(PERSONA_STORAGE_KEY, JSON.stringify(next));
     } catch {}
-  }, [persona]);
+  }
   const personaHint = resolvePersonaHint(persona);
 
   function refreshDocList() {
@@ -127,6 +147,14 @@ export default function Home() {
 
   function cancel() {
     abortRef.current?.abort();
+  }
+
+  /** 附加资料的唯一变更入口：改状态同时写 localStorage（不落 effect，避开挂载期写回竞态） */
+  function updateAttached(ids: number[]) {
+    setAttachedSourceIds(ids);
+    try {
+      localStorage.setItem("gewu-attached", JSON.stringify(ids));
+    } catch {}
   }
 
   // 流式上屏：生成期从累计原始文本派生部分文档（真块渐次上屏 + 尾部骨架）
@@ -216,9 +244,13 @@ export default function Home() {
   function pickSourceConcept(conceptText: string, sourceId: number) {
     setConcept(conceptText);
     setOriginConcept(conceptText);
-    setAttachedSourceIds((prev) =>
-      prev.includes(sourceId) ? prev : prev.length < 3 ? [...prev, sourceId] : prev
-    );
+    setAttachedSourceIds((prev) => {
+      const next = prev.includes(sourceId) ? prev : prev.length < 3 ? [...prev, sourceId] : prev;
+      try {
+        localStorage.setItem("gewu-attached", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   }
 
   /** 概念地图点击未学概念：附加其来源资料并预填（出身概念 = 概念名） */
@@ -230,6 +262,9 @@ export default function Home() {
       for (const id of sourceIds) {
         if (!merged.includes(id) && merged.length < 3) merged.push(id);
       }
+      try {
+        localStorage.setItem("gewu-attached", JSON.stringify(merged));
+      } catch {}
       return merged;
     });
   }
@@ -375,14 +410,14 @@ export default function Home() {
               />
               <SourcesPanel
                 attachedIds={attachedSourceIds}
-                onAttachChange={setAttachedSourceIds}
+                onAttachChange={updateAttached}
                 onPickConcept={pickSourceConcept}
                 spaceId={spaceId}
                 disabled={busy === "generate"}
               />
               <select
                 value={persona.id}
-                onChange={(e) => setPersona((p) => ({ ...p, id: e.target.value }))}
+                onChange={(e) => updatePersona({ id: e.target.value, custom: persona.custom })}
                 disabled={busy === "generate"}
                 title="讲解与追问的语气人设"
                 className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-600 outline-none transition-colors hover:border-indigo-300 focus:border-indigo-400 disabled:opacity-50"
@@ -397,7 +432,7 @@ export default function Home() {
               {persona.id === CUSTOM_PERSONA_ID && (
                 <input
                   value={persona.custom}
-                  onChange={(e) => setPersona((p) => ({ ...p, custom: e.target.value }))}
+                  onChange={(e) => updatePersona({ id: persona.id, custom: e.target.value })}
                   placeholder="一句话描述人设…"
                   maxLength={100}
                   disabled={busy === "generate"}
