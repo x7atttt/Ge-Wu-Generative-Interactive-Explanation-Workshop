@@ -108,8 +108,8 @@ export interface DocSummary {
   createdAt: string;
 }
 
-export async function listDocs(): Promise<DocSummary[]> {
-  const res = await fetch("/api/docs");
+export async function listDocs(spaceId?: number): Promise<DocSummary[]> {
+  const res = await fetch(spaceId !== undefined ? `/api/docs?spaceId=${spaceId}` : "/api/docs");
   if (!res.ok) throw new Error(`历史加载失败（${res.status}）`);
   const data = (await res.json()) as { docs: DocSummary[] };
   return data.docs;

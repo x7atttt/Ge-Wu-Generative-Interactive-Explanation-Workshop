@@ -20,9 +20,12 @@ const TYPE_LABELS: Record<string, string> = {
  */
 export function StatsPanel({
   onPractice,
+  spaceId,
 }: {
   /** 弱项补练回调（迭代 12：以源概念统计生成针对性练习讲解） */
   onPractice?: (docId: number, title: string) => void;
+  /** 空间模式：只统计该空间（undefined = 全局） */
+  spaceId?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [stats, setStats] = useState<StatsPayload | null>(null);
@@ -35,13 +38,13 @@ export function StatsPanel({
     };
     document.addEventListener("keydown", onKey);
     setLoading(true);
-    fetch("/api/stats")
+    fetch(spaceId !== undefined ? `/api/stats?spaceId=${spaceId}` : "/api/stats")
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`加载失败（${res.status}）`))))
       .then((data: StatsPayload) => setStats(data))
       .catch(() => setStats(null))
       .finally(() => setLoading(false));
     return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, spaceId]);
 
   const option = useMemo<echarts.EChartsCoreOption | null>(() => {
     if (!stats || stats.attemptCount === 0) return null;

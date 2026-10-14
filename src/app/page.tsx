@@ -6,6 +6,8 @@ import { BuildProgressPanel } from "@/components/BuildProgressPanel";
 import { DocHistoryButton } from "@/components/DocHistoryButton";
 import { SourcesPanel } from "@/components/SourcesPanel";
 import { SoundToggle } from "@/components/SoundToggle";
+import { SpaceMapPanel } from "@/components/SpaceMapPanel";
+import { SpacePicker } from "@/components/SpacePicker";
 import { StatsPanel } from "@/components/StatsPanel";
 import { AskPanel, type AskItem } from "@/components/dsl/AskPanel";
 import { AttemptContext, postAttempt } from "@/components/dsl/attempt-context";
@@ -19,6 +21,10 @@ import {
   resolvePersonaHint,
   type PersonaState,
 } from "@/lib/persona";
+import {
+  listSpaces,
+  type SpaceInfo,
+} from "@/lib/api/spaces";
 import { usePartialDoc } from "@/hooks/usePartialDoc";
 import { computeDeepens } from "@/lib/dsl/deepen";
 import type { ExplainDoc } from "@/lib/dsl/schema";
@@ -35,6 +41,12 @@ export default function Home() {
   const [concept, setConcept] = useState("");
   const [webSearchOn, setWebSearchOn] = useState(true);
   const [attachedSourceIds, setAttachedSourceIds] = useState<number[]>([]);
+  const [spaces, setSpaces] = useState<SpaceInfo[]>([]);
+  const [spaceId, setSpaceId] = useState<number | null>(null);
+  /** 出身概念：从资料提炼点/概念地图进入生成时记录，地图据此对齐讲解 */
+  const [originConcept, setOriginConcept] = useState<string | null>(null);
+  /** 空间地图刷新信号：生成完成/切换文档后自增 */
+  const [mapRefresh, setMapRefresh] = useState(0);
   const [persona, setPersona] = useState<PersonaState>({ id: "default", custom: "" });
   const [doc, setDoc] = useState<ExplainDoc | null>(null);
   const [docId, setDocId] = useState<number | null>(null);
@@ -54,9 +66,40 @@ export default function Home() {
 
   const abortRef = useRef<AbortController | null>(null);
 
+  const refreshSpaces = () => {
+    listSpaces()
+      .then((list) => {
+        setSpaces(list);
+        // 已删/不存在的空间回落全局
+        setSpaceId((current) => (current !== null && !list.some((s) => s.id === current) ? null : current));
+      })
+      .catch(() => {});
+  };
+
   useEffect(() => {
     listDocs().then(setDocList).catch(() => {});
+    refreshSpaces();
+    // 恢复上次所在空间（不存在则回落全局）
+    try {
+      const saved = localStorage.getItem("gewu-space");
+      if (saved !== null) setSpaceId(/^\d+$/.test(saved) ? Number(saved) : null);
+    } catch {
+      // 损坏存储忽略
+    }
   }, []);
+
+  // 空间切换：持久化 + 历史列表按空间过滤
+  useEffect(() => {
+    try {
+      localStorage.setItem("gewu-space", spaceId === null ? "" : String(spaceId));
+    } catch {}
+    listDocs(spaceId ?? undefined).then(setDocList).catch(() => {});
+  }, [spaceId]);
+
+  // 切换讲解后刷新地图（练习与讲解状态可能变化）
+  useEffect(() => {
+    if (spaceId !== null) setMapRefresh((k) => k + 1);
+  }, [docId, spaceId]);
 
   // 人设持久化：挂载时读 localStorage（避免 SSR/客户端不一致），变更即写回
   useEffect(() => {
@@ -134,6 +177,8 @@ export default function Home() {
           webSearch: webSearchOn,
           personaStyle: personaHint,
           sourceIds: attachedSourceIds,
+          spaceId,
+          originConcept,
           ...extra,
         },
         {
@@ -149,6 +194,7 @@ export default function Home() {
       setRefineInput("");
       setRefineError(null);
       refreshDocList();
+      setMapRefresh((k) => k + 1);
       playDone();
     } catch (err) {
       if (controller.signal.aborted) setError("已取消本次生成");
@@ -166,12 +212,26 @@ export default function Home() {
     runGenerate(text);
   }
 
-  /** 资料「提炼讲解点」点击：附加该资料并把概念填进生成框 */
+  /** 资料「提炼讲解点」点击：附加该资料并把概念填进生成框（记录出身概念供地图对齐） */
   function pickSourceConcept(conceptText: string, sourceId: number) {
     setConcept(conceptText);
+    setOriginConcept(conceptText);
     setAttachedSourceIds((prev) =>
       prev.includes(sourceId) ? prev : prev.length < 3 ? [...prev, sourceId] : prev
     );
+  }
+
+  /** 概念地图点击未学概念：附加其来源资料并预填（出身概念 = 概念名） */
+  function pickMapConcept(conceptText: string, sourceIds: number[]) {
+    setConcept(conceptText);
+    setOriginConcept(conceptText);
+    setAttachedSourceIds((prev) => {
+      const merged = [...prev];
+      for (const id of sourceIds) {
+        if (!merged.includes(id) && merged.length < 3) merged.push(id);
+      }
+      return merged;
+    });
   }
 
   /** 统计面板弱项补练：以源概念标题生成针对性练习讲解 */
@@ -240,7 +300,7 @@ export default function Home() {
       {/* 右上角标签组：学习统计 + 历史讲解 + 音效开关 */}
       <div className="fixed right-4 top-4 z-40 flex items-center gap-2">
         <SoundToggle />
-        <StatsPanel onPractice={startPractice} />
+        <StatsPanel onPractice={startPractice} spaceId={spaceId ?? undefined} />
         <DocHistoryButton
           docs={docList}
           currentId={docId}
@@ -269,7 +329,10 @@ export default function Home() {
           <div className="flex gap-2">
             <input
               value={concept}
-              onChange={(e) => setConcept(e.target.value)}
+              onChange={(e) => {
+                setConcept(e.target.value);
+                setOriginConcept(null); // 手动改写概念后出身对齐失效（地图按精确概念名匹配）
+              }}
               onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
               placeholder={
                 attachedSourceIds.length > 0
@@ -292,7 +355,10 @@ export default function Home() {
             {EXAMPLE_CONCEPTS.map((example) => (
               <button
                 key={example}
-                onClick={() => setConcept(example)}
+                onClick={() => {
+                  setConcept(example);
+                  setOriginConcept(null);
+                }}
                 disabled={busy === "generate"}
                 className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-500 transition-colors hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-50"
               >
@@ -300,10 +366,18 @@ export default function Home() {
               </button>
             ))}
             <div className="ml-auto flex items-center gap-2">
+              <SpacePicker
+                spaces={spaces}
+                spaceId={spaceId}
+                onSpacesChange={refreshSpaces}
+                onChange={setSpaceId}
+                disabled={busy === "generate"}
+              />
               <SourcesPanel
                 attachedIds={attachedSourceIds}
                 onAttachChange={setAttachedSourceIds}
                 onPickConcept={pickSourceConcept}
+                spaceId={spaceId}
                 disabled={busy === "generate"}
               />
               <select
@@ -366,6 +440,18 @@ export default function Home() {
             )}
           </AnimatePresence>
         </section>
+
+        {/* 空间模式：概念地图驾驶舱（资料提炼概念 × 讲解/练习状态，一键生成/打开/补练） */}
+        {spaceId !== null && (
+          <SpaceMapPanel
+            spaceId={spaceId}
+            refreshKey={mapRefresh}
+            disabled={busy !== null}
+            onPick={pickMapConcept}
+            onPractice={startPractice}
+            onOpenDoc={loadDoc}
+          />
+        )}
 
         {/* 讲解文档：生成期流式上屏（真块 + 尾骨架）；其余时间展示当前文档。
             无 exit 等待：refine 期间旧文档保留至 done 换新键 */}

@@ -13,6 +13,8 @@ export interface SourceItem {
   error: string;
   /** 解析进度（如 "3/12 页"），仅 parsing 期间有值 */
   progress: string;
+  /** 所属空间（null = 未分组） */
+  spaceId: number | null;
   createdAt: string;
 }
 
@@ -32,10 +34,11 @@ export async function listSources(): Promise<SourceItem[]> {
   return data.sources;
 }
 
-/** 批量导入：txt/md 服务端直读，pdf/doc/docx 走 MinerU 异步解析（返回行含 parsing 态） */
-export async function importSources(files: File[]): Promise<SourceItem[]> {
+/** 批量导入：txt/md 服务端直读，pdf/doc/docx 走 MinerU 异步解析（返回行含 parsing 态）；spaceId 归属空间 */
+export async function importSources(files: File[], spaceId: number | null): Promise<SourceItem[]> {
   const form = new FormData();
   for (const file of files) form.append("files", file);
+  if (spaceId !== null) form.append("spaceId", String(spaceId));
   const res = await fetch("/api/sources", { method: "POST", body: form });
   if (!res.ok) throw await readError(res);
   const data = (await res.json()) as { sources: SourceItem[] };

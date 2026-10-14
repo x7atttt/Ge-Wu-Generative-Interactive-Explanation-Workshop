@@ -9,6 +9,7 @@ import {
   listSources,
   type SourceItem,
 } from "@/lib/api/sources";
+import { moveSource } from "@/lib/api/spaces";
 import { playPop } from "@/lib/audio/sound";
 
 const KIND_LABEL: Record<string, string> = {
@@ -32,17 +33,21 @@ function elapsedSince(createdAt: string): string {
 /**
  * 生成入口的「资料」面板：批量导入文档（txt/md 直读，PDF/Word 走 MinerU）、
  * 状态跟踪、勾选附加（≤3 份注入生成）、一键提炼讲解点（点击概念预填生成框）。
+ * 空间模式下只列本空间资料，未分组资料折叠展示并可一键移入。
  */
 export function SourcesPanel({
   attachedIds,
   onAttachChange,
   onPickConcept,
+  spaceId,
   disabled,
 }: {
   attachedIds: number[];
   onAttachChange: (ids: number[]) => void;
   /** 点击提炼出的概念：自动附加该资料并预填概念 */
   onPickConcept: (concept: string, sourceId: number) => void;
+  /** 当前空间（null = 全局模式，显示全部资料） */
+  spaceId?: number | null;
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -50,6 +55,7 @@ export function SourcesPanel({
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [extractingId, setExtractingId] = useState<number | null>(null);
+  const [movingId, setMovingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -73,7 +79,10 @@ export function SourcesPanel({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, refresh]);
 
-  const parsing = sources.some((s) => s.status === "parsing");
+  const inSpaceMode = spaceId != null;
+  const visible = inSpaceMode ? sources.filter((s) => s.spaceId === spaceId) : sources;
+  const ungrouped = inSpaceMode ? sources.filter((s) => s.spaceId == null) : [];
+  const parsing = visible.some((s) => s.status === "parsing");
   useEffect(() => {
     if (!open || !parsing) return;
     const timer = setInterval(refresh, POLL_MS);
@@ -85,13 +94,26 @@ export function SourcesPanel({
     setImporting(true);
     setError(null);
     try {
-      await importSources([...files]);
+      await importSources([...files], spaceId ?? null);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "导入失败，请重试");
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleMove(id: number) {
+    if (spaceId == null) return;
+    setMovingId(id);
+    try {
+      await moveSource(id, spaceId);
+      await refresh();
+    } catch {
+      refresh();
+    } finally {
+      setMovingId(null);
     }
   }
 
@@ -184,14 +206,20 @@ export function SourcesPanel({
               {error && <p className="mt-2 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs text-red-600">{error}</p>}
 
               <div className="mt-2 max-h-72 overflow-y-auto">
-                {sources.length === 0 && !loading && (
-                  <p className="py-6 text-center text-xs text-zinc-400">
-                    还没有资料——导入讲义 / 笔记 / 论文，
-                    <br />
-                    生成时自动以它为事实依据
+                {visible.length === 0 && !loading && (
+                  <p className="py-6 text-center text-xs leading-5 text-zinc-400">
+                    {inSpaceMode ? (
+                      <>本空间还没有资料——点「导入文件」，或把下方未分组资料移入</>
+                    ) : (
+                      <>
+                        还没有资料——导入讲义 / 笔记 / 论文，
+                        <br />
+                        生成时自动以它为事实依据
+                      </>
+                    )}
                   </p>
                 )}
-                {sources.map((source) => {
+                {visible.map((source) => {
                   const attached = attachedIds.includes(source.id);
                   const ready = source.status === "ready";
                   return (
@@ -263,6 +291,32 @@ export function SourcesPanel({
                     </div>
                   );
                 })}
+
+                {ungrouped.length > 0 && (
+                  <div className="mt-2 border-t border-zinc-100 pt-2">
+                    <p className="px-0.5 pb-1 text-[10px] text-zinc-400">
+                      未分组资料（点「移入」加入本空间）
+                    </p>
+                    {ungrouped.map((source) => (
+                      <div key={source.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5">
+                        <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
+                          {KIND_LABEL[source.kind] ?? source.kind.toUpperCase()}
+                        </span>
+                        <span className="truncate text-sm text-zinc-500" title={source.title}>
+                          {source.title}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={movingId !== null}
+                          onClick={() => handleMove(source.id)}
+                          className="ml-auto shrink-0 text-xs text-violet-500 transition-colors hover:text-violet-700 disabled:opacity-50"
+                        >
+                          {movingId === source.id ? "移入中…" : "移入"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </motion.div>
           </>
