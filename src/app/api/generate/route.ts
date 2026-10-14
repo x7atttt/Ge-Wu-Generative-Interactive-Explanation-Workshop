@@ -55,7 +55,7 @@ export async function POST(req: Request) {
   const originConcept =
     typeof body.originConcept === "string" && body.originConcept.trim() ? body.originConcept.trim().slice(0, 100) : null;
 
-  // 附加资料：最多 3 份，必须已解析完成（ready 才会被取出）
+  // 附加资料：最多 3 份；失效 id（已删除/未解析）静默剔除并提示，不再阻塞生成
   const sourceIds = Array.isArray(body.sourceIds)
     ? [...new Set(body.sourceIds.filter((v): v is number => typeof v === "number" && Number.isInteger(v) && v > 0))]
     : [];
@@ -64,11 +64,10 @@ export async function POST(req: Request) {
   }
   const sources =
     sourceIds.length > 0
-      ? getReadySources(sourceIds).map((row) => ({ title: row.title, content: row.mdContent }))
+      ? getReadySources(sourceIds).map((row) => ({ id: row.id, title: row.title, content: row.mdContent }))
       : [];
-  if (sources.length !== sourceIds.length) {
-    return NextResponse.json({ error: "有资料不存在或还未解析完成" }, { status: 400 });
-  }
+  const validSourceIds = sources.map((s) => s.id);
+  const droppedSources = sourceIds.length - sources.length;
 
   // 补练模式：概念取自源文档标题，练习统计由服务端自己聚合（不信任客户端数字）
   let concept = typeof body.concept === "string" ? body.concept.trim() : "";
@@ -103,6 +102,9 @@ export async function POST(req: Request) {
       if (sources.length > 0) {
         send({ type: "info", message: `已附加 ${sources.length} 份资料（${sources.reduce((n, s) => n + s.content.length, 0)} 字）` });
       }
+      if (droppedSources > 0) {
+        send({ type: "info", message: `已忽略 ${droppedSources} 份已删除或未解析的资料` });
+      }
       if (refs.length > 0) send({ type: "info", message: `已检索 ${refs.length} 条网络资料` });
       const extras: GenerateExtras = { refs, personaStyle };
       if (sources.length > 0) extras.sources = sources;
@@ -113,7 +115,7 @@ export async function POST(req: Request) {
       const docId = insertDoc(doc, null, null, {
         spaceId,
         originConcept: originConcept ?? (spaceId !== null ? concept.slice(0, 100) : null),
-        sourceIds,
+        sourceIds: validSourceIds,
       });
       send({ type: "done", doc, docId });
     } catch (err) {
