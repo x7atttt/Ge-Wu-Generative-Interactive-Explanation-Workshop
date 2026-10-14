@@ -30,7 +30,8 @@ import { usePartialDoc } from "@/hooks/usePartialDoc";
 import { computeDeepens } from "@/lib/dsl/deepen";
 import type { ExplainDoc } from "@/lib/dsl/schema";
 
-const EXAMPLE_CONCEPTS = ["正弦波的频率", "傅里叶级数", "柱状图", "供需与价格"];
+// 示例概念覆盖四类交互形态：波形滑块（数学/信号）、填空配对（语言）、分类自测（计算机）、图表（经济）
+const EXAMPLE_CONCEPTS = ["正弦波的频率", "英语名词复数", "快速排序", "供需与价格"];
 const REFINE_EXAMPLES = [
   "深入讲解最核心的概念",
   "加一个现实中的类比例子",
@@ -393,7 +394,7 @@ export default function Home() {
               placeholder={
                 attachedSourceIds.length > 0
                   ? "留空则围绕第一份资料生成，或输入具体概念"
-                  : "想搞懂什么概念？如：傅里叶级数、柱状图、供需与价格"
+                  : "想搞懂什么概念？如：正弦波的频率、英语名词复数、快速排序"
               }
               maxLength={200}
               className="h-11 flex-1 rounded-xl border border-zinc-200 px-4 text-sm outline-none transition-colors focus:border-indigo-400"
