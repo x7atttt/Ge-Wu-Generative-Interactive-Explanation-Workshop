@@ -55,6 +55,15 @@ CREATE TABLE IF NOT EXISTS sources (
   created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_sources_batch ON sources(batch_id);
+CREATE TABLE IF NOT EXISTS spaces (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  -- 空间说明（如"期末·操作系统 考纲+课件+真题"）
+  note TEXT NOT NULL DEFAULT '',
+  -- 考试/截止日期（YYYY-MM-DD，倒计时用；迭代 17 复习计划的锚点）
+  exam_date TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
 `;
 
 export function getDb(): DatabaseSync {
@@ -77,6 +86,23 @@ export function getDb(): DatabaseSync {
     db.exec("ALTER TABLE sources ADD COLUMN progress TEXT NOT NULL DEFAULT ''");
   } catch {
     // duplicate column: 列已存在
+  }
+  // 老库迁移：空间归属与讲解出身（迭代 16 前建的表；在线实例另用一次性脚本补列）
+  try {
+    db.exec("ALTER TABLE sources ADD COLUMN space_id INTEGER REFERENCES spaces(id)");
+  } catch {
+    // duplicate column: 列已存在
+  }
+  for (const col of [
+    "ALTER TABLE docs ADD COLUMN space_id INTEGER REFERENCES spaces(id)",
+    "ALTER TABLE docs ADD COLUMN origin_concept TEXT",
+    "ALTER TABLE docs ADD COLUMN source_ids TEXT NOT NULL DEFAULT '[]'",
+  ]) {
+    try {
+      db.exec(col);
+    } catch {
+      // duplicate column: 列已存在
+    }
   }
   g.__gewuDb = db;
   return db;

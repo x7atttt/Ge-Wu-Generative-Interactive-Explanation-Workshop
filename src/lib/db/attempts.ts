@@ -80,25 +80,38 @@ function shiftDay(day: string, offsetDays: number): string {
   return localDay(d);
 }
 
-export function getStats(): StatsPayload {
+/** 全局或空间内统计：spaceId 提供时所有口径只算该空间的讲解与练习 */
+export function getStats(spaceId?: number): StatsPayload {
   const db = getDb();
+  const inSpace = spaceId !== undefined;
+  const docInSpace = "doc_id IN (SELECT id FROM docs WHERE space_id = ?)";
+  const spaceParams = inSpace ? [spaceId as number] : [];
 
   const docCount = Number(
-    (db.prepare("SELECT COUNT(*) AS n FROM docs").get() as { n: number }).n
+    (
+      db
+        .prepare(
+          inSpace ? "SELECT COUNT(*) AS n FROM docs WHERE space_id = ?" : "SELECT COUNT(*) AS n FROM docs"
+        )
+        .get(...spaceParams) as { n: number }
+    ).n
   );
-  const overall = db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(correct), 0) AS c FROM attempts").get() as {
-    n: number;
-    c: number;
-  };
+  const overall = db
+    .prepare(
+      `SELECT COUNT(*) AS n, COALESCE(SUM(correct), 0) AS c FROM attempts ${inSpace ? `WHERE ${docInSpace}` : ""}`
+    )
+    .get(...spaceParams) as { n: number; c: number };
   const correctRate =
     overall.n > 0 ? Math.round((overall.c / overall.n) * 1000) / 10 : null;
 
   // 近 14 天日序列：DB 只取有记录的日，空日在 JS 补齐
   const dailyRows = db
     .prepare(
-      "SELECT date(created_at) AS day, COUNT(*) AS total, SUM(correct) AS correct FROM attempts WHERE created_at >= date('now','localtime','-13 days') GROUP BY day"
+      `SELECT date(created_at) AS day, COUNT(*) AS total, SUM(correct) AS correct FROM attempts WHERE created_at >= date('now','localtime','-13 days') ${
+        inSpace ? `AND ${docInSpace}` : ""
+      } GROUP BY day`
     )
-    .all() as unknown as { day: string; total: number; correct: number }[];
+    .all(...spaceParams) as unknown as { day: string; total: number; correct: number }[];
   const dailyMap = new Map(dailyRows.map((r) => [r.day, r]));
   const daily: DailyPoint[] = [];
   for (let i = 13; i >= 0; i--) {
@@ -108,8 +121,12 @@ export function getStats(): StatsPayload {
   }
 
   const typeRows = db
-    .prepare("SELECT block_type, COUNT(*) AS total, SUM(correct) AS correct FROM attempts GROUP BY block_type")
-    .all() as unknown as { block_type: AttemptType; total: number; correct: number }[];
+    .prepare(
+      `SELECT block_type, COUNT(*) AS total, SUM(correct) AS correct FROM attempts ${
+        inSpace ? `WHERE ${docInSpace}` : ""
+      } GROUP BY block_type`
+    )
+    .all(...spaceParams) as unknown as { block_type: AttemptType; total: number; correct: number }[];
   const byType: TypeStat[] = ATTEMPT_TYPES.map((blockType) => {
     const row = typeRows.find((r) => r.block_type === blockType);
     return { blockType, total: row?.total ?? 0, correct: row?.correct ?? 0 };
@@ -119,10 +136,10 @@ export function getStats(): StatsPayload {
     .prepare(
       `SELECT a.doc_id AS docId, d.title AS title, COUNT(*) AS total,
               SUM(a.correct) AS correct, MAX(date(a.created_at)) AS lastDay
-       FROM attempts a JOIN docs d ON d.id = a.doc_id
+       FROM attempts a JOIN docs d ON d.id = a.doc_id ${inSpace ? "AND d.space_id = ?" : ""}
        GROUP BY a.doc_id ORDER BY total DESC LIMIT 50`
     )
-    .all() as unknown as ConceptStat[];
+    .all(...spaceParams) as unknown as ConceptStat[];
   const concepts = conceptRows.map((r) => ({
     ...r,
     total: Number(r.total),
@@ -131,8 +148,12 @@ export function getStats(): StatsPayload {
 
   // 连续学习天数：锚点是今天或昨天（今天还没练不打断连续）
   const dayRows = db
-    .prepare("SELECT DISTINCT date(created_at) AS day FROM attempts ORDER BY day DESC")
-    .all() as unknown as { day: string }[];
+    .prepare(
+      `SELECT DISTINCT date(created_at) AS day FROM attempts ${
+        inSpace ? `WHERE ${docInSpace}` : ""
+      } ORDER BY day DESC`
+    )
+    .all(...spaceParams) as unknown as { day: string }[];
   const days = dayRows.map((r) => r.day);
   const today = localDay(new Date());
   let streak = 0;

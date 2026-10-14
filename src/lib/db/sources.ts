@@ -15,6 +15,8 @@ export interface SourceSummary {
   error: string;
   /** 解析进度（如 "3/12 页"），仅 parsing 期间有值 */
   progress: string;
+  /** 所属空间（null = 未分组） */
+  spaceId: number | null;
   createdAt: string;
 }
 
@@ -30,6 +32,7 @@ interface RawRow {
   progress: string;
   batch_id: string;
   file_name: string;
+  space_id: number | null;
   created_at: string;
 }
 
@@ -61,6 +64,7 @@ function toRow(raw: RawRow): SourceRow {
     progress: raw.progress ?? "",
     batchId: raw.batch_id,
     fileName: raw.file_name,
+    spaceId: raw.space_id ?? null,
     createdAt: raw.created_at,
   };
 }
@@ -74,11 +78,12 @@ export function insertSource(input: {
   error?: string;
   batchId?: string;
   fileName?: string;
+  spaceId?: number | null;
 }): number {
   const md = input.mdContent ?? "";
   const result = getDb()
     .prepare(
-      "INSERT INTO sources (title, kind, status, md_content, chars, error, batch_id, file_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO sources (title, kind, status, md_content, chars, error, batch_id, file_name, space_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
     .run(
       input.title,
@@ -88,13 +93,14 @@ export function insertSource(input: {
       md.length,
       (input.error ?? "").slice(0, 300),
       input.batchId ?? "",
-      input.fileName ?? ""
+      input.fileName ?? "",
+      input.spaceId ?? null
     );
   return Number(result.lastInsertRowid);
 }
 
 const SELECT_ALL =
-  "SELECT id, title, kind, status, md_content, chars, concepts, error, progress, batch_id, file_name, created_at FROM sources";
+  "SELECT id, title, kind, status, md_content, chars, concepts, error, progress, batch_id, file_name, space_id, created_at FROM sources";
 
 export function getSource(id: number): SourceRow | null {
   const row = getDb()
@@ -103,18 +109,26 @@ export function getSource(id: number): SourceRow | null {
   return row ? toRow(row) : null;
 }
 
-export function listSources(limit = 200): SourceRow[] {
-  const rows = getDb()
-    .prepare(`${SELECT_ALL} ORDER BY id DESC LIMIT ?`)
-    .all(limit) as unknown as RawRow[];
-  return rows.map(toRow);
+export function listSources(limit = 200, spaceId?: number): SourceRow[] {
+  const rows =
+    spaceId !== undefined
+      ? getDb()
+          .prepare(`${SELECT_ALL} WHERE space_id = ? ORDER BY id DESC LIMIT ?`)
+          .all(spaceId, limit)
+      : getDb().prepare(`${SELECT_ALL} ORDER BY id DESC LIMIT ?`).all(limit);
+  return (rows as unknown as RawRow[]).map(toRow);
 }
 
 /** 面板列表：剥离正文 */
-export function listSourceSummaries(limit = 200): SourceSummary[] {
-  return listSources(limit).map(
+export function listSourceSummaries(limit = 200, spaceId?: number): SourceSummary[] {
+  return listSources(limit, spaceId).map(
     ({ mdContent: _md, batchId: _b, fileName: _f, ...rest }) => rest
   );
+}
+
+/** 移动资料归属（null = 移回未分组） */
+export function setSourceSpace(id: number, spaceId: number | null): void {
+  getDb().prepare("UPDATE sources SET space_id = ? WHERE id = ?").run(spaceId, id);
 }
 
 /** 解析完成回填（幂等：仅 parsing 状态的行接受回填，防并发轮询重复写入；进度随终态清空） */
