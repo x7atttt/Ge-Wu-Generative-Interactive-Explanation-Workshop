@@ -5,6 +5,7 @@
 import { getDb } from "./index";
 import { listSources } from "./sources";
 import { listDocsBySpace } from "./docs";
+import { cardCounts } from "./cards";
 
 export interface SpaceRow {
   id: number;
@@ -107,6 +108,8 @@ export interface SpaceMap {
   space: SpaceRow;
   concepts: ConceptState[];
   summary: { sources: number; explained: number; weak: number };
+  /** 复习卡概况（迭代 18） */
+  cards: { total: number; due: number };
 }
 
 const WEAK_RATE = 0.6;
@@ -190,5 +193,6 @@ export function getSpaceMap(spaceId: number): SpaceMap | null {
       explained: concepts.filter((c) => c.docIds.length > 0).length,
       weak: concepts.filter((c) => c.status === "weak").length,
     },
+    cards: cardCounts(spaceId),
   };
 }

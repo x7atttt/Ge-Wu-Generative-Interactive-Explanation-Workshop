@@ -64,6 +64,21 @@ CREATE TABLE IF NOT EXISTS spaces (
   exam_date TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
+CREATE TABLE IF NOT EXISTS cards (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  space_id INTEGER REFERENCES spaces(id),
+  doc_id INTEGER REFERENCES docs(id),
+  origin_concept TEXT,
+  front TEXT NOT NULL,
+  back TEXT NOT NULL,
+  -- SM-2 调度状态（算法见 lib/srs.ts），due 为本地日期 YYYY-MM-DD
+  ease REAL NOT NULL DEFAULT 2.5,
+  interval_days REAL NOT NULL DEFAULT 0,
+  repetitions INTEGER NOT NULL DEFAULT 0,
+  due TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_cards_space_due ON cards(space_id, due);
 `;
 
 export function getDb(): DatabaseSync {
