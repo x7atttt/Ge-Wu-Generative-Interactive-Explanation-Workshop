@@ -115,6 +115,21 @@ export async function listDocs(spaceId?: number): Promise<DocSummary[]> {
   return data.docs;
 }
 
+/** 删除一篇讲解及其深化子树（追问/练习/复习卡级联清理）；返回被删除的 doc id */
+export async function deleteDoc(docId: number): Promise<number[]> {
+  const res = await fetch(`/api/docs/${docId}`, { method: "DELETE" });
+  if (!res.ok) {
+    const data: unknown = await res.json().catch(() => null);
+    throw new Error(
+      data && typeof data === "object" && "error" in data && typeof data.error === "string"
+        ? data.error
+        : `删除失败（${res.status}）`
+    );
+  }
+  const data = (await res.json()) as { deleted: number[] };
+  return data.deleted;
+}
+
 /** 恢复一篇历史讲解：文档 + 已有问答 + 版本链（根在前，供深化分段）+ 空间归属 */
 export interface VersionPayload {
   id?: number;

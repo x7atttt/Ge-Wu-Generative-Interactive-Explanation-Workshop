@@ -133,3 +133,30 @@ export function listDocs(limit = 500, spaceId?: number): DocSummary[] {
           .all(limit) as unknown as { id: number; title: string; created_at: string }[]);
   return rows.map((row) => ({ id: row.id, title: row.title, createdAt: row.created_at }));
 }
+
+/**
+ * 删除一篇讲解及其全部深化子版本（子树），级联清理追问、练习记录与复习卡。
+ * 返回被删除的 doc id 列表（前端据此判断当前打开的讲解是否被清掉）。
+ */
+export function deleteDocTree(id: number): number[] {
+  const db = getDb();
+  const exists = db.prepare("SELECT id FROM docs WHERE id = ?").get(id);
+  if (!exists) return [];
+  const ids: number[] = [];
+  const walk = (docId: number, depth: number) => {
+    // 深化链防环/防异常深（理论上 parent 单向，防御性上限）
+    if (depth > 50) return;
+    ids.push(docId);
+    const children = db
+      .prepare("SELECT id FROM docs WHERE parent_id = ?")
+      .all(docId) as unknown as { id: number }[];
+    for (const child of children) walk(child.id, depth + 1);
+  };
+  walk(id, 0);
+  const placeholders = ids.map(() => "?").join(",");
+  db.prepare(`DELETE FROM asks WHERE doc_id IN (${placeholders})`).run(...ids);
+  db.prepare(`DELETE FROM attempts WHERE doc_id IN (${placeholders})`).run(...ids);
+  db.prepare(`DELETE FROM cards WHERE doc_id IN (${placeholders})`).run(...ids);
+  db.prepare(`DELETE FROM docs WHERE id IN (${placeholders})`).run(...ids);
+  return ids;
+}

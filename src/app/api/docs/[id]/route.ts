@@ -1,9 +1,26 @@
 import { NextResponse } from "next/server";
 import { listAsks } from "@/lib/db/asks";
-import { getDoc, type DocRow } from "@/lib/db/docs";
+import { deleteDocTree, getDoc, type DocRow } from "@/lib/db/docs";
 import type { Block } from "@/lib/dsl/schema";
 
 const MAX_CHAIN_DEPTH = 20;
+
+/** 删除讲解及其深化子树（追问/练习/复习卡级联清理） */
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const docId = Number(id);
+  if (!Number.isInteger(docId) || docId <= 0) {
+    return NextResponse.json({ error: "docId 非法" }, { status: 400 });
+  }
+  const deleted = deleteDocTree(docId);
+  if (deleted.length === 0) {
+    return NextResponse.json({ error: "讲解不存在" }, { status: 404 });
+  }
+  return NextResponse.json({ deleted });
+}
 
 export async function GET(
   _req: Request,
