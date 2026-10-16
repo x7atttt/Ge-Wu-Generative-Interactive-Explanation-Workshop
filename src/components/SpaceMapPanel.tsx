@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getSpaceMap, type SpaceMap } from "@/lib/api/spaces";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import { ExamPanel } from "@/components/ExamPanel";
+import { CardManagerPanel } from "@/components/CardManagerPanel";
 
 const STATUS_META: Record<
   string,
@@ -50,6 +51,7 @@ function countdownText(examDate: string): string {
 export function SpaceMapPanel({
   spaceId,
   examDate,
+  note,
   refreshKey,
   disabled,
   onPick,
@@ -59,6 +61,8 @@ export function SpaceMapPanel({
   spaceId: number;
   /** 考试日期（来自空间列表，枢纽改日期后即时生效） */
   examDate?: string | null;
+  /** 空间备注（来自空间列表，枢纽改备注后即时生效；空时回落地图自带的） */
+  note?: string;
   /** 父级事件后自增以重拉地图（生成完成/切换文档等） */
   refreshKey: number;
   disabled?: boolean;
@@ -73,6 +77,7 @@ export function SpaceMapPanel({
   const [error, setError] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [examOpen, setExamOpen] = useState(false);
+  const [cardsOpen, setCardsOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -156,6 +161,15 @@ export function SpaceMapPanel({
               📝 测验
             </button>
           )}
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => setCardsOpen(true)}
+            className="rounded-full border border-stone-200 px-2.5 py-1 text-xs text-stone-500 transition-colors hover:border-secondary-300 hover:text-secondary-600 disabled:opacity-50"
+            title="卡片管理：查看/手写补充/编辑/删除复习卡（复习与测验共用题库）"
+          >
+            🗂 卡片
+          </button>
           <div className="flex items-center gap-2 text-[10px] text-stone-400">
             {(["weak", "new", "practiced", "explained"] as const).map((status) => (
               <span key={status} className="flex items-center gap-1">
@@ -176,6 +190,10 @@ export function SpaceMapPanel({
           </div>
         </div>
       </div>
+
+      {(note || map?.space.note) && (
+        <p className="mt-1 text-xs leading-5 text-stone-500">{note || map?.space.note}</p>
+      )}
 
       {map && map.concepts.length === 0 && (
         <p className="mt-3 rounded-lg bg-stone-50 px-3 py-4 text-center text-xs leading-5 text-stone-500">
@@ -219,6 +237,14 @@ export function SpaceMapPanel({
       )}
       {examOpen && (
         <ExamPanel spaceId={spaceId} onClose={() => setExamOpen(false)} onFinish={refresh} />
+      )}
+      {cardsOpen && (
+        <CardManagerPanel
+          spaceId={spaceId}
+          concepts={(map?.concepts ?? []).map((c) => c.text)}
+          onClose={() => setCardsOpen(false)}
+          onChanged={refresh}
+        />
       )}
     </section>
   );

@@ -8,6 +8,7 @@ import {
   moveSource,
   renameSpace,
   setSpaceExamDate,
+  setSpaceNote,
   type SpaceInfo,
 } from "@/lib/api/spaces";
 import { listSources, type SourceItem } from "@/lib/api/sources";
@@ -185,6 +186,8 @@ function SpaceHub({
   const [renameText, setRenameText] = useState("");
   const [datingId, setDatingId] = useState<number | null>(null);
   const [dateText, setDateText] = useState("");
+  const [notingId, setNotingId] = useState<number | null>(null);
+  const [noteText, setNoteText] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [newName, setNewName] = useState("");
 
@@ -376,6 +379,22 @@ function SpaceHub({
                         type="button"
                         disabled={busyId === space.id}
                         onClick={() => {
+                          setNotingId(notingId === space.id ? null : space.id);
+                          setNoteText(space.note ?? "");
+                        }}
+                        className={`shrink-0 text-xs transition-colors disabled:opacity-50 ${
+                          space.note
+                            ? "text-secondary-500 hover:text-secondary-700"
+                            : "text-stone-400 hover:text-secondary-600"
+                        }`}
+                        title="编辑备注（科目/范围，概念地图头部展示）"
+                      >
+                        备注
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busyId === space.id}
+                        onClick={() => {
                           setRenamingId(space.id);
                           setRenameText(space.name);
                         }}
@@ -398,6 +417,39 @@ function SpaceHub({
                     </>
                   )}
                 </div>
+                {notingId === space.id && (
+                  <div className="mt-1.5 flex items-start gap-1.5 border-t border-stone-100 pt-1.5">
+                    <textarea
+                      value={noteText}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      placeholder="备注：如「期末·操作系统 考纲+课件+真题」"
+                      rows={2}
+                      maxLength={200}
+                      autoFocus
+                      className="flex-1 resize-none rounded-md border border-secondary-300 px-2 py-1 text-xs outline-none"
+                    />
+                    <span className="flex shrink-0 flex-col gap-1">
+                      <button
+                        type="button"
+                        disabled={busyId === space.id}
+                        onClick={() => {
+                          run(async () => setSpaceNote(space.id, noteText.trim()), space.id);
+                          setNotingId(null);
+                        }}
+                        className="text-[10px] text-secondary-600 hover:underline disabled:opacity-50"
+                      >
+                        存
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNotingId(null)}
+                        className="text-[10px] text-stone-400 hover:underline"
+                      >
+                        取消
+                      </button>
+                    </span>
+                  </div>
+                )}
                 {expanded && (
                   <div className="mt-1.5 border-t border-stone-100 pt-1.5">
                     {mine.length === 0 && <p className="px-1 text-[10px] text-stone-400">空间内还没有资料</p>}

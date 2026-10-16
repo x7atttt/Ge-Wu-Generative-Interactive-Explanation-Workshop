@@ -518,6 +518,7 @@ export default function Home() {
           <SpaceMapPanel
             spaceId={spaceId}
             examDate={spaces.find((s) => s.id === spaceId)?.examDate ?? null}
+            note={spaces.find((s) => s.id === spaceId)?.note ?? ""}
             refreshKey={mapRefresh}
             disabled={busy !== null}
             onPick={pickMapConcept}
