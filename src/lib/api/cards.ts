@@ -29,6 +29,15 @@ export async function listDueCards(spaceId: number): Promise<ReviewCard[]> {
   return data.cards;
 }
 
+/** 综合测验抽卷（空间全部卡随机抽样，count 上限缺省 20） */
+export async function getExamCards(spaceId: number, count?: number): Promise<ReviewCard[]> {
+  const query = count !== undefined ? `&count=${count}` : "";
+  const res = await fetch(`/api/cards/exam?spaceId=${spaceId}${query}`);
+  if (!res.ok) throw await readError(res);
+  const data = (await res.json()) as { cards: ReviewCard[] };
+  return data.cards;
+}
+
 /** 从讲解提取复习卡；返回新增/跳过数 */
 export async function makeCardsFromDoc(docId: number): Promise<{ added: number; skipped: number }> {
   const res = await fetch("/api/cards/from-doc", {

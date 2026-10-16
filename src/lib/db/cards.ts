@@ -102,6 +102,14 @@ export function listDueCards(spaceId: number, limit = 50): ReviewCard[] {
   return rows.map(toCard);
 }
 
+/** 综合测验卷：空间全部卡（不看 due）随机抽样——模拟考检验整体记忆，count 是上限 */
+export function sampleExamCards(spaceId: number, count: number): ReviewCard[] {
+  const rows = getDb()
+    .prepare(`${SELECT_CARD} WHERE space_id = ? ORDER BY RANDOM() LIMIT ?`)
+    .all(spaceId, count) as unknown as RawCard[];
+  return rows.map(toCard);
+}
+
 /** 空间的复习卡概况（地图头部/复习入口展示） */
 export function cardCounts(spaceId: number): { total: number; due: number } {
   const db = getDb();
