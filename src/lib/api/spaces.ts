@@ -80,6 +80,16 @@ export async function setSpaceExamDate(id: number, examDate: string | null): Pro
   if (!res.ok) throw await readError(res);
 }
 
+/** 设置空间备注（科目/范围说明，地图头部展示） */
+export async function setSpaceNote(id: number, note: string): Promise<void> {
+  const res = await fetch(`/api/spaces/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ note }),
+  });
+  if (!res.ok) throw await readError(res);
+}
+
 export async function getSpaceMap(id: number): Promise<SpaceMap> {
   const res = await fetch(`/api/spaces/${id}/map`);
   if (!res.ok) throw await readError(res);

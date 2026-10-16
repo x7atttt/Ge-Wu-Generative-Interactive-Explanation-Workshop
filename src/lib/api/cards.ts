@@ -64,3 +64,46 @@ export async function clearCards(spaceId: number): Promise<void> {
   const res = await fetch(`/api/cards?spaceId=${spaceId}`, { method: "DELETE" });
   if (!res.ok) throw await readError(res);
 }
+
+/** 空间全部卡（管理面板用，含未到期与手写卡） */
+export async function listAllCards(spaceId: number): Promise<ReviewCard[]> {
+  const res = await fetch(`/api/cards?spaceId=${spaceId}&all=1`);
+  if (!res.ok) throw await readError(res);
+  const data = (await res.json()) as { cards: ReviewCard[] };
+  return data.cards;
+}
+
+/** 手写新卡（concept 可空） */
+export async function createCard(input: {
+  spaceId: number;
+  front: string;
+  back: string;
+  concept?: string;
+}): Promise<ReviewCard> {
+  const res = await fetch("/api/cards", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw await readError(res);
+  return ((await res.json()) as { card: ReviewCard }).card;
+}
+
+/** 单张编辑：题面/答案/概念归属（不传的字段不动） */
+export async function updateCard(
+  id: number,
+  input: { front?: string; back?: string; concept?: string }
+): Promise<ReviewCard> {
+  const res = await fetch(`/api/cards/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw await readError(res);
+  return ((await res.json()) as { card: ReviewCard }).card;
+}
+
+export async function deleteCard(id: number): Promise<void> {
+  const res = await fetch(`/api/cards/${id}`, { method: "DELETE" });
+  if (!res.ok) throw await readError(res);
+}
