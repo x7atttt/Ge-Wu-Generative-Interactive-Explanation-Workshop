@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSpaceMap, type SpaceMap } from "@/lib/api/spaces";
 import { ReviewPanel } from "@/components/ReviewPanel";
+import { ExamPanel } from "@/components/ExamPanel";
 
 const STATUS_META: Record<
   string,
@@ -71,6 +72,7 @@ export function SpaceMapPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [examOpen, setExamOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -143,6 +145,17 @@ export function SpaceMapPanel({
               🔖 复习{map.cards.due > 0 ? ` ${map.cards.due}` : "·已清"}
             </button>
           )}
+          {map && map.cards.total > 0 && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setExamOpen(true)}
+              className="rounded-full border border-stone-200 px-2.5 py-1 text-xs text-stone-500 transition-colors hover:border-accent-300 hover:text-accent-600 disabled:opacity-50"
+              title="综合测验：全部复习卡随机抽卷模拟考试，按概念出分定位薄弱"
+            >
+              📝 测验
+            </button>
+          )}
           <div className="flex items-center gap-2 text-[10px] text-stone-400">
             {(["weak", "new", "practiced", "explained"] as const).map((status) => (
               <span key={status} className="flex items-center gap-1">
@@ -203,6 +216,9 @@ export function SpaceMapPanel({
 
       {reviewOpen && (
         <ReviewPanel spaceId={spaceId} onClose={() => setReviewOpen(false)} onFinish={refresh} />
+      )}
+      {examOpen && (
+        <ExamPanel spaceId={spaceId} onClose={() => setExamOpen(false)} onFinish={refresh} />
       )}
     </section>
   );
