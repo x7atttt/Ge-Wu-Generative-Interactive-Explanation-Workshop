@@ -18,6 +18,21 @@ import { listSources, type SourceItem } from "@/lib/api/sources";
  * 下拉=快速切换（全局 ↔ 各空间，选定后资料/历史/统计按空间过滤并显示概念地图）；
  * 🗂 枢纽=集中管理：空间一览（资料/讲解计数）、新建/重命名/删除、资料跨空间移动与移出。
  */
+/** 空间删除两段确认：先问"连内容一起删？"，拒绝再问"仅删空间？"，都取消则不动 */
+async function confirmDeleteSpace(space: SpaceInfo): Promise<"deep" | "plain" | "cancel"> {
+  const deep = window.confirm(
+    `连内容一起删除空间「${space.name}」？\n其中 ${space.sourceCount} 份资料、${space.docCount} 篇讲解及其练习记录与复习卡将全部删除，不可恢复。`
+  );
+  if (deep) {
+    await deleteSpace(space.id, true);
+    return "deep";
+  }
+  const plain = window.confirm(`仅删除空间「${space.name}」？\n资料与讲解会移回未分组（保留不删）。`);
+  if (!plain) return "cancel";
+  await deleteSpace(space.id, false);
+  return "plain";
+}
+
 export function SpacePicker({
   spaces,
   spaceId,
@@ -55,9 +70,9 @@ export function SpacePicker({
     if (spaceId === null) return;
     const space = spaces.find((s) => s.id === spaceId);
     if (!space) return;
-    if (!window.confirm(`删除空间「${space.name}」？资料与讲解会移回未分组，不会删除。`)) return;
     try {
-      await deleteSpace(spaceId);
+      const mode = await confirmDeleteSpace(space);
+      if (mode === "cancel") return;
       onSpacesChange();
       onChange(null);
     } catch (err) {
@@ -406,9 +421,11 @@ function SpaceHub({
                         type="button"
                         disabled={busyId === space.id}
                         onClick={() => {
-                          if (window.confirm(`删除空间「${space.name}」？资料与讲解会移回未分组，不会删除。`)) {
-                            run(() => deleteSpace(space.id), space.id);
-                          }
+                          confirmDeleteSpace(space)
+                            .then((mode) => (mode === "cancel" ? null : run(async () => {}, space.id)))
+                            .catch((err) =>
+                              onError(err instanceof Error ? err.message : "删除失败")
+                            );
                         }}
                         className="shrink-0 text-xs text-stone-400 transition-colors hover:text-red-500 disabled:opacity-50"
                       >

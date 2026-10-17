@@ -61,8 +61,12 @@ export async function createSpace(name: string, note = ""): Promise<number> {
   return data.id;
 }
 
-export async function deleteSpace(id: number): Promise<void> {
-  const res = await fetch(`/api/spaces/${id}`, { method: "DELETE" });
+/** 删除空间。withContent=true 连同其资料/讲解/练习/复习卡深删（不可恢复）；
+ *  缺省仅删空间本身，资料与讲解移回未分组 */
+export async function deleteSpace(id: number, withContent = false): Promise<void> {
+  const res = await fetch(`/api/spaces/${id}${withContent ? "?content=1" : ""}`, {
+    method: "DELETE",
+  });
   if (!res.ok) throw await readError(res);
 }
 

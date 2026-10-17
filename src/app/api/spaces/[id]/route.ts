@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteSpace, getSpace, updateSpace } from "@/lib/db/spaces";
+import { deleteSpace, deleteSpaceDeep, getSpace, updateSpace } from "@/lib/db/spaces";
 
 function parseId(raw: string): number | null {
   const id = Number(raw);
@@ -56,10 +56,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   return NextResponse.json({ space: getSpace(numeric) });
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const numeric = parseId(id);
   if (numeric === null) return NextResponse.json({ error: "无效的空间 id" }, { status: 400 });
-  deleteSpace(numeric);
-  return NextResponse.json({ ok: true });
+  // ?content=1 深删：连资料/讲解/练习/复习卡一并删除；缺省仅删空间（资产移回未分组）
+  const withContent = new URL(req.url).searchParams.get("content") === "1";
+  if (withContent) deleteSpaceDeep(numeric);
+  else deleteSpace(numeric);
+  return NextResponse.json({ ok: true, contentDeleted: withContent });
 }

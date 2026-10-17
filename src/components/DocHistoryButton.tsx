@@ -32,6 +32,10 @@ export function DocHistoryButton({
   const [query, setQuery] = useState("");
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 批量删除模式：勾选若干篇后一次确认、逐篇级联删除
+  const [batch, setBatch] = useState(false);
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [batchBusy, setBatchBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -56,6 +60,47 @@ export function DocHistoryButton({
     } finally {
       setDeletingId(null);
     }
+  }
+
+  /** 批量删除：一次确认后逐篇级联删除（已不存在的按已删处理），全部结果一次性回报父级 */
+  async function handleBatchDelete() {
+    const ids = [...picked];
+    if (ids.length === 0 || batchBusy) return;
+    if (
+      !window.confirm(
+        `删除所选 ${ids.length} 篇讲解？\n各篇的深化版本、追问、练习记录与复习卡将一并删除，不可恢复。`
+      )
+    )
+      return;
+    setBatchBusy(true);
+    setError(null);
+    const allDeleted: number[] = [];
+    try {
+      for (const id of ids) {
+        try {
+          allDeleted.push(...(await deleteDoc(id)));
+        } catch {
+          allDeleted.push(id); // 已被其他路径删除的按已删对账
+        }
+      }
+      setPicked(new Set());
+      setBatch(false);
+      onDeleted(allDeleted);
+    } catch (err) {
+      if (allDeleted.length > 0) onDeleted(allDeleted);
+      setError(err instanceof Error ? err.message : "批量删除失败");
+    } finally {
+      setBatchBusy(false);
+    }
+  }
+
+  function togglePicked(id: number) {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   const q = query.trim().toLowerCase();
@@ -102,13 +147,65 @@ export function DocHistoryButton({
             className="absolute right-0 top-11 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-stone-200 bg-card shadow-xl"
           >
             <div className="border-b border-stone-100 p-2">
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="搜索标题或编号…"
-                className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 outline-none transition-colors focus:border-accent-400 focus:bg-card"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  ref={inputRef}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="搜索标题或编号…"
+                  className="min-w-0 flex-1 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 outline-none transition-colors focus:border-accent-400 focus:bg-card"
+                />
+                {!batch && docs.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBatch(true);
+                      setPicked(new Set());
+                    }}
+                    className="shrink-0 rounded-lg border border-stone-200 px-2.5 py-2 text-xs text-stone-500 transition-colors hover:border-red-300 hover:text-red-500"
+                    title="勾选多篇后一次删除"
+                  >
+                    批量删除
+                  </button>
+                )}
+              </div>
+              {batch && (
+                <div className="mt-2 flex items-center gap-2 text-xs">
+                  <button
+                    type="button"
+                    disabled={batchBusy}
+                    onClick={() =>
+                      setPicked((prev) =>
+                        prev.size === filtered.length
+                          ? new Set()
+                          : new Set(filtered.map((d) => d.id))
+                      )
+                    }
+                    className="rounded-lg border border-stone-200 px-2 py-1 text-stone-500 transition-colors hover:border-stone-400 disabled:opacity-50"
+                  >
+                    {picked.size === filtered.length && filtered.length > 0 ? "清除勾选" : "全选"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={batchBusy || picked.size === 0}
+                    onClick={handleBatchDelete}
+                    className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 font-medium text-red-600 transition-colors hover:border-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {batchBusy ? "删除中…" : `删除所选 (${picked.size})`}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={batchBusy}
+                    onClick={() => {
+                      setBatch(false);
+                      setPicked(new Set());
+                    }}
+                    className="ml-auto rounded-lg px-2 py-1 text-stone-400 transition-colors hover:text-stone-700 disabled:opacity-50"
+                  >
+                    退出批量
+                  </button>
+                </div>
+              )}
             </div>
             <ul className="max-h-[60vh] overflow-y-auto p-1">
               {filtered.length === 0 ? (
@@ -121,31 +218,50 @@ export function DocHistoryButton({
                     <button
                       type="button"
                       onClick={() => {
+                        if (batch) {
+                          togglePicked(d.id);
+                          return;
+                        }
                         setOpen(false);
                         onSelect(d.id);
                       }}
                       className={[
                         "flex min-w-0 flex-1 items-baseline gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
-                        d.id === currentId
-                          ? "bg-accent-50 text-accent-700"
-                          : "text-stone-700 hover:bg-stone-50",
+                        batch && picked.has(d.id)
+                          ? "bg-red-50 text-red-700"
+                          : d.id === currentId
+                            ? "bg-accent-50 text-accent-700"
+                            : "text-stone-700 hover:bg-stone-50",
                       ].join(" ")}
                     >
+                      {batch && (
+                        <span
+                          className={`shrink-0 self-center rounded border px-1 text-[10px] leading-4 ${
+                            picked.has(d.id)
+                              ? "border-red-400 bg-red-500 text-white"
+                              : "border-stone-300 text-transparent"
+                          }`}
+                        >
+                          ✓
+                        </span>
+                      )}
                       <span className="min-w-0 flex-1 truncate">{d.title}</span>
                       <span className="shrink-0 font-mono text-[11px] text-stone-400">
                         #{d.id}
                         {d.createdAt ? ` · ${formatDay(d.createdAt)}` : ""}
                       </span>
                     </button>
-                    <button
-                      type="button"
-                      disabled={deletingId === d.id}
-                      onClick={() => handleDelete(d.id, d.title)}
-                      title="删除该讲解及其深化版本（不可恢复）"
-                      className="shrink-0 rounded-lg px-2 py-2 text-xs text-stone-300 transition-colors hover:bg-red-50 hover:text-red-500 group-hover:text-stone-400 disabled:opacity-50"
-                    >
-                      {deletingId === d.id ? "…" : "✕"}
-                    </button>
+                    {!batch && (
+                      <button
+                        type="button"
+                        disabled={deletingId === d.id}
+                        onClick={() => handleDelete(d.id, d.title)}
+                        title="删除该讲解及其深化版本（不可恢复）"
+                        className="shrink-0 rounded-lg px-2 py-2 text-xs text-stone-300 transition-colors hover:bg-red-50 hover:text-red-500 group-hover:text-stone-400 disabled:opacity-50"
+                      >
+                        {deletingId === d.id ? "…" : "✕"}
+                      </button>
+                    )}
                   </li>
                 ))
               )}
