@@ -54,6 +54,8 @@ export function SpaceMapPanel({
   note,
   refreshKey,
   disabled,
+  hasDoc,
+  onJumpToDoc,
   onPick,
   onPractice,
   onOpenDoc,
@@ -66,6 +68,10 @@ export function SpaceMapPanel({
   /** 父级事件后自增以重拉地图（生成完成/切换文档等） */
   refreshKey: number;
   disabled?: boolean;
+  /** 当前已加载讲解（快捷跳转入口的显隐） */
+  hasDoc?: boolean;
+  /** 滚动到下方讲解区 */
+  onJumpToDoc?: () => void;
   /** 未学概念 → 生成：附加来源资料 + 记录出身概念 */
   onPick: (concept: string, sourceIds: number[]) => void;
   /** 薄弱概念 → 补练（以该概念最近一次讲解的统计为准） */
@@ -194,6 +200,17 @@ export function SpaceMapPanel({
           >
             🗂 卡片
           </button>
+          {hasDoc && onJumpToDoc && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={onJumpToDoc}
+              className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700 transition-colors hover:border-emerald-400 disabled:opacity-50"
+              title="跳转到下方当前讲解"
+            >
+              ⤓ 讲解
+            </button>
+          )}
           <div className="flex items-center gap-2 text-[10px] text-stone-400">
             {(["weak", "new", "practiced", "explained"] as const).map((status) => (
               <span key={status} className="flex items-center gap-1">

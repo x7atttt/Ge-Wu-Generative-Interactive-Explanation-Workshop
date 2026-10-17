@@ -192,6 +192,13 @@ export default function Home() {
     [docId]
   );
 
+  /** 讲解/构建面板的滚动锚点：生成启动、打开讲解时滚到这里（点击入口都在页面上方） */
+  const docAnchorRef = useRef<HTMLDivElement | null>(null);
+  function scrollToDoc() {
+    // 等 React 提交挂载（构建面板出现/文档换内容）后再滚
+    setTimeout(() => docAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  }
+
   /** 生成主流程（常规概念 / 统计面板触发的针对性补练共用）。
    *  override 参数供"点击即生成"入口使用：同一次点击里 setState 的资料/出身概念
    *  还未进闭包，必须显式传入，否则请求会带着旧值发出 */
@@ -207,6 +214,7 @@ export default function Home() {
     setError(null);
     setBuildText("");
     setSearchNote(null);
+    scrollToDoc();
     try {
       const { doc: next, docId: id } = await streamExplanation(
         "generate",
@@ -347,6 +355,7 @@ export default function Home() {
       setRestoredAsks(asks);
       setVersions(chain);
       setRefineError(null);
+      scrollToDoc();
     } catch (err) {
       setError(err instanceof Error ? err.message : "恢复讲解失败");
     } finally {
@@ -523,6 +532,8 @@ export default function Home() {
             note={spaces.find((s) => s.id === spaceId)?.note ?? ""}
             refreshKey={mapRefresh}
             disabled={busy !== null}
+            hasDoc={doc !== null && docId !== null}
+            onJumpToDoc={scrollToDoc}
             onPick={pickMapConcept}
             onPractice={startPractice}
             onOpenDoc={loadDoc}
@@ -530,7 +541,9 @@ export default function Home() {
         )}
 
         {/* 讲解文档：生成期流式上屏（真块 + 尾骨架）；其余时间展示当前文档。
-            无 exit 等待：refine 期间旧文档保留至 done 换新键 */}
+            无 exit 等待：refine 期间旧文档保留至 done 换新键。
+            锚点 div：生成启动/打开讲解/快捷跳转都滚到这里 */}
+        <div ref={docAnchorRef}>
         {streamDoc && busy === "generate" ? (
           <motion.section
             key="streaming"
@@ -640,6 +653,7 @@ export default function Home() {
             </AttemptContext.Provider>
           </motion.section>
         ) : null}
+        </div>
 
         <footer className="mt-10 text-center text-xs text-stone-400">
           格物 Gewu · 传智杯 AI 创新应用挑战赛（Vibe Coding）作品
