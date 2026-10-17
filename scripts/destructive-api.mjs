@@ -6,6 +6,13 @@
  */
 const BASE = "http://localhost:3000";
 const findings = [];
+// 一次性空间：所有变更型用例（PATCH/POST 卡片等）都打它，跑完删除——绝不碰真实数据
+const tempSpace = await (await fetch(`${BASE}/api/spaces`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ name: "[边界测试临时空间]" }),
+})).json();
+const TID = tempSpace.id;
 async function hit(label, method, path, body, raw) {
   let res;
   try {
@@ -50,18 +57,19 @@ await hit("review id 0", "POST", "/api/cards/0/review", { grade: "easy" });
 await hit("review id 负", "POST", "/api/cards/-1/review", { grade: "easy" });
 await hit("PATCH card 空体", "PATCH", "/api/cards/1", {});
 await hit("PATCH card concept 数组", "PATCH", "/api/cards/1", { concept: ["x"] });
-await hit("POST card front 3000字", "POST", "/api/cards", { spaceId: 4, front: "a".repeat(3000), back: "b" });
+await hit("POST card front 3000字", "POST", "/api/cards", { spaceId: TID, front: "a".repeat(3000), back: "b" });
 await hit("POST card body 是数组", "POST", "/api/cards", [1, 2]);
 await hit("POST card NaN spaceId", "POST", "/api/cards", { spaceId: NaN, front: "a", back: "b" });
 
-// --- spaces ---
+// --- spaces（变更型用例全部走一次性空间） ---
 await hit("spaces PATCH 不存在", "PATCH", "/api/spaces/99999", { note: "x" });
-await hit("spaces PATCH name 超长", "PATCH", "/api/spaces/4", { name: "x".repeat(500) });
-await hit("spaces PATCH 非法日期", "PATCH", "/api/spaces/4", { examDate: "2026-02-30" });
-await hit("spaces PATCH 日期带时间", "PATCH", "/api/spaces/4", { examDate: "2026-12-01T00:00:00" });
+await hit("spaces PATCH name 超长", "PATCH", `/api/spaces/${TID}`, { name: "x".repeat(500) });
+await hit("spaces PATCH 非法日期", "PATCH", `/api/spaces/${TID}`, { examDate: "2026-02-30" });
+await hit("spaces PATCH 日期带时间", "PATCH", `/api/spaces/${TID}`, { examDate: "2026-12-01T00:00:00" });
 await hit("spaces DELETE 不存在", "DELETE", "/api/spaces/99999");
 await hit("space map id 0", "GET", "/api/spaces/0/map");
 await hit("roadmap 不存在空间", "POST", "/api/spaces/99999/roadmap");
+await fetch(`${BASE}/api/spaces/${TID}`, { method: "DELETE" }); // 清理临时空间
 
 // --- docs / stats ---
 await hit("doc id 非数字", "GET", "/api/docs/abc");
