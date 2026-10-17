@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getSpaceMap, type SpaceMap } from "@/lib/api/spaces";
+import { getSpaceMap, generateRoadmap, type SpaceMap } from "@/lib/api/spaces";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import { ExamPanel } from "@/components/ExamPanel";
 import { CardManagerPanel } from "@/components/CardManagerPanel";
@@ -78,6 +78,7 @@ export function SpaceMapPanel({
   const [reviewOpen, setReviewOpen] = useState(false);
   const [examOpen, setExamOpen] = useState(false);
   const [cardsOpen, setCardsOpen] = useState(false);
+  const [roadmapBusy, setRoadmapBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -96,7 +97,17 @@ export function SpaceMapPanel({
   }, [refresh, refreshKey]);
 
   function handleClick(concept: SpaceMap["concepts"][number]) {
+    conceptClick(concept.text);
+  }
+
+  /** 点击分派（地图色块与学习路线站点共用）；路线快照中的概念已不在地图 → 宽容按未学生成 */
+  function conceptClick(text: string) {
     if (disabled) return;
+    const concept = map?.concepts.find((c) => c.text === text);
+    if (!concept) {
+      onPick(text, []);
+      return;
+    }
     if (concept.status === "new") {
       onPick(concept.text, concept.sourceIds);
     } else if (concept.status === "weak") {
@@ -106,6 +117,19 @@ export function SpaceMapPanel({
       const latest = concept.docIds[concept.docIds.length - 1];
       if (latest !== undefined) onOpenDoc(latest);
       else onPick(concept.text, concept.sourceIds);
+    }
+  }
+
+  async function handleGenRoadmap() {
+    if (disabled || roadmapBusy) return;
+    setRoadmapBusy(true);
+    try {
+      await generateRoadmap(spaceId);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "学习路线生成失败");
+    } finally {
+      setRoadmapBusy(false);
     }
   }
 
@@ -231,6 +255,92 @@ export function SpaceMapPanel({
         })}
       </div>
       {loading && <p className="mt-2 text-xs text-stone-300">刷新中…</p>}
+
+      {/* 学习路线：概念按依赖/难度编排的攻克路径（LLM 快照，重生成覆盖；完成度由概念状态推出） */}
+      {map && (map.roadmap || map.concepts.length >= 2) && (
+        <div className="mt-3 border-t border-stone-100 pt-3">
+          <div className="flex items-center gap-2">
+            <h3 className="text-xs font-semibold text-stone-600">🗺 学习路线</h3>
+            {map.roadmap && map.roadmapAt && (
+              <span className="text-[10px] text-stone-300">生成于 {map.roadmapAt.slice(5, 16)}</span>
+            )}
+            <button
+              type="button"
+              disabled={disabled || roadmapBusy}
+              onClick={handleGenRoadmap}
+              className="ml-auto rounded-full border border-stone-200 px-2.5 py-1 text-[11px] text-stone-500 transition-colors hover:border-secondary-300 hover:text-secondary-600 disabled:opacity-50"
+              title="把空间内概念按学习依赖与难度编排成 3~8 站的攻克路径"
+            >
+              {roadmapBusy ? "编排中…" : map.roadmap ? "重新生成" : "生成学习路线"}
+            </button>
+          </div>
+
+          {map.roadmap ? (
+            <div className="mt-2 space-y-2">
+              {(() => {
+                const byText = new Map(map.concepts.map((c) => [c.text, c]));
+                const statusOf = (text: string) => byText.get(text)?.status ?? "new";
+                const currentStage = map.roadmap!.findIndex((s) =>
+                  s.concepts.some((t) => statusOf(t) !== "practiced")
+                );
+                return map.roadmap!.map((stage, i) => {
+                  const done = stage.concepts.filter((t) => statusOf(t) === "practiced").length;
+                  const isCurrent = i === currentStage;
+                  return (
+                    <div
+                      key={`${stage.title}-${i}`}
+                      className={`rounded-xl border p-2.5 transition-colors ${
+                        isCurrent ? "border-accent-300 bg-accent-50/40" : "border-stone-100"
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                            isCurrent ? "bg-accent-600 text-white" : "bg-stone-100 text-stone-500"
+                          }`}
+                        >
+                          第 {i + 1} 站
+                        </span>
+                        <span className="text-sm font-medium text-stone-800">{stage.title}</span>
+                        {isCurrent && (
+                          <span className="text-[10px] font-medium text-accent-600">当前站</span>
+                        )}
+                        <span className="ml-auto text-[10px] tabular-nums text-stone-400">
+                          {done}/{stage.concepts.length} 已练成
+                        </span>
+                      </div>
+                      {stage.goal && (
+                        <p className="mt-1 text-[11px] leading-4 text-stone-400">{stage.goal}</p>
+                      )}
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {stage.concepts.map((text) => (
+                          <button
+                            key={text}
+                            type="button"
+                            onClick={() => conceptClick(text)}
+                            title={STATUS_META[statusOf(text)].hint}
+                            className={`rounded-lg border px-2 py-0.5 text-xs transition-colors disabled:opacity-50 ${
+                              STATUS_META[statusOf(text)].chip
+                            }`}
+                          >
+                            {text}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          ) : (
+            !roadmapBusy && (
+              <p className="mt-1.5 text-[11px] leading-5 text-stone-400">
+                把空间内的概念按学习依赖与难度编排成逐站攻克路径
+              </p>
+            )
+          )}
+        </div>
+      )}
 
       {reviewOpen && (
         <ReviewPanel spaceId={spaceId} onClose={() => setReviewOpen(false)} onFinish={refresh} />
