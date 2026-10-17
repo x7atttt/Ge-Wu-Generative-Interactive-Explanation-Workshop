@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getSpaceMap, generateRoadmap, type SpaceMap } from "@/lib/api/spaces";
+import { localDay } from "@/lib/fsrs";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import { ExamPanel } from "@/components/ExamPanel";
 import { CardManagerPanel } from "@/components/CardManagerPanel";
@@ -41,6 +42,74 @@ function countdownText(examDate: string): string {
   const days = Math.round((exam.getTime() - today.getTime()) / 86_400_000);
   if (days === 0) return "今天开考";
   return days > 0 ? `距考试 ${days} 天` : `考试已过 ${-days} 天`;
+}
+
+/** 本地日期 → MM-DD */
+function monthDay(day: string): string {
+  return day.slice(5);
+}
+
+function addLocalDays(base: string, n: number): string {
+  const d = new Date(`${base}T00:00:00`);
+  d.setDate(d.getDate() + n);
+  const pad = (x: number) => String(x).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export interface PlanLine {
+  days: string;
+  label: string;
+  detail: string;
+}
+
+/**
+ * 考前每日计划（确定性分配，无 LLM）：未完成站顺序装进"考前一日"之前的每个学习日
+ * （每天装 ceil(剩余站数/剩余天数) 站，概念多的站不拆散），最后一程固定为
+ * "考前冲刺：综合测验 + 清到期复习"。考试已过/无路线/无日期时不产出。
+ */
+function buildExamPlan(input: {
+  roadmap: { title: string; concepts: string[] }[];
+  statusOf: (text: string) => string;
+  examDate?: string | null;
+  today: string;
+}): PlanLine[] {
+  const { roadmap, statusOf, examDate, today } = input;
+  if (!examDate || !/^\d{4}-\d{2}-\d{2}$/.test(examDate)) return [];
+  const daysLeft = Math.round(
+    (new Date(`${examDate}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86_400_000
+  );
+  if (daysLeft < 0) return [];
+  const unfinished = roadmap
+    .map((s) => ({
+      title: s.title,
+      count: s.concepts.filter((t) => statusOf(t) !== "practiced").length,
+    }))
+    .filter((s) => s.count > 0);
+
+  const lines: PlanLine[] = [];
+  const studyDays = daysLeft - 1; // 最后一日留给冲刺；考试当天不排学习
+  let idx = 0;
+  for (let d = 0; d < studyDays && idx < unfinished.length; d++) {
+    // 剩余站数 ≥ 剩余天数时每天多装几站，保证考前能过完
+    const take = Math.max(1, Math.ceil((unfinished.length - idx) / (studyDays - d)));
+    const stages = unfinished.slice(idx, idx + take);
+    idx += take;
+    lines.push({
+      days: monthDay(addLocalDays(today, d)),
+      label: stages.map((s) => s.title).join(" ＋ "),
+      detail: `${stages.reduce((n, s) => n + s.count, 0)} 个概念`,
+    });
+  }
+  // 没分完的站（学习日为 0 或异常）并入冲刺行提示
+  const leftover = idx < unfinished.length ? unfinished.length - idx : 0;
+  lines.push({
+    days: monthDay(addLocalDays(today, Math.max(0, daysLeft - 1))),
+    label: "考前冲刺",
+    detail:
+      (leftover > 0 ? `还有 ${leftover} 站未过完，先挑薄弱 · ` : "") +
+      "📝 综合测验 + 🔖 清到期复习",
+  });
+  return lines;
 }
 
 /**
@@ -356,6 +425,31 @@ export function SpaceMapPanel({
               </p>
             )
           )}
+
+          {/* 考前每日计划：路线未完成站按概念数加权瓜分学习日（确定性派生，无 LLM） */}
+          {(() => {
+            if (!map?.roadmap) return null;
+            const byText = new Map(map.concepts.map((c) => [c.text, c]));
+            const plan = buildExamPlan({
+              roadmap: map.roadmap,
+              statusOf: (t) => byText.get(t)?.status ?? "new",
+              examDate,
+              today: localDay(),
+            });
+            if (plan.length === 0) return null;
+            return (
+              <div className="mt-2 rounded-xl bg-stone-50/70 p-2.5">
+                <p className="mb-1 text-[11px] font-semibold text-stone-500">📅 考前计划</p>
+                {plan.map((line, i) => (
+                  <p key={i} className="flex items-baseline gap-2 text-[11px] leading-5 text-stone-600">
+                    <span className="w-20 shrink-0 font-mono text-stone-400">{line.days}</span>
+                    <span className="font-medium text-stone-700">{line.label}</span>
+                    <span className="text-stone-400">{line.detail}</span>
+                  </p>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
 
