@@ -7,18 +7,22 @@ import { askQuestion } from "@/lib/dsl/generate";
 const IMAGE_DATA_URL = /^data:image\/(jpeg|png|webp|gif);base64,/;
 const MAX_IMAGES = 2;
 const MAX_IMAGE_CHARS = 2_500_000; // 单条 data URL 上限（前端压缩后实际 ≈400KB 内）
+const MAX_IMAGES_TOTAL_CHARS = 5_000_000; // 单次总量上限（防止多张大图直达 LLM）
 
-/** 追问附图校验：data URL 形态、数量与大小护栏；返回 null 表示合法 */
+/** 追问附图校验：data URL 形态、数量、单张与总量护栏；返回 null 表示非法 */
 function parseImages(raw: unknown): string[] | null {
   if (raw === undefined || raw === null) return [];
   if (!Array.isArray(raw) || raw.length > MAX_IMAGES) return null;
   const images: string[] = [];
+  let total = 0;
   for (const item of raw) {
     if (typeof item !== "string" || !IMAGE_DATA_URL.test(item) || item.length > MAX_IMAGE_CHARS) {
       return null;
     }
+    total += item.length;
     images.push(item);
   }
+  if (total > MAX_IMAGES_TOTAL_CHARS) return null;
   return images;
 }
 
@@ -46,7 +50,7 @@ export async function POST(req: Request) {
   const images = parseImages(body.images);
   if (images === null) {
     return NextResponse.json(
-      { error: `图片格式不合法（最多 ${MAX_IMAGES} 张，data URL 单张不超过 2.5MB）` },
+      { error: `图片不合法（最多 ${MAX_IMAGES} 张，单张 ≤2.5MB、总量 ≤5MB）` },
       { status: 400 }
     );
   }
