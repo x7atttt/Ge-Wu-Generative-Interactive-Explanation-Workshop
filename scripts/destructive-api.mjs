@@ -22,6 +22,12 @@ async function hit(label, method, path, body, raw) {
     return;
   }
   const cls = res.status >= 500 ? "BUG" : res.status < 400 ? "PASS" : "REVIEW";
+  // SSE 端点 200 只代表"流开始"：立即断开（F7 机制会让服务端中止，不烧 token 不落库）
+  if (res.ok && (res.headers.get("content-type") ?? "").includes("text/event-stream")) {
+    await res.body?.cancel().catch(() => {});
+    findings.push(`PASS ${label}: HTTP 200（SSE 立即断开）`);
+    return;
+  }
   if (cls === "BUG" || cls === "REVIEW") {
     const text = (await res.text()).slice(0, 120);
     findings.push(`${cls} ${label}: HTTP ${res.status} ${text}`);
@@ -64,12 +70,13 @@ await hit("doc DELETE 不存在", "DELETE", "/api/docs/99999");
 await hit("stats 非法 spaceId", "GET", "/api/stats?spaceId=drop%20table");
 
 // --- generate / ask 校验层 ---
+// 注意：generate 用例一律带 webSearch:false——既省搜索配额，也避免把"流已开始"误判为校验通过
 await hit("generate body 是字符串", "POST", "/api/generate", undefined, "{bad json");
-await hit("generate concept 数组", "POST", "/api/generate", { concept: ["x"] });
-await hit("generate sourceIds 混入字符串", "POST", "/api/generate", { concept: "测试", sourceIds: ["a", 9, null, true] });
-await hit("generate images 非数组", "POST", "/api/generate", { concept: "测试", images: "data:image/png;base64,AAAA" });
-await hit("generate images 混合法宝", "POST", "/api/generate", { concept: "测试", images: ["data:image/png;base64,AAAA", "javascript:alert(1)", 42] });
-await hit("generate images 单张 2.6MB", "POST", "/api/generate", { concept: "测试", images: ["data:image/png;base64," + "A".repeat(2_600_000)] });
+await hit("generate concept 数组", "POST", "/api/generate", { concept: ["x"], webSearch: false });
+await hit("generate sourceIds 混入字符串", "POST", "/api/generate", { concept: "边界测试概念勿生成", webSearch: false, sourceIds: ["a", 9, null, true] });
+await hit("generate images 非数组", "POST", "/api/generate", { concept: "边界测试概念勿生成", webSearch: false, images: "data:image/png;base64,AAAA" });
+await hit("generate images 混入非法项", "POST", "/api/generate", { concept: "边界测试概念勿生成", webSearch: false, images: ["javascript:alert(1)", 42] });
+await hit("generate images 单张 2.6MB", "POST", "/api/generate", { concept: "边界测试概念勿生成", webSearch: false, images: ["data:image/png;base64," + "A".repeat(2_600_000)] });
 await hit("ask docId 字符串", "POST", "/api/ask", { docId: "49", question: "x" });
 await hit("ask 问题 301 字", "POST", "/api/ask", { docId: 49, question: "x".repeat(301) });
 await hit("ask images 空 png 内容 2.4MB", "POST", "/api/ask", { docId: 49, question: "x", images: ["data:image/png;base64," + "A".repeat(2_400_000), "data:image/png;base64," + "A".repeat(2_400_000)] });
