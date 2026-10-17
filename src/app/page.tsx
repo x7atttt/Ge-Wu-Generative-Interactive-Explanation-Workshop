@@ -28,6 +28,8 @@ import {
   type SpaceInfo,
 } from "@/lib/api/spaces";
 import { usePartialDoc } from "@/hooks/usePartialDoc";
+import { useDropZone } from "@/hooks/useDropZone";
+import { importSources } from "@/lib/api/sources";
 import { computeDeepens } from "@/lib/dsl/deepen";
 import type { ExplainDoc } from "@/lib/dsl/schema";
 
@@ -48,6 +50,9 @@ export default function Home() {
   const [genImages, setGenImages] = useState<string[]>([]);
   const [genImgBusy, setGenImgBusy] = useState(false);
   const genFileRef = useRef<HTMLInputElement | null>(null);
+  // 生成区拖入资料的上传态与结果提示
+  const [droppingBusy, setDroppingBusy] = useState(false);
+  const [dropNote, setDropNote] = useState<string | null>(null);
   const [spaces, setSpaces] = useState<SpaceInfo[]>([]);
   const [spaceId, setSpaceId] = useState<number | null>(null);
   /** 出身概念：从资料提炼点/概念地图进入生成时记录，地图据此对齐讲解 */
@@ -289,6 +294,54 @@ export default function Home() {
     }
   }
 
+  /** 与资料面板同款允许类型（拖入路由用） */
+  const DROP_DOC_RE = /\.(txt|md|markdown|pdf|docx|doc)$/i;
+
+  /** 生成区拖入：图片 → 📷 附图；允许类型文档 → 导入资料并自动附加（PDF/Word 后台解析） */
+  async function handleHeroDrop(files: File[]) {
+    if (busy !== null) return;
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    const docs = files.filter((f) => !f.type.startsWith("image/") && DROP_DOC_RE.test(f.name));
+    const ignored = files.length - images.length - docs.length;
+    setDropNote(null);
+    if (ignored > 0) {
+      setDropNote(`已忽略 ${ignored} 个不支持的文件（支持图片与 txt/md/pdf/doc/docx）`);
+    }
+    if (images.length > 0) void addGenFiles(images);
+    if (docs.length === 0) return;
+    setDroppingBusy(true);
+    try {
+      const created = await importSources(docs, spaceId);
+      const merged = [...attachedSourceIds, ...created.map((s) => s.id)]
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .slice(0, 3);
+      updateAttached(merged);
+      const parsing = created.filter((s) => s.status === "parsing").length;
+      setDropNote(
+        `已导入 ${docs.length} 份资料并附加` +
+          (parsing > 0 ? `（${parsing} 份 PDF/Word 在后台解析，完成后即可用于生成）` : "")
+      );
+    } catch (err) {
+      setDropNote(err instanceof Error ? err.message : "资料导入失败");
+    } finally {
+      setDroppingBusy(false);
+    }
+  }
+  const heroDrop = useDropZone(handleHeroDrop, busy === null);
+
+  // 拖文件落在投放区外时拦截浏览器默认行为（否则整个应用被替换成文件预览）
+  useEffect(() => {
+    const prevent = (e: DragEvent) => {
+      if (Array.from(e.dataTransfer?.types ?? []).includes("Files")) e.preventDefault();
+    };
+    window.addEventListener("dragover", prevent);
+    window.addEventListener("drop", prevent);
+    return () => {
+      window.removeEventListener("dragover", prevent);
+      window.removeEventListener("drop", prevent);
+    };
+  }, []);
+
   function handleGenerate() {
     const text = concept.trim();
     // 附加了资料或图片时概念可留空：服务端默认围绕第一份资料/图片生成
@@ -444,8 +497,20 @@ export default function Home() {
           </p>
         </header>
 
-        {/* 生成入口 */}
-        <section className="rounded-2xl border border-stone-200 bg-card p-4 shadow-sm">
+        {/* 生成入口（整卡为拖放区：图片→附图，txt/md/pdf/doc→资料库并自动附加） */}
+        <section
+          {...heroDrop.handlers}
+          className={`relative rounded-2xl border p-4 shadow-sm transition-colors ${
+            heroDrop.isOver ? "border-accent-400 bg-accent-50/50" : "border-stone-200 bg-card"
+          }`}
+        >
+          {heroDrop.isOver && (
+            <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-accent-400 bg-card/85">
+              <p className="px-4 text-center text-sm font-medium text-accent-600">
+                松开添加：图片 → 讲解附图 · txt / md / pdf / doc → 资料库并自动附加
+              </p>
+            </div>
+          )}
           <div className="flex gap-2">
             <input
               value={concept}
@@ -478,7 +543,7 @@ export default function Home() {
               type="button"
               onClick={() => genFileRef.current?.click()}
               disabled={busy !== null || genImgBusy || genImages.length >= 3}
-              title={`拍题/截图生成（最多 3 张，概念可留空）`}
+              title={`拍题/截图生成（最多 3 张，可直接拖入本区域；概念可留空）`}
               className="h-11 rounded-xl border border-stone-200 px-3 text-sm text-stone-500 transition-colors hover:border-accent-300 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               📷
@@ -514,6 +579,11 @@ export default function Home() {
               ))}
               <p className="self-center text-xs text-stone-400">讲解将围绕这些图片展开</p>
             </div>
+          )}
+          {(droppingBusy || dropNote) && (
+            <p className={`mt-2 text-xs ${dropNote?.startsWith("已忽略") ? "text-amber-600" : "text-stone-500"}`}>
+              {droppingBusy ? "资料导入中…" : dropNote}
+            </p>
           )}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {EXAMPLE_CONCEPTS.map((example) => (

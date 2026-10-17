@@ -4,6 +4,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { streamAsk } from "@/lib/api/explanation";
 import { compressImage } from "@/lib/imageCompress";
+import { useDropZone } from "@/hooks/useDropZone";
 import { useAskAutoScroll } from "@/hooks/useAskAutoScroll";
 import { useSmoothStreamText } from "@/hooks/useSmoothStreamText";
 import { MarkdownView } from "./MarkdownView";
@@ -107,6 +108,16 @@ export function AskPanel({
     }
   }
 
+  // 拖入图片（文档不适用于追问，引导去生成区）
+  const askDrop = useDropZone((files) => {
+    const pics = files.filter((f) => f.type.startsWith("image/"));
+    if (pics.length === 0) {
+      setError("追问只支持图片；文档请拖到上方生成区导入为资料");
+      return;
+    }
+    void addFiles(files);
+  }, !asking);
+
   async function handleAsk() {
     const question = input.trim();
     if ((!question && images.length === 0) || asking) return;
@@ -138,7 +149,17 @@ export function AskPanel({
   }
 
   return (
-    <div>
+    <div
+      {...askDrop.handlers}
+      className={`relative rounded-xl transition-colors ${
+        askDrop.isOver ? "bg-accent-50/50 ring-1 ring-accent-300" : ""
+      }`}
+    >
+      {askDrop.isOver && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-accent-400 bg-card/85">
+          <p className="text-sm font-medium text-accent-600">松开添加图片</p>
+        </div>
+      )}
       {/* 常驻滚动容器（空时高度为 0），粘底与手势释放依赖它稳定存在 */}
       <div
         ref={containerRef}
@@ -186,7 +207,7 @@ export function AskPanel({
               addFiles(files);
             }
           }}
-          placeholder="如：这题为什么选 B？（📷 或粘贴截图提问）"
+          placeholder="如：这题为什么选 B？（📷 / 粘贴 / 拖入截图提问）"
           maxLength={300}
           className="h-10 flex-1 rounded-xl border border-stone-200 px-3 text-sm outline-none transition-colors focus:border-accent-400"
           disabled={asking}
