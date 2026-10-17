@@ -192,8 +192,13 @@ export default function Home() {
     [docId]
   );
 
-  /** 生成主流程（常规概念 / 统计面板触发的针对性补练共用） */
-  async function runGenerate(conceptText: string, extra: { practiceDocId?: number } = {}) {
+  /** 生成主流程（常规概念 / 统计面板触发的针对性补练共用）。
+   *  override 参数供"点击即生成"入口使用：同一次点击里 setState 的资料/出身概念
+   *  还未进闭包，必须显式传入，否则请求会带着旧值发出 */
+  async function runGenerate(
+    conceptText: string,
+    extra: { practiceDocId?: number; originConceptOverride?: string; sourceIdsOverride?: number[] } = {}
+  ) {
     if (busy) return;
     const controller = new AbortController();
     abortRef.current = controller;
@@ -209,9 +214,9 @@ export default function Home() {
           concept: conceptText,
           webSearch: webSearchOn,
           personaStyle: personaHint,
-          sourceIds: attachedSourceIds,
+          sourceIds: extra.sourceIdsOverride ?? attachedSourceIds,
           spaceId,
-          originConcept,
+          originConcept: extra.originConceptOverride ?? originConcept,
           ...extra,
         },
         {
@@ -259,20 +264,17 @@ export default function Home() {
     });
   }
 
-  /** 概念地图点击未学概念：附加其来源资料并预填（出身概念 = 概念名） */
+  /** 概念地图/学习路线点击未学概念：附加其来源资料并立即生成（出身概念 = 概念名）。
+   *  提示语"点击生成讲解"的兑现——此前只预填输入框，滚动在下方时完全不可感知 */
   function pickMapConcept(conceptText: string, sourceIds: number[]) {
+    const merged = [...attachedSourceIds];
+    for (const id of sourceIds) {
+      if (!merged.includes(id) && merged.length < 3) merged.push(id);
+    }
     setConcept(conceptText);
     setOriginConcept(conceptText);
-    setAttachedSourceIds((prev) => {
-      const merged = [...prev];
-      for (const id of sourceIds) {
-        if (!merged.includes(id) && merged.length < 3) merged.push(id);
-      }
-      try {
-        localStorage.setItem("gewu-attached", JSON.stringify(merged));
-      } catch {}
-      return merged;
-    });
+    updateAttached(merged);
+    runGenerate(conceptText, { originConceptOverride: conceptText, sourceIdsOverride: merged });
   }
 
   /** 统计面板弱项补练：以源概念标题生成针对性练习讲解 */
