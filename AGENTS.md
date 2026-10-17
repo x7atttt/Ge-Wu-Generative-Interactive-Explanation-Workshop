@@ -79,10 +79,11 @@ src/
     api/          # 前端 API 调用集中定义
     dsl/          # DSL schema 定义与校验（核心资产）
     db/           # node:sqlite 访问层（docs/attempts/sources/spaces/cards）
-    srs.ts        # SM-2 间隔重复纯函数（迭代 18 复习卡调度）
+    fsrs.ts       # FSRS-6 间隔重复纯函数（迭代 21 替换 SM-2；scripts/fsrs-verify.mjs 与 devDep ts-fsrs 逐位对照一致）
     audio/        # Web Audio 封装（两档音效已实施：反馈音 sound.ts + 可听化 sonify.ts）
     mineru.ts     # MinerU v4 文档解析客户端（PDF/Word→Markdown，迭代 14；结果取回是前端轮询驱动的懒同步）
 spec/             # 需求文档 + prompt 链归档（入库）
+scripts/          # 一次性验证脚本（fsrs-verify.mjs 常驻可复跑）
 test/             # 测试（框架引入后）
 ```
 
