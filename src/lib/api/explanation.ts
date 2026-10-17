@@ -87,9 +87,14 @@ export async function streamExplanation(
 export async function streamAsk(
   docId: number,
   question: string,
-  { onDelta, signal, personaStyle }: StreamHandlers & { personaStyle?: PersonaStyle }
+  {
+    onDelta,
+    signal,
+    personaStyle,
+    images,
+  }: StreamHandlers & { personaStyle?: PersonaStyle; images?: string[] }
 ): Promise<string> {
-  const reader = await openSSE("/api/ask", { docId, question, personaStyle }, signal);
+  const reader = await openSSE("/api/ask", { docId, question, personaStyle, images }, signal);
   let full = "";
   await consumeSSE(reader, (event) => {
     if (event.type === "delta" && event.text) {

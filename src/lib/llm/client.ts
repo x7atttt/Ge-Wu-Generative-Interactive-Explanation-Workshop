@@ -5,9 +5,24 @@
  * 配置全部来自环境变量（见 .env.example），密钥不进代码库。
  */
 
+/** 多模态内容片：文本或图片（data URL 或可访问 URL）——OpenAI 兼容协议 */
+export type ChatContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
-  content: string;
+  /** 纯文本，或 text+image 片段数组（多模态；生成/追问带图时使用） */
+  content: string | ChatContentPart[];
+}
+
+/** 图文消息构造：文本在前、图片 data URL 在后（识图语境：先读题面再看图） */
+export function withImages(text: string, images: string[]): ChatMessage["content"] {
+  if (images.length === 0) return text;
+  return [
+    { type: "text", text },
+    ...images.map((url) => ({ type: "image_url" as const, image_url: { url } })),
+  ];
 }
 
 export interface ChatOptions {

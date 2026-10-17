@@ -2,7 +2,7 @@
  * 生成管线：LLM 流式输出 → JSON 提取 → zod 校验 → 一次自修复重试。
  * 服务端专用（依赖环境变量中的 API Key）。
  */
-import { chat, streamChat, type ChatMessage } from "@/lib/llm/client";
+import { chat, streamChat, withImages, type ChatMessage } from "@/lib/llm/client";
 import {
   askSystemPrompt,
   generateSystemPrompt,
@@ -128,7 +128,7 @@ export function formatSources(sources: { title: string; content: string }[]): st
   return parts.join("\n\n---\n\n");
 }
 
-/** generateDoc 的可选输入：源文档资料 / 网络资料 / 语气人设 / 补练统计 */
+/** generateDoc 的可选输入：源文档资料 / 网络资料 / 语气人设 / 补练统计 / 拍摄图片 */
 export interface GenerateExtras {
   /** 用户导入并选用的资料（已解析为 Markdown，服务端已加载） */
   sources?: { title: string; content: string }[];
@@ -136,6 +136,8 @@ export interface GenerateExtras {
   personaStyle?: string | null;
   /** 补练模式：用户在该概念的练习统计行（服务端聚合后传入） */
   practiceLines?: string[];
+  /** 用户拍摄的图片（data URL）：拍题生成的语境，单次消费不落库 */
+  images?: string[];
 }
 
 /** 主模型流式生成；onDelta 透出原始增量供前端构建流面板展示 */
@@ -144,7 +146,11 @@ export async function generateDoc(
   extras: GenerateExtras = {},
   onDelta?: (text: string) => void
 ): Promise<ExplainDoc> {
+  const images = extras.images ?? [];
   const sections: string[] = [`概念：${concept}`];
+  if (images.length > 0) {
+    sections.push(`（用户附带了 ${images.length} 张图片——拍摄/截图的学习材料（题目、教材、笔记等），讲解围绕图片内容展开，概念名按图片主题确定）`);
+  }
   if (extras.sources && extras.sources.length > 0) {
     sections.push(`源文档资料（用户导入的文档，讲解的事实依据）：\n${formatSources(extras.sources)}`);
   }
@@ -162,7 +168,7 @@ export async function generateDoc(
         practice: !!extras.practiceLines?.length,
       }),
     },
-    { role: "user", content: sections.join("\n\n") },
+    { role: "user", content: withImages(sections.join("\n\n"), images) },
   ];
   const raw = onDelta
     ? await streamChat(history, { jsonMode: true, temperature: 0.4 }, onDelta)
@@ -200,22 +206,28 @@ export interface AskExchange {
 /** 发给 LLM 的历史上下文只取最近 6 轮（12 条消息），完整历史在库中 */
 const ASK_CONTEXT_TURNS = 6;
 
-/** 追问：基于当前文档 + 最近对话历史的流式短回答，纯文本、不改文档；personaStyle 可选语气 */
+/** 追问：基于当前文档 + 最近对话历史的流式短回答，纯文本、不改文档；personaStyle 可选语气；
+ *  images（data URL）只随当前这轮问题发送——历史轮次不重发图（视觉 token 省钱，当前轮语境已够） */
 export async function askQuestion(
   doc: ExplainDoc,
   history: AskExchange[],
   question: string,
   onDelta: (text: string) => void,
-  personaStyle?: string | null
+  personaStyle?: string | null,
+  images: string[] = []
 ): Promise<string> {
   const { fastModel } = llmConfigFromEnv();
   const trimmed = history.slice(-ASK_CONTEXT_TURNS * 2);
+  const askText =
+    images.length > 0
+      ? `${question}\n（附 ${images.length} 张图片，问题围绕图片内容）`
+      : question;
   return streamChat(
     [
       { role: "system", content: askSystemPrompt(personaStyle) },
       { role: "user", content: `当前讲解文档：\n${JSON.stringify(doc, null, 2)}` },
       ...trimmed.map((message) => ({ role: message.role, content: message.content })),
-      { role: "user", content: question },
+      { role: "user", content: withImages(askText, images) },
     ],
     { temperature: 0.3, model: fastModel },
     onDelta
