@@ -38,23 +38,8 @@ export function ChartView({ block }: { block: ChartBlock }) {
     // 有名字的系列就常驻显示图例（单系列也一样）：系列名如 "x = r·cos θ" 是关键信息，
     // 只在悬停 tooltip 里出现会被误读为图例且不悬停就看不到
     const namedCount = block.series.filter((s) => s.name).length;
-    // 纵轴语义标签（数量级/等级→文字）：数值刻度按 yLabels 替换，数据层保持数字可比
-    const yLabels = block.yLabels ?? {};
-    const hasYLabels = Object.keys(yLabels).length > 0;
-    const resolved = block.series.map((serie) => ({
-      name: serie.name,
-      type: block.chartType,
-      // 采样点连成的函数曲线用轻度平滑，缓解折角失真；离散对比数据也适用
-      ...(block.chartType === "line" ? { smooth: 0.3 } : {}),
-      data: serie.data.map((slot) => resolveSlot(slot, values)),
-    }));
-    const yType = resolveYType(
-      block,
-      resolved.flatMap((serie) => serie.data as number[])
-    );
-    const option: echarts.EChartsCoreOption = {
-      tooltip: { trigger: "axis" },
-      ...(namedCount > 0
+    const legend =
+      namedCount > 0
         ? {
             legend: {
               bottom: 0,
@@ -64,15 +49,73 @@ export function ChartView({ block }: { block: ChartBlock }) {
               textStyle: { color: "#78716c", fontSize: 11 },
             },
           }
+        : {};
+
+    if (block.chartType === "radar") {
+      // 雷达：categories=维度，轴 max 取各系列该维解析值最大值 ×1.2（下限 1，兼容全 0 维）
+      const seriesData = block.series.map((serie) => ({
+        name: serie.name,
+        value: serie.data.map((slot) => resolveSlot(slot, values)),
+      }));
+      const indicators = (block.categories ?? seriesData[0].value.map((_, i) => `维 ${i + 1}`)).map(
+        (name, i) => ({
+          name,
+          max: Math.max(Math.max(...seriesData.map((s) => s.value[i] ?? 0)) * 1.2, 1),
+        })
+      );
+      return {
+        option: {
+          tooltip: {},
+          ...legend,
+          radar: {
+            indicator: indicators,
+            radius: "60%",
+            center: ["50%", "52%"],
+            axisName: { color: "#78716c", fontSize: 11 },
+          },
+          series: [{ type: "radar", data: seriesData }],
+        } as echarts.EChartsCoreOption,
+        isLog: false,
+      };
+    }
+
+    // bar / line / area / hbar 共用笛卡尔轴（hbar 轴向互换，类目名竖排更耐长）
+    // 纵轴语义标签（数量级/等级→文字）：数值刻度按 yLabels 替换，数据层保持数字可比
+    const yLabels = block.yLabels ?? {};
+    const hasYLabels = Object.keys(yLabels).length > 0;
+    const resolved = block.series.map((serie) => ({
+      name: serie.name,
+      type: block.chartType === "area" ? "line" : block.chartType === "hbar" ? "bar" : block.chartType,
+      // 采样点连成的函数曲线用轻度平滑，缓解折角失真；离散对比数据也适用
+      ...(block.chartType === "line" || block.chartType === "area" ? { smooth: 0.3 } : {}),
+      ...(block.chartType === "area" ? { areaStyle: { opacity: 0.16 } } : {}),
+      data: serie.data.map((slot) => resolveSlot(slot, values)),
+    }));
+    const yType = resolveYType(
+      block,
+      resolved.flatMap((serie) => serie.data as number[])
+    );
+    const horizontal = block.chartType === "hbar";
+    const categoryAxis = {
+      type: "category",
+      data: block.categories ?? [],
+      // hbar 类目名常为长中文：限宽换行两行显示，不截断省略
+      ...(horizontal ? { interval: 0, axisLabel: { width: 118, overflow: "break" } } : {}),
+    };
+    const valueAxis = {
+      type: yType === "log" ? "log" : "value",
+      ...(hasYLabels
+        ? { axisLabel: { formatter: (value: number) => yLabels[String(value)] ?? String(value) } }
         : {}),
-      grid: { left: hasYLabels ? 76 : 44, right: 16, top: 28, bottom: namedCount > 0 ? 40 : 28 },
-      xAxis: { type: "category", data: block.categories ?? [] },
-      yAxis: {
-        type: yType === "log" ? "log" : "value",
-        ...(hasYLabels
-          ? { axisLabel: { formatter: (value: number) => yLabels[String(value)] ?? String(value) } }
-          : {}),
-      },
+    };
+    const option: echarts.EChartsCoreOption = {
+      tooltip: { trigger: "axis" },
+      ...legend,
+      grid: horizontal
+        ? { left: 130, right: 24, top: 28, bottom: namedCount > 0 ? 40 : 28 }
+        : { left: hasYLabels ? 76 : 44, right: 16, top: 28, bottom: namedCount > 0 ? 40 : 28 },
+      xAxis: horizontal ? valueAxis : categoryAxis,
+      yAxis: horizontal ? categoryAxis : valueAxis,
       series: resolved,
     };
     return { option, isLog: yType === "log" };

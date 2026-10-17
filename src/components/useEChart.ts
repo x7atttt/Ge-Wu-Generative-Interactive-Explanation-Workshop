@@ -2,8 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import * as echarts from "echarts/core";
-import { BarChart, LineChart, PieChart } from "echarts/charts";
-import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
+import { BarChart, LineChart, PieChart, RadarChart } from "echarts/charts";
+import {
+  GridComponent,
+  LegendComponent,
+  RadarComponent,
+  TooltipComponent,
+} from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 
 // 按需注册：只打包用到的图表类型，控制首屏体积（AGENTS 规范）。
@@ -12,8 +17,10 @@ echarts.use([
   BarChart,
   LineChart,
   PieChart,
+  RadarChart,
   GridComponent,
   LegendComponent,
+  RadarComponent,
   TooltipComponent,
   CanvasRenderer,
 ]);

@@ -62,7 +62,9 @@ export const wavePlotBlockSchema = z.object({
 
 export const chartBlockSchema = z.object({
   type: z.literal("chart"),
-  chartType: z.enum(["bar", "line", "pie"]),
+  /** bar 柱（数量对比）/ line 折线（顺序趋势）/ area 面积（累积趋势感）/ pie 构成占比 /
+   *  hbar 条形（长类目名、排名）/ radar 雷达（3~8 维综合对比，非负指标） */
+  chartType: z.enum(["bar", "line", "area", "pie", "hbar", "radar"]),
   title: z.string().optional(),
   categories: z.array(z.string()).optional(),
   /** 纵轴语义标签（仅 bar/line）：key 为刻度数值（JSON 里是数字字符串），渲染层按 String(value) 匹配替换 */
@@ -178,6 +180,10 @@ export const explainDocSchema = z
         });
       }
     };
+    const referenced = new Set<string>();
+    const trackSlot = (slot: NumberSlot) => {
+      if (typeof slot === "object" && slot !== null && "$var" in slot) referenced.add(slot.$var);
+    };
 
     for (const [i, block] of doc.blocks.entries()) {
       if (block.type === "wavePlot") {
@@ -185,12 +191,16 @@ export const explainDocSchema = z
           checkSlot(term.amp, ["blocks", i, "terms", j, "amp"], "wavePlot.terms.amp");
           checkSlot(term.freq, ["blocks", i, "terms", j, "freq"], "wavePlot.terms.freq");
           checkSlot(term.phase, ["blocks", i, "terms", j, "phase"], "wavePlot.terms.phase");
+          trackSlot(term.amp);
+          trackSlot(term.freq);
+          trackSlot(term.phase);
         }
       }
       if (block.type === "chart") {
         for (const [j, serie] of block.series.entries()) {
           serie.data.forEach((slot, k) => {
             checkSlot(slot, ["blocks", i, "series", j, "data", k], "chart.series.data");
+            trackSlot(slot);
           });
         }
       }
@@ -247,6 +257,17 @@ export const explainDocSchema = z
             });
           }
         }
+      }
+    }
+
+    // 滑块必须有感：没有被任何 $var 槽引用的滑块，拖动在图表上无任何可见效果
+    for (const [i, block] of doc.blocks.entries()) {
+      if (block.type === "slider" && !referenced.has(block.var)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["blocks", i],
+          message: `滑块 ${block.var} 未被任何 wavePlot/chart 的 {"$var":...} 引用，拖动将无效果——请把关键数据槽绑成 {"$var":"${block.var}"} 或删除该滑块`,
+        });
       }
     }
   });

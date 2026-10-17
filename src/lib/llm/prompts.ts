@@ -38,8 +38,9 @@ export function generateSystemPrompt(opts: GeneratePromptOpts = {}): string {
    槽 = 数字 或 {"$var":"滑块变量名"}；图像按 y = Σ amp·fn(2π·freq·x + phase) 绘制，x 范围约 [-1,4]
    注意：多 terms 会叠加成**一条**曲线（用于展示合成/叠加效果），不是多条曲线同图——
    要对比两条曲线，用两个 wavePlot 块上下排列，各配 title 区分
-6. {"type":"chart","chartType":"bar|line|pie","title?":"","categories":["名",...],"yLabels?":{"2":"O(n)","3":"O(n·log n)"},"series":[{"name?":"","data":[槽,...]}]}
+6. {"type":"chart","chartType":"bar|line|area|pie|hbar|radar","title?":"","categories":["名",...],"yLabels?":{"2":"O(n)","3":"O(n·log n)"},"series":[{"name?":"","data":[槽,...]}]}
    只用于离散数据（统计、计数、类别对比）；每系列 data 个数必须与 categories 完全一致
+   chartType 按数据形态选：bar=类别数量对比 / line=随顺序变化的趋势 / area=累积量与趋势感 / pie=构成占比（≤6 类）/ hbar=类目名较长的对比或排名 / radar=3~8 个非负指标的综合对比（如多算法多指标）
    可选 yLabels 把数值纵轴映射为语义标签（数量级/等级/档位）：key 是刻度数值，data 仍用数字保证大小可比
    同一图数据跨数量级（如 0.02 与 2000）线性轴会压扁小值：数据全为正时加 "yType":"log"（对数轴，渲染层自动标注）；含 0 或负值则拆成两张图
    **禁止**用它手写 sin/cos 等函数值表——逐点手算三角函数极易出错；函数曲线一律用 wavePlot
@@ -56,6 +57,7 @@ ${selection}${opts.practice ? "" : `
 - 术语与概念的对应关系：match(1 组) + quiz
 - 分类体系/判断标准：sort(1 组) + quiz
 - 叙述、流程、历史类知识：text + heading 分节 + quiz，允许没有任何参数交互
+- 图表不是必需品：只有当离散数据对比/规律可视化真正比文字更直观时才生成 chart，并按数据形态选 chartType；纯概念、语言、流程类主题不要硬造图表
 - 禁止为凑交互生造无语义的数值（如给语法主题配"数量滑块"）`}
 
 通用要求：
@@ -63,7 +65,8 @@ ${opts.practice ? "- 面向中文大学生；练习统计反映的薄弱题型�
 - 若用户消息附带「源文档资料」（用户导入的文档）：讲解的事实、公式、数值、例题与术语必须优先取自资料原文，资料未覆盖的部分才用自己的可靠知识补充；练习题尽量改编自资料中的例题或要点，不要与资料内容矛盾
 - 若用户消息附带「参考资料」（网络检索结果）：事实与数据优先取自资料；资料与主题无关或相互矛盾时以自己的可靠知识为准，不要编造；讲解文字中不要罗列网址链接
 - 图表关键参数用 {"$var":...} 绑定滑块；滑块 var 唯一且为合法标识符；$var 只能引用已定义滑块；min < max 且 step > 0
-- 每个数值槽取让变化直观可见的范围；波形概念用 wavePlot（多 terms 叠加），非波形数值概念用 chart（categories 用短标签）
+- **每个滑块必须至少被一个 {"$var":...} 引用**（wavePlot 的 amp/freq/phase 或 chart 的 data 槽）——没有被引用的滑块拖动毫无效果，宁可删掉它也不要留摆设
+- 每个数值槽取让变化直观可见的范围；波形概念用 wavePlot（多 terms 叠加），非波形数值概念用 chart（categories 用短标签，按形态选 chartType）
 - 布局自适应：滑块集中在参数台显示，文字中不要出现"下方/上方/右边"等位置指代，直接说"拖动 XX 滑块"${persona}
 ${opts.practice ? "" : `
 示例A（量化主题：正弦波的频率，节选）：
@@ -92,7 +95,7 @@ export function refineSystemPrompt(): string {
 - 指令通常是内容级操作：深入某主题、增加对比演示/现实例子、补充公式、出自测题、改用图表呈现等
 - 可用块类型与生成时相同：heading / text / formula / slider / wavePlot / chart / fillBlank / match / sort / quiz
 - 新增练习时按主题选块：语法/词汇用 fillBlank，术语对应用 match，分类判断用 sort（结构与生成规范一致）
-- 结构约束：滑块 var 唯一；{"$var":...} 只能引用已定义滑块变量；min < max 且 step > 0；quiz 的 answer 必须小于 options 数量；chart 每系列 data 个数与 categories 一致且逐点核对数值；chart 可用可选 yLabels（{"数值":"标签"}）把数值纵轴映射为语义标签（如复杂度数量级→O(n²)），data 保持数字；chart 数据全为正且跨数量级时用 "yType":"log"
+- 结构约束：滑块 var 唯一；{"$var":...} 只能引用已定义滑块变量；每个滑块必须至少被一个 {"$var":...} 引用（否则删除该滑块）；min < max 且 step > 0；quiz 的 answer 必须小于 options 数量；chart 每系列 data 个数与 categories 一致且逐点核对数值；chart 可用可选 yLabels（{"数值":"标签"}）把数值纵轴映射为语义标签（如复杂度数量级→O(n²)），data 保持数字；chart 数据全为正且跨数量级时用 "yType":"log"
 - wavePlot 的多 terms 叠加为**一条**曲线（y=Σ）；对比两条曲线用两个 wavePlot 块上下排列；文字描述必须与实际渲染一致，不要提及不存在的曲线颜色或"两条线"
 - 若指令要求“固定某参数”：把对应数值槽改为具体数字，并删除不再被引用的滑块`;
 }
