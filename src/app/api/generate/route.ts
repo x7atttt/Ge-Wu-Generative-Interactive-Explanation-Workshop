@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { tryAcquireAction, releaseAction } from "@/lib/actionGuard";
 import { sseResponse } from "@/lib/api/sse";
 import { getDoc, insertDoc } from "@/lib/db/docs";
 import { getReadySources } from "@/lib/db/sources";
@@ -72,14 +73,18 @@ export async function POST(req: Request) {
 
   // 拍题图片：data URL 护栏（前端压缩后实际 ≈400KB 内）
   const IMAGE_DATA_URL = /^data:image\/(jpeg|png|webp|gif);base64,/;
-  const images =
-    Array.isArray(body.images) && body.images.length <= 3
-      ? body.images.filter(
-          (v): v is string => typeof v === "string" && IMAGE_DATA_URL.test(v) && v.length <= 2_500_000
-        )
-      : [];
+  const requestedImages = Array.isArray(body.images) ? body.images.length : 0;
+  const images = Array.isArray(body.images)
+    ? body.images.filter(
+        (v): v is string => typeof v === "string" && IMAGE_DATA_URL.test(v) && v.length <= 2_500_000
+      )
+    : [];
+  const droppedImages = requestedImages - images.length;
   if (Array.isArray(body.images) && body.images.length > 3) {
     return NextResponse.json({ error: "最多附 3 张图片" }, { status: 400 });
+  }
+  if (images.reduce((n, s) => n + s.length, 0) > 5_000_000) {
+    return NextResponse.json({ error: "图片总量过大（≤5MB）" }, { status: 400 });
   }
 
   // 补练模式：概念取自源文档标题，练习统计由服务端自己聚合（不信任客户端数字）
@@ -112,11 +117,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "概念描述请控制在 200 字以内" }, { status: 400 });
   }
 
+  // 单飞门：同一进程只允许一个在途生成/改造（连击与双标签并发都是误触）
+  if (!tryAcquireAction("generate")) {
+    return NextResponse.json({ error: "已有生成/改造进行中，请等它完成" }, { status: 409 });
+  }
+  // 客户端断开感知：取消/关页后中止上游生成，不再落库
+  const signal = req.signal;
+
   return sseResponse(async (send) => {
     try {
       // 补练的用户消息已携带练习统计，资料槽不再放网络检索结果；
       // 纯拍题（概念为默认占位）也不检索——占位词搜不出有效资料
       const refs = useWebSearch && statLines === null && conceptProvided ? await webSearch(concept) : [];
+      if (droppedImages > 0) {
+        send({ type: "info", message: `已忽略 ${droppedImages} 张不支持的图片` });
+      }
       if (images.length > 0) {
         send({ type: "info", message: `已附 ${images.length} 张图片，讲解将围绕图片内容` });
       }
@@ -131,9 +146,12 @@ export async function POST(req: Request) {
       if (sources.length > 0) extras.sources = sources;
       if (statLines) extras.practiceLines = statLines;
       if (images.length > 0) extras.images = images;
-      const doc = await generateDoc(concept, extras, (text) =>
-        send({ type: "delta", text })
-      );
+      const doc = await generateDoc(concept, extras, (text) => {
+        if (signal.aborted) throw new DOMException("客户端已取消", "AbortError");
+        send({ type: "delta", text });
+      });
+      // 断开后到达的成品不入库（中途的每个 delta 都会抛 AbortError，这里是兜底）
+      if (signal.aborted) return;
       const docId = insertDoc(doc, null, null, {
         spaceId,
         originConcept: originConcept ?? (spaceId !== null ? concept.slice(0, 100) : null),
@@ -141,11 +159,14 @@ export async function POST(req: Request) {
       });
       send({ type: "done", doc, docId });
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return; // 客户端主动取消，静默
       console.error("[api/generate]", err);
       send({
         type: "error",
         message: err instanceof Error ? err.message : "生成失败，请稍后重试",
       });
+    } finally {
+      releaseAction();
     }
   });
 }

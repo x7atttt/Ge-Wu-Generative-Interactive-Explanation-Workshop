@@ -207,6 +207,9 @@ export default function Home() {
 
   /** 讲解/构建面板的滚动锚点：生成启动、打开讲解时滚到这里（点击入口都在页面上方） */
   const docAnchorRef = useRef<HTMLDivElement | null>(null);
+  // 同步动作锁：busy state 是异步的，同一 tick 内连击（Enter+点击同帧）会全部穿透——
+  // ref 在首个同步段就位，后续调用立即被挡（服务端单飞门是第二道防线）
+  const actionLockRef = useRef(false);
   function scrollToDoc() {
     // 等 React 提交挂载（构建面板出现/文档换内容）后再滚
     setTimeout(() => docAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
@@ -225,7 +228,8 @@ export default function Home() {
       images?: string[];
     } = {}
   ) {
-    if (busy) return;
+    if (busy || actionLockRef.current) return;
+    actionLockRef.current = true;
     const controller = new AbortController();
     abortRef.current = controller;
     ensureAudio(); // 点击手势内预建 AudioContext，完成提示音不被自动播放策略拦截
@@ -266,6 +270,7 @@ export default function Home() {
       if (controller.signal.aborted) setError("已取消本次生成");
       else setError(err instanceof Error ? err.message : "生成失败，请稍后重试");
     } finally {
+      actionLockRef.current = false;
       setBusy(null);
       abortRef.current = null;
     }
@@ -385,7 +390,8 @@ export default function Home() {
   async function handleRefine() {
     const instruction = refineInput.trim();
     const parentDoc = doc;
-    if (!instruction || !parentDoc || busy) return;
+    if (!instruction || !parentDoc || busy || actionLockRef.current) return;
+    actionLockRef.current = true;
     const controller = new AbortController();
     abortRef.current = controller;
     ensureAudio();
@@ -413,6 +419,7 @@ export default function Home() {
       if (controller.signal.aborted) setRefineError("已取消本次改造");
       else setRefineError(err instanceof Error ? err.message : "改造失败，请稍后重试");
     } finally {
+      actionLockRef.current = false;
       setBusy(null);
       abortRef.current = null;
     }
