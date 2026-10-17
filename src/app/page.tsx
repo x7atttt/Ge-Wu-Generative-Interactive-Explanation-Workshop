@@ -173,8 +173,11 @@ export default function Home() {
     };
   }, [partial, concept]);
 
-  // 双栏布局需要横向空间：文档/流式文档存在时放宽容器
-  const wide = doc !== null || streamDoc !== null;
+  // 讲解视图随空间走：只在归属空间（全局讲解=全局模式）显示，切换时隐藏但不卸载——
+  // 切回原空间即时恢复，不用重新拉取
+  const docVisible = doc !== null && docId !== null && docSpaceId === spaceId;
+  // 双栏布局需要横向空间：可见文档/流式文档存在时放宽容器
+  const wide = docVisible || streamDoc !== null;
 
   // 深化链分段：由版本链派生（refine 追加语义下各轮 fromIndex 坐标一致）
   const deepens = useMemo(() => computeDeepens(versions), [versions]);
@@ -532,7 +535,7 @@ export default function Home() {
             note={spaces.find((s) => s.id === spaceId)?.note ?? ""}
             refreshKey={mapRefresh}
             disabled={busy !== null}
-            hasDoc={doc !== null && docId !== null}
+            hasDoc={docVisible}
             onJumpToDoc={scrollToDoc}
             onPick={pickMapConcept}
             onPractice={startPractice}
@@ -557,7 +560,7 @@ export default function Home() {
               skeletonTail={[...partial!.pending, partial!.lastType ?? "text"]}
             />
           </motion.section>
-        ) : doc && docId !== null ? (
+        ) : docVisible ? (
           <motion.section
             key={docId}
             initial={{ opacity: 0, y: 14 }}
