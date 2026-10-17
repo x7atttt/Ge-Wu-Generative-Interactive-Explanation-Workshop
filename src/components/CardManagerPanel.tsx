@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import {
   createCard,
   deleteCard,
+  importCardsBatch,
   listAllCards,
   updateCard,
   type ReviewCard,
@@ -47,6 +48,11 @@ export function CardManagerPanel({
   const [editFront, setEditFront] = useState("");
   const [editBack, setEditBack] = useState("");
   const [editConcept, setEditConcept] = useState("");
+  // 批量导入：每行「题面 | 答案 | 概念(可选)」
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchText, setBatchText] = useState("");
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchNote, setBatchNote] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -102,6 +108,28 @@ export function CardManagerPanel({
     }
   }
 
+  async function handleBatchImport() {
+    if (!batchText.trim() || batchBusy) return;
+    setBatchBusy(true);
+    setBatchNote(null);
+    setError(null);
+    try {
+      const r = await importCardsBatch(spaceId, batchText);
+      setBatchText("");
+      setBatchOpen(false);
+      playPop();
+      await refresh();
+      onChanged();
+      setBatchNote(
+        `已导入 ${r.added} 张${r.skipped > 0 ? `，跳过 ${r.skipped} 行格式非法（如第 ${r.invalidLines.join("、")} 行）` : ""}`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "批量导入失败");
+    } finally {
+      setBatchBusy(false);
+    }
+  }
+
   async function handleDelete(card: ReviewCard) {
     if (!window.confirm(`删除这张卡？\n${card.front.slice(0, 60)}`)) return;
     setBusy(true);
@@ -149,6 +177,45 @@ export function CardManagerPanel({
           </div>
 
           {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}
+          {batchNote && (
+            <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{batchNote}</p>
+          )}
+
+          {/* 批量导入：整段粘贴行式文本一次成卡 */}
+          <div className="mt-3 rounded-xl border border-stone-100 bg-stone-50/60 p-3">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-medium text-stone-600">批量导入</p>
+              <button
+                type="button"
+                onClick={() => setBatchOpen((v) => !v)}
+                className="text-[11px] text-stone-400 transition-colors hover:text-secondary-600"
+              >
+                {batchOpen ? "收起" : "展开"}
+              </button>
+            </div>
+            {batchOpen && (
+              <>
+                <p className="mt-1.5 text-[11px] leading-4 text-stone-400">
+                  每行一张卡：<code className="rounded bg-stone-100 px-1">题面 | 答案 | 概念(可选)</code>，空行忽略，单次 ≤200 行
+                </p>
+                <textarea
+                  value={batchText}
+                  onChange={(e) => setBatchText(e.target.value)}
+                  placeholder={"死锁的四个必要条件 | 互斥、持有并等待、不可抢占、循环等待 | 死锁\nbox 的复数 | boxes"}
+                  rows={6}
+                  className="mt-2 w-full resize-y rounded-lg border border-stone-200 bg-card px-2.5 py-1.5 font-mono text-xs outline-none focus:border-secondary-400"
+                />
+                <button
+                  type="button"
+                  onClick={handleBatchImport}
+                  disabled={busy || batchBusy || !batchText.trim()}
+                  className="mt-2 rounded-lg bg-secondary-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-secondary-500 disabled:opacity-50"
+                >
+                  {batchBusy ? "导入中…" : `导入${batchText.trim() ? `（${batchText.trim().split(/\r?\n/).filter(Boolean).length} 行）` : ""}`}
+                </button>
+              </>
+            )}
+          </div>
 
           {/* 手写新增：错题/讲义要点直接进卡池（复习与测验共用） */}
           <div className="mt-3 rounded-xl border border-stone-100 bg-stone-50/60 p-3">

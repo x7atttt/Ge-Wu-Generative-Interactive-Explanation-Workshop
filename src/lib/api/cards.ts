@@ -91,6 +91,20 @@ export async function createCard(input: {
   return ((await res.json()) as { card: ReviewCard }).card;
 }
 
+/** 批量导入：每行「题面 | 答案 | 概念(可选)」 */
+export async function importCardsBatch(
+  spaceId: number,
+  text: string
+): Promise<{ added: number; skipped: number; invalidLines: number[] }> {
+  const res = await fetch("/api/cards/batch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ spaceId, text }),
+  });
+  if (!res.ok) throw await readError(res);
+  return (await res.json()) as { added: number; skipped: number; invalidLines: number[] };
+}
+
 /** 单张编辑：题面/答案/概念归属（不传的字段不动） */
 export async function updateCard(
   id: number,

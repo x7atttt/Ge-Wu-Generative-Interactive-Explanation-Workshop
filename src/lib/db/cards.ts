@@ -147,6 +147,23 @@ export function createManualCard(input: {
   return toCard(raw);
 }
 
+/** 批量手写卡：行式导入（每行 题面|答案|概念可选），逐张走手写卡口径；返回成功张数 */
+export function createManualCards(
+  spaceId: number,
+  items: { front: string; back: string; concept?: string | null }[]
+): number {
+  const db = getDb();
+  const stmt = db.prepare(
+    "INSERT INTO cards (space_id, doc_id, origin_concept, front, back, due) VALUES (?, NULL, ?, ?, ?, ?)"
+  );
+  let added = 0;
+  for (const item of items) {
+    stmt.run(spaceId, item.concept?.trim() || null, item.front, item.back, localDay());
+    added++;
+  }
+  return added;
+}
+
 /** 单张编辑：题面/答案/概念归属（不传的字段不动） */
 export function updateCard(
   id: number,
