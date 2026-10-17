@@ -33,6 +33,7 @@ export async function POST(req: Request) {
     sourceIds?: unknown;
     spaceId?: unknown;
     originConcept?: unknown;
+    images?: unknown;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -69,6 +70,18 @@ export async function POST(req: Request) {
   const validSourceIds = sources.map((s) => s.id);
   const droppedSources = sourceIds.length - sources.length;
 
+  // 拍题图片：data URL 护栏（前端压缩后实际 ≈400KB 内）
+  const IMAGE_DATA_URL = /^data:image\/(jpeg|png|webp|gif);base64,/;
+  const images =
+    Array.isArray(body.images) && body.images.length <= 3
+      ? body.images.filter(
+          (v): v is string => typeof v === "string" && IMAGE_DATA_URL.test(v) && v.length <= 2_500_000
+        )
+      : [];
+  if (Array.isArray(body.images) && body.images.length > 3) {
+    return NextResponse.json({ error: "最多附 3 张图片" }, { status: 400 });
+  }
+
   // 补练模式：概念取自源文档标题，练习统计由服务端自己聚合（不信任客户端数字）
   let concept = typeof body.concept === "string" ? body.concept.trim() : "";
   let statLines: string[] | null = null;
@@ -84,12 +97,16 @@ export async function POST(req: Request) {
     concept = source.title;
   }
 
-  // 附加了资料时概念可留空：默认围绕第一份资料讲解
+  // 附加资料或图片时概念可留空：资料默认第一份标题，图片由模型按图定主题
+  const conceptProvided = concept.length > 0;
   if (!concept && sources.length > 0) {
     concept = sources[0].title.slice(0, 200);
   }
+  if (!concept && images.length > 0) {
+    concept = "图片讲解";
+  }
   if (!concept) {
-    return NextResponse.json({ error: "请输入要讲解的概念" }, { status: 400 });
+    return NextResponse.json({ error: "请输入要讲解的概念或附图/资料" }, { status: 400 });
   }
   if (concept.length > 200) {
     return NextResponse.json({ error: "概念描述请控制在 200 字以内" }, { status: 400 });
@@ -97,8 +114,12 @@ export async function POST(req: Request) {
 
   return sseResponse(async (send) => {
     try {
-      // 补练的用户消息已携带练习统计，资料槽不再放网络检索结果
-      const refs = useWebSearch && statLines === null ? await webSearch(concept) : [];
+      // 补练的用户消息已携带练习统计，资料槽不再放网络检索结果；
+      // 纯拍题（概念为默认占位）也不检索——占位词搜不出有效资料
+      const refs = useWebSearch && statLines === null && conceptProvided ? await webSearch(concept) : [];
+      if (images.length > 0) {
+        send({ type: "info", message: `已附 ${images.length} 张图片，讲解将围绕图片内容` });
+      }
       if (sources.length > 0) {
         send({ type: "info", message: `已附加 ${sources.length} 份资料（${sources.reduce((n, s) => n + s.content.length, 0)} 字）` });
       }
@@ -109,6 +130,7 @@ export async function POST(req: Request) {
       const extras: GenerateExtras = { refs, personaStyle };
       if (sources.length > 0) extras.sources = sources;
       if (statLines) extras.practiceLines = statLines;
+      if (images.length > 0) extras.images = images;
       const doc = await generateDoc(concept, extras, (text) =>
         send({ type: "delta", text })
       );

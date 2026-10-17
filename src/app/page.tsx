@@ -9,6 +9,7 @@ import { SoundToggle } from "@/components/SoundToggle";
 import { SpaceMapPanel } from "@/components/SpaceMapPanel";
 import { SpacePicker } from "@/components/SpacePicker";
 import { StatsPanel } from "@/components/StatsPanel";
+import { compressImage } from "@/lib/imageCompress";
 import { AskPanel, type AskItem } from "@/components/dsl/AskPanel";
 import { AttemptContext, postAttempt } from "@/components/dsl/attempt-context";
 import { ensureAudio, playComplete, playDone } from "@/lib/audio/sound";
@@ -43,6 +44,10 @@ export default function Home() {
   const [concept, setConcept] = useState("");
   const [webSearchOn, setWebSearchOn] = useState(true);
   const [attachedSourceIds, setAttachedSourceIds] = useState<number[]>([]);
+  // 拍题图片（压缩后 data URL，仅当次生成消费，不持久化）
+  const [genImages, setGenImages] = useState<string[]>([]);
+  const [genImgBusy, setGenImgBusy] = useState(false);
+  const genFileRef = useRef<HTMLInputElement | null>(null);
   const [spaces, setSpaces] = useState<SpaceInfo[]>([]);
   const [spaceId, setSpaceId] = useState<number | null>(null);
   /** 出身概念：从资料提炼点/概念地图进入生成时记录，地图据此对齐讲解 */
@@ -207,7 +212,13 @@ export default function Home() {
    *  还未进闭包，必须显式传入，否则请求会带着旧值发出 */
   async function runGenerate(
     conceptText: string,
-    extra: { practiceDocId?: number; originConceptOverride?: string; sourceIdsOverride?: number[] } = {}
+    extra: {
+      practiceDocId?: number;
+      originConceptOverride?: string;
+      sourceIdsOverride?: number[];
+      /** 拍题图片（data URL）；仅生成入口传入，地图点击/补练路径不带 */
+      images?: string[];
+    } = {}
   ) {
     if (busy) return;
     const controller = new AbortController();
@@ -255,11 +266,34 @@ export default function Home() {
     }
   }
 
+  /** 生成入口附图：压缩入队（≤3 张）；解码失败直接提示 */
+  async function addGenFiles(files: File[]) {
+    const pics = files.filter((f) => f.type.startsWith("image/"));
+    if (pics.length === 0) return;
+    setGenImgBusy(true);
+    setError(null);
+    try {
+      const next = [...genImages];
+      for (const file of pics) {
+        if (next.length >= 3) {
+          setError("一次生成最多附 3 张图");
+          break;
+        }
+        next.push(await compressImage(file));
+      }
+      setGenImages(next);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "图片处理失败");
+    } finally {
+      setGenImgBusy(false);
+    }
+  }
+
   function handleGenerate() {
     const text = concept.trim();
-    // 附加了资料时概念可留空：服务端默认围绕第一份资料生成
-    if ((!text && attachedSourceIds.length === 0) || busy) return;
-    runGenerate(text);
+    // 附加了资料或图片时概念可留空：服务端默认围绕第一份资料/图片生成
+    if ((!text && attachedSourceIds.length === 0 && genImages.length === 0) || busy) return;
+    runGenerate(text, { images: genImages });
   }
 
   /** 资料「提炼讲解点」点击：附加该资料并把概念填进生成框（记录出身概念供地图对齐） */
@@ -421,22 +455,66 @@ export default function Home() {
               }}
               onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
               placeholder={
-                attachedSourceIds.length > 0
-                  ? "留空则围绕第一份资料生成，或输入具体概念"
+                attachedSourceIds.length > 0 || genImages.length > 0
+                  ? "留空则围绕第一份资料/图片生成，或输入具体概念"
                   : "想搞懂什么概念？如：正弦波的频率、英语名词复数、快速排序"
               }
               maxLength={200}
               className="h-11 flex-1 rounded-xl border border-stone-200 px-4 text-sm outline-none transition-colors focus:border-accent-400"
               disabled={busy === "generate"}
             />
+            <input
+              ref={genFileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) => {
+                addGenFiles([...(e.target.files ?? [])]);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => genFileRef.current?.click()}
+              disabled={busy !== null || genImgBusy || genImages.length >= 3}
+              title={`拍题/截图生成（最多 3 张，概念可留空）`}
+              className="h-11 rounded-xl border border-stone-200 px-3 text-sm text-stone-500 transition-colors hover:border-accent-300 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              📷
+            </button>
             <button
               onClick={handleGenerate}
-              disabled={busy !== null || (!concept.trim() && attachedSourceIds.length === 0)}
+              disabled={busy !== null || (!concept.trim() && attachedSourceIds.length === 0 && genImages.length === 0)}
               className="h-11 rounded-xl bg-stone-900 px-5 text-sm font-medium text-paper shadow-sm transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               生成讲解
             </button>
           </div>
+          {genImages.length > 0 && (
+            <div className="mt-3 flex gap-2">
+              {genImages.map((url, i) => (
+                <span key={i} className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt={`待讲解图片 ${i + 1}`}
+                    className="h-16 w-16 rounded-lg border border-stone-200 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setGenImages((prev) => prev.filter((_, j) => j !== i))}
+                    disabled={busy !== null}
+                    className="absolute -right-1.5 -top-1.5 h-4 w-4 rounded-full bg-stone-600 text-[10px] leading-none text-white"
+                    title="移除"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <p className="self-center text-xs text-stone-400">讲解将围绕这些图片展开</p>
+            </div>
+          )}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {EXAMPLE_CONCEPTS.map((example) => (
               <button
