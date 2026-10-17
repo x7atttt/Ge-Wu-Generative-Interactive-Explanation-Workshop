@@ -27,9 +27,9 @@
 
 ## 待办
 
-1. **比赛材料**（最优先，11 月）：README 10 分钟复现指南、5-8 分钟演示视频（≥2 分钟 AI 协同）、≤30 页 PDF、≥3 段 Prompt 链快照。
-2. MinerU 图片进讲解：先实验 vlm 转写是否已够（spec/iteration24 的 Out of Scope）。
-3. Backlog 候选：FSRS 参数个性化、按考试日期倒排每日计划、卡片批量导入。
+1. **比赛材料**（用户暂缓，11 月deadline）：5-8 分钟演示视频（≥2 分钟 AI 协同，需本人配音）、≤30 页 PDF。README 复现指南与 Prompt 链快照已完成（`README.md`、`docs/prompts.md`）。
+2. MinerU 图片进讲解：**已评估，维持现状**（表格/公式转写够用、数值图不够且有文本丢失风险，见 `docs/mineru-vlm-experiment.md`）。
+3. FSRS 参数个性化：**已评估，暂缓**（数据量差两个数量级且缺 review log 表；可行替代=空间级 request_retention 偏好，见 `docs/fsrs-personalization.md`）。
 4. **push 由用户自行执行**（本地提交未推）。
 
 ## 约定
