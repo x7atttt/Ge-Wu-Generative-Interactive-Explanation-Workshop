@@ -71,7 +71,12 @@ CREATE TABLE IF NOT EXISTS cards (
   origin_concept TEXT,
   front TEXT NOT NULL,
   back TEXT NOT NULL,
-  -- SM-2 调度状态（算法见 lib/srs.ts），due 为本地日期 YYYY-MM-DD
+  -- FSRS-6 记忆状态（算法见 lib/fsrs.ts），due/last_review 为本地日期 YYYY-MM-DD；
+  -- 0 值 difficulty/stability 表示未初始化（新卡，首评走 init 路径）
+  difficulty REAL NOT NULL DEFAULT 0,
+  stability REAL NOT NULL DEFAULT 0,
+  last_review TEXT,
+  -- ease 为 SM-2 时代遗留（迁移来源，已冻结不再写入）；repetitions 仅作轮次展示
   ease REAL NOT NULL DEFAULT 2.5,
   interval_days REAL NOT NULL DEFAULT 0,
   repetitions INTEGER NOT NULL DEFAULT 0,
@@ -112,11 +117,36 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE docs ADD COLUMN space_id INTEGER REFERENCES spaces(id)",
     "ALTER TABLE docs ADD COLUMN origin_concept TEXT",
     "ALTER TABLE docs ADD COLUMN source_ids TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE cards ADD COLUMN difficulty REAL NOT NULL DEFAULT 0",
+    "ALTER TABLE cards ADD COLUMN stability REAL NOT NULL DEFAULT 0",
+    "ALTER TABLE cards ADD COLUMN last_review TEXT",
   ]) {
     try {
       db.exec(col);
     } catch {
       // duplicate column: 列已存在
+    }
+  }
+  // SM-2 → FSRS 状态迁移（幂等：stability>0 的行不再改；due 不动保证今日队列不跳变）
+  //   S ≈ 当前 SM-2 间隔（≥0.5 天），D 由 ease 线性映射（2.5→5 中性，1.3→10 最难），
+  //   last_review ≈ due − interval_days（SM-2 未存上次复习日，按排期间隔倒推）
+  const legacy = db
+    .prepare(
+      "SELECT id, ease, interval_days, due FROM cards WHERE repetitions > 0 AND stability = 0"
+    )
+    .all() as unknown as { id: number; ease: number; interval_days: number; due: string }[];
+  if (legacy.length > 0) {
+    const update = db.prepare(
+      "UPDATE cards SET difficulty = ?, stability = ?, last_review = ? WHERE id = ?"
+    );
+    for (const row of legacy) {
+      const stability = Math.max(row.interval_days, 0.5);
+      const difficulty = Math.min(10, Math.max(1, 5 + (2.5 - row.ease) * (25 / 6)));
+      // addDays 不接受负数，倒推用时间戳直算
+      const dueDate = new Date(`${row.due}T00:00:00`);
+      dueDate.setDate(dueDate.getDate() - Math.round(row.interval_days));
+      const lastReview = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}-${String(dueDate.getDate()).padStart(2, "0")}`;
+      update.run(difficulty, stability, lastReview, row.id);
     }
   }
   g.__gewuDb = db;

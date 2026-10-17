@@ -1,5 +1,5 @@
-/** 前端 API 调用层：SM-2 复习卡 */
-import type { ReviewGrade } from "@/lib/srs";
+/** 前端 API 调用层：FSRS 复习卡 */
+import type { ReviewGrade } from "@/lib/fsrs";
 
 export interface ReviewCard {
   id: number;
@@ -7,7 +7,9 @@ export interface ReviewCard {
   originConcept: string | null;
   front: string;
   back: string;
-  ease: number;
+  difficulty: number;
+  stability: number;
+  lastReview: string | null;
   intervalDays: number;
   repetitions: number;
   due: string;

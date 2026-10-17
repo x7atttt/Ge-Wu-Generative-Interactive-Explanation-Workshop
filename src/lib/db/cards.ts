@@ -1,7 +1,7 @@
-/** cards 表访问：SM-2 复习卡的提取（讲解 quiz/填空机械转换）与调度写入 */
+/** cards 表访问：FSRS 复习卡的提取（讲解 quiz/填空机械转换）与调度写入 */
 import { getDb } from "./index";
 import { getDoc } from "./docs";
-import { localDay, schedule, type ReviewGrade } from "@/lib/srs";
+import { localDay, schedule, type ReviewGrade } from "@/lib/fsrs";
 
 export interface ReviewCard {
   id: number;
@@ -9,7 +9,11 @@ export interface ReviewCard {
   originConcept: string | null;
   front: string;
   back: string;
-  ease: number;
+  /** FSRS 记忆状态（0 = 未初始化新卡） */
+  difficulty: number;
+  stability: number;
+  lastReview: string | null;
+  /** 本次排期间隔（天）；repetitions 仅作轮次展示 */
   intervalDays: number;
   repetitions: number;
   due: string;
@@ -21,14 +25,16 @@ interface RawCard {
   origin_concept: string | null;
   front: string;
   back: string;
-  ease: number;
+  difficulty: number;
+  stability: number;
+  last_review: string | null;
   interval_days: number;
   repetitions: number;
   due: string;
 }
 
 const SELECT_CARD =
-  "SELECT id, doc_id, origin_concept, front, back, ease, interval_days, repetitions, due FROM cards";
+  "SELECT id, doc_id, origin_concept, front, back, difficulty, stability, last_review, interval_days, repetitions, due FROM cards";
 
 function toCard(raw: RawCard): ReviewCard {
   return {
@@ -37,7 +43,9 @@ function toCard(raw: RawCard): ReviewCard {
     originConcept: raw.origin_concept,
     front: raw.front,
     back: raw.back,
-    ease: raw.ease,
+    difficulty: raw.difficulty,
+    stability: raw.stability,
+    lastReview: raw.last_review,
     intervalDays: raw.interval_days,
     repetitions: raw.repetitions,
     due: raw.due,
@@ -176,23 +184,27 @@ export function cardCounts(spaceId: number): { total: number; due: number } {
   return { total, due };
 }
 
-/** 评分调度：应用 SM-2 并写回，返回更新后的卡 */
+/** 评分调度：应用 FSRS 推演记忆状态并写回；again 当日重见（due=今日） */
 export function reviewCard(id: number, grade: ReviewGrade): ReviewCard | null {
   const db = getDb();
   const raw = db.prepare(`${SELECT_CARD} WHERE id = ?`).get(id) as unknown as RawCard | undefined;
   if (!raw) return null;
   const next = schedule(
-    { ease: raw.ease, intervalDays: raw.interval_days, repetitions: raw.repetitions },
+    { difficulty: raw.difficulty, stability: raw.stability, lastReview: raw.last_review },
     grade
   );
-  db.prepare("UPDATE cards SET ease = ?, interval_days = ?, repetitions = ?, due = ? WHERE id = ?").run(
-    next.ease,
-    next.intervalDays,
-    next.repetitions,
-    next.due,
-    id
-  );
-  return { ...toCard(raw), ...next };
+  db.prepare(
+    "UPDATE cards SET difficulty = ?, stability = ?, last_review = ?, interval_days = ?, repetitions = repetitions + 1, due = ? WHERE id = ?"
+  ).run(next.difficulty, next.stability, next.lastReview, next.intervalDays, next.due, id);
+  return {
+    ...toCard(raw),
+    difficulty: next.difficulty,
+    stability: next.stability,
+    lastReview: next.lastReview,
+    intervalDays: next.intervalDays,
+    repetitions: raw.repetitions + 1,
+    due: next.due,
+  };
 }
 
 export function clearSpaceCards(spaceId: number): void {

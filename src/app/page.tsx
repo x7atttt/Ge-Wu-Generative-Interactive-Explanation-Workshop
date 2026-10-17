@@ -352,7 +352,7 @@ export default function Home() {
     }
   }
 
-  /** 讲解底部「制成复习卡」：quiz/填空机械提取为 SM-2 卡（空间复习入口用） */
+  /** 讲解底部「制成复习卡」：quiz/填空机械提取为复习卡（空间复习入口用） */
   async function handleMakeCards() {
     if (docId === null || docSpaceId === null) return;
     setCardsNote(null);
@@ -582,7 +582,7 @@ export default function Home() {
                     onClick={handleMakeCards}
                     disabled={busy !== null}
                     className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs text-orange-700 transition-colors hover:border-orange-400 disabled:opacity-50"
-                    title="把本篇的自测题/填空提取为 SM-2 复习卡（空间概念地图的复习入口）"
+                    title="把本篇的自测题/填空提取为 FSRS 复习卡（空间概念地图的复习入口）"
                   >
                     🔖 制成复习卡
                   </button>

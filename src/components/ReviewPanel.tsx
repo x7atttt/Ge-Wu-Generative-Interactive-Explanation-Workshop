@@ -5,32 +5,32 @@ import { AnimatePresence, motion } from "motion/react";
 import { listDueCards, reviewCard, type ReviewCard } from "@/lib/api/cards";
 import { playComplete, playCorrect, playPop, playWrong } from "@/lib/audio/sound";
 import { useReducedMotion } from "motion/react";
-import type { ReviewGrade } from "@/lib/srs";
+import type { ReviewGrade } from "@/lib/fsrs";
 
 const GRADE_BUTTONS: { grade: ReviewGrade; label: string; hint: string; className: string }[] = [
   {
     grade: "again",
     label: "忘记",
-    hint: "重置进度，今天还会再遇到",
+    hint: "稳定度回落，今天还会再遇到",
     className: "border-red-200 bg-red-50 text-red-600 hover:border-red-400",
   },
   {
     grade: "fuzzy",
     label: "模糊",
-    hint: "想起来了但费劲，间隔缩短",
+    hint: "想起来了但费劲，间隔按稳定度正常推进",
     className: "border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-400",
   },
   {
     grade: "easy",
     label: "记得",
-    hint: "轻松答对，间隔拉长",
+    hint: "轻松答对，间隔加成拉长",
     className: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-400",
   },
 ];
 
 /**
- * SM-2 复习会话：到期卡片逐张过——看题面→显示答案→三档评分（键盘 空格翻面 / 1·2·3 评分）。
- * 评分即调度：忘记留今日队列，模糊/记得按间隔推后。
+ * FSRS 复习会话：到期卡片逐张过——看题面→显示答案→三档评分（键盘 空格翻面 / 1·2·3 评分）。
+ * 评分即调度：忘记当日重见，模糊/记得按遗忘曲线推演的稳定度排间隔。
  */
 export function ReviewPanel({
   spaceId,

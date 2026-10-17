@@ -46,7 +46,7 @@ function countdownText(examDate: string): string {
 /**
  * 概念地图（空间核心视图）：资料提炼概念 × 讲解/练习状态。
  * 点击行为按状态分派：未学→生成 / 已讲解·已练习→打开讲解 / 薄弱→补练。
- * 头部：考试倒计时（枢纽里设日期）+ SM-2 复习入口（到期 n 张）。
+ * 头部：考试倒计时（枢纽里设日期）+ FSRS 复习入口（到期 n 张）。
  */
 export function SpaceMapPanel({
   spaceId,
@@ -145,7 +145,7 @@ export function SpaceMapPanel({
                   ? "border-orange-300 bg-orange-50 font-medium text-orange-700 hover:border-orange-400"
                   : "border-stone-200 text-stone-400 hover:border-orange-200 hover:text-orange-600"
               }`}
-              title="SM-2 间隔复习：讲解底部的题目按遗忘曲线安排回来"
+              title="FSRS 间隔复习：讲解底部的题目按遗忘曲线安排回来"
             >
               🔖 复习{map.cards.due > 0 ? ` ${map.cards.due}` : "·已清"}
             </button>

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { reviewCard } from "@/lib/db/cards";
-import type { ReviewGrade } from "@/lib/srs";
+import type { ReviewGrade } from "@/lib/fsrs";
 
 const GRADES: readonly ReviewGrade[] = ["again", "fuzzy", "easy"];
 
-/** 复习评分：应用 SM-2 调度并写回 */
+/** 复习评分：应用 FSRS 调度并写回 */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const cardId = Number(id);

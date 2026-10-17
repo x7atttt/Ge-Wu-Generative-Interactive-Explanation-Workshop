@@ -11,9 +11,13 @@ import {
 } from "@/lib/api/cards";
 import { playPop } from "@/lib/audio/sound";
 
-/** 卡片调度状态的小字摘要 */
+/** 卡片调度状态的小字摘要（稳定度 = 记忆率降到 90% 的预估天数） */
 function schedText(card: ReviewCard): string {
-  return card.repetitions > 0 ? `已过 ${card.repetitions} 轮 · 下次 ${card.due}` : "新卡 · 今日";
+  if (card.stability > 0) {
+    const s = card.stability >= 10 ? String(Math.round(card.stability)) : card.stability.toFixed(1);
+    return `稳定度 ${s} 天 · 下次 ${card.due}`;
+  }
+  return "新卡 · 今日";
 }
 
 /**

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { getExamCards, reviewCard, type ReviewCard } from "@/lib/api/cards";
 import { playComplete, playCorrect, playPop, playWrong } from "@/lib/audio/sound";
-import type { ReviewGrade } from "@/lib/srs";
+import type { ReviewGrade } from "@/lib/fsrs";
 
 const EXAM_COUNT = 20;
 
@@ -38,7 +38,7 @@ interface ConceptTally {
 /**
  * 综合测验会话：空间全部复习卡（不限到期）随机抽卷，逐题自评三档。
  * 与复习的差别：每题只出现一次（不追尾）、卷末按概念出分定位薄弱；
- * 评分仍走 SM-2 写回——答错的卡考后自动留在今日复习队列。
+ * 评分仍走 FSRS 写回——答错的卡考后自动留在今日复习队列。
  */
 export function ExamPanel({
   spaceId,
