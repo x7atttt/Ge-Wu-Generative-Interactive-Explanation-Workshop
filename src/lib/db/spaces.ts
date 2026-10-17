@@ -7,11 +7,20 @@ import { listSources } from "./sources";
 import { listDocsBySpace } from "./docs";
 import { cardCounts } from "./cards";
 
+/** 学习路线的一个站点（LLM 生成快照，概念名与地图白名单对齐） */
+export interface RoadmapStage {
+  title: string;
+  goal: string;
+  concepts: string[];
+}
+
 export interface SpaceRow {
   id: number;
   name: string;
   note: string;
   examDate: string | null;
+  roadmap: RoadmapStage[] | null;
+  roadmapAt: string | null;
   createdAt: string;
   /** 面板/枢纽用计数（聚合子查询带出） */
   sourceCount: number;
@@ -23,9 +32,22 @@ interface RawSpace {
   name: string;
   note: string;
   exam_date: string | null;
+  roadmap: string;
+  roadmap_at: string | null;
   created_at: string;
   source_count: number;
   doc_count: number;
+}
+
+/** 容错解析路线快照（坏 JSON / 空站列表按无路线处理） */
+function parseRoadmap(raw: string): RoadmapStage[] | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { stages?: RoadmapStage[] };
+    return Array.isArray(parsed.stages) && parsed.stages.length > 0 ? parsed.stages : null;
+  } catch {
+    return null;
+  }
 }
 
 function toSpace(raw: RawSpace): SpaceRow {
@@ -34,6 +56,8 @@ function toSpace(raw: RawSpace): SpaceRow {
     name: raw.name,
     note: raw.note,
     examDate: raw.exam_date,
+    roadmap: parseRoadmap(raw.roadmap),
+    roadmapAt: raw.roadmap_at,
     createdAt: raw.created_at,
     sourceCount: Number(raw.source_count),
     docCount: Number(raw.doc_count),
@@ -41,7 +65,7 @@ function toSpace(raw: RawSpace): SpaceRow {
 }
 
 const SELECT_SPACE =
-  "SELECT id, name, note, exam_date, created_at, " +
+  "SELECT id, name, note, exam_date, roadmap, roadmap_at, created_at, " +
   "(SELECT COUNT(*) FROM sources WHERE space_id = spaces.id) AS source_count, " +
   "(SELECT COUNT(*) FROM docs WHERE space_id = spaces.id) AS doc_count " +
   "FROM spaces";
@@ -83,6 +107,13 @@ export function updateSpace(
     );
 }
 
+/** 写入/覆盖学习路线快照（生成时间取本地时间） */
+export function setRoadmap(id: number, stages: RoadmapStage[]): void {
+  getDb()
+    .prepare("UPDATE spaces SET roadmap = ?, roadmap_at = datetime('now','localtime') WHERE id = ?")
+    .run(JSON.stringify({ stages }), id);
+}
+
 /** 删除空间：资料与讲解移回未分组（不级联删除学习资产），再删空间本身 */
 export function deleteSpace(id: number): void {
   const db = getDb();
@@ -110,6 +141,9 @@ export interface SpaceMap {
   summary: { sources: number; explained: number; weak: number };
   /** 复习卡概况（迭代 18） */
   cards: { total: number; due: number };
+  /** 学习路线（迭代 22，无则为 null） */
+  roadmap: RoadmapStage[] | null;
+  roadmapAt: string | null;
 }
 
 const WEAK_RATE = 0.6;
@@ -194,5 +228,7 @@ export function getSpaceMap(spaceId: number): SpaceMap | null {
       weak: concepts.filter((c) => c.status === "weak").length,
     },
     cards: cardCounts(spaceId),
+    roadmap: space.roadmap,
+    roadmapAt: space.roadmapAt,
   };
 }

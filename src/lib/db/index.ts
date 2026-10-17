@@ -62,6 +62,9 @@ CREATE TABLE IF NOT EXISTS spaces (
   note TEXT NOT NULL DEFAULT '',
   -- 考试/截止日期（YYYY-MM-DD，倒计时用；迭代 17 复习计划的锚点）
   exam_date TEXT,
+  -- 学习路线（JSON: {stages:[{title,goal,concepts[]}]},LLM 生成快照,重生成覆盖）
+  roadmap TEXT NOT NULL DEFAULT '',
+  roadmap_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE TABLE IF NOT EXISTS cards (
@@ -120,6 +123,8 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE cards ADD COLUMN difficulty REAL NOT NULL DEFAULT 0",
     "ALTER TABLE cards ADD COLUMN stability REAL NOT NULL DEFAULT 0",
     "ALTER TABLE cards ADD COLUMN last_review TEXT",
+    "ALTER TABLE spaces ADD COLUMN roadmap TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE spaces ADD COLUMN roadmap_at TEXT",
   ]) {
     try {
       db.exec(col);

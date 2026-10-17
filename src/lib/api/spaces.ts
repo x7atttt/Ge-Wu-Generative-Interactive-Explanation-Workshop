@@ -1,12 +1,14 @@
 /** 前端 API 调用层：空间（复习战役容器）与概念地图 */
 
-import type { ConceptStatus } from "@/lib/db/spaces";
+import type { ConceptStatus, RoadmapStage } from "@/lib/db/spaces";
 
 export interface SpaceInfo {
   id: number;
   name: string;
   note: string;
   examDate: string | null;
+  roadmap: RoadmapStage[] | null;
+  roadmapAt: string | null;
   createdAt: string;
   /** 枢纽面板用计数 */
   sourceCount: number;
@@ -27,6 +29,9 @@ export interface SpaceMap {
   summary: { sources: number; explained: number; weak: number };
   /** 复习卡概况（迭代 18） */
   cards: { total: number; due: number };
+  /** 学习路线（迭代 22，无则为 null） */
+  roadmap: RoadmapStage[] | null;
+  roadmapAt: string | null;
 }
 
 async function readError(res: Response): Promise<Error> {
@@ -94,6 +99,13 @@ export async function getSpaceMap(id: number): Promise<SpaceMap> {
   const res = await fetch(`/api/spaces/${id}/map`);
   if (!res.ok) throw await readError(res);
   return (await res.json()) as SpaceMap;
+}
+
+/** 生成/覆盖学习路线（空间概念按依赖与难度编排，概念名白名单对齐） */
+export async function generateRoadmap(id: number): Promise<RoadmapStage[]> {
+  const res = await fetch(`/api/spaces/${id}/roadmap`, { method: "POST" });
+  if (!res.ok) throw await readError(res);
+  return ((await res.json()) as { roadmap: RoadmapStage[] }).roadmap;
 }
 
 /** 资料移入空间（null = 移回未分组） */
