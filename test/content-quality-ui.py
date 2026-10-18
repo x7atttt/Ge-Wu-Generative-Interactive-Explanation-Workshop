@@ -24,6 +24,7 @@ with sync_playwright() as p:
     # Shared colors are distinct and match the actual status card borders/backgrounds.
     dots = page.locator('span[title] > span.h-2').evaluate_all('(nodes) => nodes.map(n => getComputedStyle(n).backgroundColor)')
     assert len(dots) == 5 and len(set(dots)) == 5, dots
+    page.get_by_role('region', name='空间学习概览', exact=True).screenshot(path='data/concept-status-colors.png')
     page.get_by_role('button', name='递归 待练习', exact=False).click()
     expect(page.get_by_role('button', name='🔖 制成复习卡', exact=True)).to_be_visible()
     expect(page.locator('strong').filter(has_text='递与归').first).to_be_visible()

@@ -396,7 +396,7 @@ export function SpaceMapPanel({
               disabled={disabled}
               className={`group flex min-w-0 flex-col items-start rounded-xl border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-500 disabled:opacity-50 ${meta.chip}`}
             >
-              <span className="max-w-full rounded-lg border border-stone-200/80 bg-paper/80 px-2 py-1 text-sm font-medium leading-5 text-stone-700 [overflow-wrap:anywhere]">{concept.text}</span>
+              <span className="max-w-full text-sm font-medium leading-6 text-stone-800 [overflow-wrap:anywhere]">{concept.text}</span>
               <span className="mt-2 flex max-w-full flex-wrap items-center gap-1.5 text-xs leading-5">
                 <span className={`whitespace-nowrap rounded-md border px-2 py-0.5 ${meta.badge}`}>{meta.label}</span>
                 <span className="max-w-full rounded-md border border-secondary-100 bg-secondary-50/70 px-2 py-0.5 text-secondary-700">
