@@ -18,6 +18,7 @@ export interface SourceSummary {
   /** 所属空间（null = 未分组） */
   spaceId: number | null;
   createdAt: string;
+  revision: number;
 }
 
 interface RawRow {
@@ -34,6 +35,7 @@ interface RawRow {
   file_name: string;
   space_id: number | null;
   created_at: string;
+  revision: number;
 }
 
 export interface SourceRow extends SourceSummary {
@@ -66,6 +68,7 @@ function toRow(raw: RawRow): SourceRow {
     fileName: raw.file_name,
     spaceId: raw.space_id ?? null,
     createdAt: raw.created_at,
+    revision: raw.revision,
   };
 }
 
@@ -100,7 +103,7 @@ export function insertSource(input: {
 }
 
 const SELECT_ALL =
-  "SELECT id, title, kind, status, md_content, chars, concepts, error, progress, batch_id, file_name, space_id, created_at FROM sources";
+  "SELECT id, title, kind, status, md_content, chars, concepts, error, progress, batch_id, file_name, space_id, created_at, revision FROM sources";
 
 export function getSource(id: number): SourceRow | null {
   const row = getDb()
@@ -128,6 +131,9 @@ export function listSourceSummaries(limit = 200, spaceId?: number): SourceSummar
 
 /** 移动资料归属（null = 移回未分组） */
 export function setSourceSpace(id: number, spaceId: number | null): void {
+  const current = getSource(id);
+  markRoadmapStale(current?.spaceId ?? null);
+  markRoadmapStale(spaceId);
   getDb().prepare("UPDATE sources SET space_id = ? WHERE id = ?").run(spaceId, id);
 }
 
@@ -155,14 +161,38 @@ export function setSourceProgress(id: number, progress: string): void {
     .run(progress.slice(0, 60), id);
 }
 
-export function setSourceConcepts(id: number, concepts: string[]): void {
-  getDb()
-    .prepare("UPDATE sources SET concepts = ? WHERE id = ?")
-    .run(JSON.stringify(concepts), id);
+export function setSourceConcepts(id: number, concepts: string[], revision?: number): boolean {
+  const source = getSource(id);
+  if (!source || (revision !== undefined && source.revision !== revision)) return false;
+  getDb().prepare("UPDATE sources SET concepts = ?, revision = revision + 1 WHERE id = ?").run(JSON.stringify(concepts), id);
+  markRoadmapStale(source.spaceId);
+  return true;
 }
 
 export function deleteSource(id: number): void {
+  markRoadmapStale(getSource(id)?.spaceId ?? null);
   getDb().prepare("DELETE FROM sources WHERE id = ?").run(id);
+}
+
+function markRoadmapStale(spaceId: number | null): void {
+  if (spaceId !== null) getDb().prepare("UPDATE spaces SET roadmap_stale = 1 WHERE id = ?").run(spaceId);
+}
+
+export function correctSource(id: number, revision: number, input: { mdContent?: string; concepts?: string[] }): boolean {
+  const db = getDb();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const source = getSource(id);
+    if (!source || source.revision !== revision) { db.exec("ROLLBACK"); return false; }
+    const textChanged = input.mdContent !== undefined && input.mdContent !== source.mdContent;
+    // 改正文后旧提炼结果失效；人工同时确认的概念可一起保存。
+    const concepts = input.concepts ?? (textChanged ? [] : source.concepts);
+    const content = input.mdContent ?? source.mdContent;
+    db.prepare("UPDATE sources SET md_content = ?, chars = ?, concepts = ?, revision = revision + 1 WHERE id = ?")
+      .run(content, content.length, JSON.stringify(concepts), id);
+    markRoadmapStale(source.spaceId);
+    db.exec("COMMIT"); return true;
+  } catch (err) { db.exec("ROLLBACK"); throw err; }
 }
 
 /** 生成时按 id 批量取 ready 资料（顺序稳定按传入 id） */

@@ -113,6 +113,13 @@ export interface DocSummary {
   createdAt: string;
 }
 
+export async function loadSourceContext(docId: number): Promise<import("@/lib/db/docs").SourceContext | null> {
+  const res = await fetch(`/api/docs/${docId}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "依据加载失败");
+  return data.sourceContext;
+}
+
 export async function listDocs(spaceId?: number): Promise<DocSummary[]> {
   const res = await fetch(spaceId !== undefined ? `/api/docs?spaceId=${spaceId}` : "/api/docs");
   if (!res.ok) throw new Error(`历史加载失败（${res.status}）`);

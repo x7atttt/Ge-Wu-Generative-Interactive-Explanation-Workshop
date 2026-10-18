@@ -87,6 +87,31 @@ CREATE TABLE IF NOT EXISTS cards (
   created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_cards_space_due ON cards(space_id, due);
+CREATE TABLE IF NOT EXISTS review_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  card_id INTEGER NOT NULL,
+  grade TEXT NOT NULL CHECK(grade IN ('again','fuzzy','easy')),
+  reviewed_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_review_events_card ON review_events(card_id, id);
+CREATE TABLE IF NOT EXISTS exam_sessions (
+  id TEXT PRIMARY KEY,
+  space_id INTEGER NOT NULL,
+  cards TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+  completed_at TEXT
+);
+CREATE TABLE IF NOT EXISTS exam_answers (
+  session_id TEXT NOT NULL,
+  card_id INTEGER NOT NULL,
+  grade TEXT NOT NULL CHECK(grade IN ('again','fuzzy','easy','skipped')),
+  PRIMARY KEY (session_id, card_id)
+);
+CREATE INDEX IF NOT EXISTS idx_exam_sessions_space ON exam_sessions(space_id, created_at);
+CREATE TRIGGER IF NOT EXISTS cleanup_review_events AFTER DELETE ON cards
+BEGIN
+  DELETE FROM review_events WHERE card_id = OLD.id;
+END;
 `;
 
 export function getDb(): DatabaseSync {
@@ -125,6 +150,9 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE cards ADD COLUMN last_review TEXT",
     "ALTER TABLE spaces ADD COLUMN roadmap TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE spaces ADD COLUMN roadmap_at TEXT",
+    "ALTER TABLE spaces ADD COLUMN roadmap_stale INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE sources ADD COLUMN revision INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE docs ADD COLUMN source_context TEXT",
   ]) {
     try {
       db.exec(col);

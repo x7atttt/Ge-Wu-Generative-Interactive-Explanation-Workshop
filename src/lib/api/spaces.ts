@@ -1,6 +1,6 @@
 /** 前端 API 调用层：空间（复习战役容器）与概念地图 */
 
-import type { ConceptStatus, RoadmapStage } from "@/lib/db/spaces";
+import type { ConceptStatus, ConceptRecall, RoadmapStage } from "@/lib/db/spaces";
 
 export interface SpaceInfo {
   id: number;
@@ -9,6 +9,7 @@ export interface SpaceInfo {
   examDate: string | null;
   roadmap: RoadmapStage[] | null;
   roadmapAt: string | null;
+  roadmapStale: boolean;
   createdAt: string;
   /** 枢纽面板用计数 */
   sourceCount: number;
@@ -21,6 +22,7 @@ export interface ConceptState {
   docIds: number[];
   status: ConceptStatus;
   practice: { total: number; correct: number };
+  recall: ConceptRecall;
 }
 
 export interface SpaceMap {

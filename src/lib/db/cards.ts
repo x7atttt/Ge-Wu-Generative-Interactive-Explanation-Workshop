@@ -204,6 +204,20 @@ export function cardCounts(spaceId: number): { total: number; due: number } {
 /** 评分调度：应用 FSRS 推演记忆状态并写回；again 当日重见（due=今日） */
 export function reviewCard(id: number, grade: ReviewGrade): ReviewCard | null {
   const db = getDb();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const card = scheduleAndLogReview(id, grade);
+    db.exec("COMMIT");
+    return card;
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+}
+
+/** 自测在自己的答案事务中调用，确保排期与答案要么都写入，要么都回滚。 */
+export function scheduleAndLogReview(id: number, grade: ReviewGrade): ReviewCard | null {
+  const db = getDb();
   const raw = db.prepare(`${SELECT_CARD} WHERE id = ?`).get(id) as unknown as RawCard | undefined;
   if (!raw) return null;
   const next = schedule(
@@ -213,6 +227,7 @@ export function reviewCard(id: number, grade: ReviewGrade): ReviewCard | null {
   db.prepare(
     "UPDATE cards SET difficulty = ?, stability = ?, last_review = ?, interval_days = ?, repetitions = repetitions + 1, due = ? WHERE id = ?"
   ).run(next.difficulty, next.stability, next.lastReview, next.intervalDays, next.due, id);
+  db.prepare("INSERT INTO review_events (card_id, grade) VALUES (?, ?)").run(id, grade);
   return {
     ...toCard(raw),
     difficulty: next.difficulty,

@@ -16,6 +16,7 @@ export interface SourceItem {
   /** 所属空间（null = 未分组） */
   spaceId: number | null;
   createdAt: string;
+  revision: number;
 }
 
 async function readError(res: Response): Promise<Error> {
@@ -56,4 +57,18 @@ export async function extractConcepts(id: number): Promise<string[]> {
   if (!res.ok) throw await readError(res);
   const data = (await res.json()) as { concepts: string[] };
   return data.concepts;
+}
+
+export interface SourceDetail extends SourceItem { mdContent: string }
+
+export async function getSource(id: number): Promise<SourceDetail> {
+  const res = await fetch(`/api/sources/${id}`);
+  if (!res.ok) throw await readError(res);
+  return ((await res.json()) as { source: SourceDetail }).source;
+}
+
+export async function correctSource(id: number, revision: number, input: { mdContent?: string; concepts?: string[] }): Promise<SourceDetail> {
+  const res = await fetch(`/api/sources/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revision, ...input }) });
+  if (!res.ok) throw await readError(res);
+  return ((await res.json()) as { source: SourceDetail }).source;
 }

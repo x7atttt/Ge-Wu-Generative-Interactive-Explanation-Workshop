@@ -2,6 +2,11 @@
 import { getDb } from "./index";
 import { explainDocSchema, type ExplainDoc } from "@/lib/dsl/schema";
 
+export interface SourceContext {
+  text: string;
+  sources: { id: number; title: string; revision: number }[];
+}
+
 export interface DocRow {
   id: number;
   parentId: number | null;
@@ -14,6 +19,7 @@ export interface DocRow {
   originConcept: string | null;
   /** 生成时附加的资料 id（JSON 数组），概念地图点击概念时复用 */
   sourceIds: number[];
+  sourceContext: SourceContext | null;
   createdAt: string;
 }
 
@@ -32,6 +38,7 @@ interface RawRow {
   space_id: number | null;
   origin_concept: string | null;
   source_ids: string;
+  source_context: string | null;
   created_at: string;
 }
 
@@ -40,6 +47,7 @@ export interface DocOrigin {
   spaceId: number | null;
   originConcept: string | null;
   sourceIds?: number[];
+  sourceContext?: SourceContext | null;
 }
 
 function parseSourceIds(raw: string): number[] {
@@ -59,7 +67,7 @@ export function insertDoc(
 ): number {
   const result = getDb()
     .prepare(
-      "INSERT INTO docs (parent_id, title, doc, instruction, space_id, origin_concept, source_ids) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO docs (parent_id, title, doc, instruction, space_id, origin_concept, source_ids, source_context) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     )
     .run(
       parentId,
@@ -68,7 +76,8 @@ export function insertDoc(
       instruction,
       origin.spaceId,
       origin.originConcept,
-      JSON.stringify(origin.sourceIds ?? [])
+      JSON.stringify(origin.sourceIds ?? []),
+      origin.sourceContext ? JSON.stringify(origin.sourceContext) : null
     );
   return Number(result.lastInsertRowid);
 }
@@ -76,7 +85,7 @@ export function insertDoc(
 export function getDoc(id: number): DocRow | null {
   const row = getDb()
     .prepare(
-      "SELECT id, parent_id, title, doc, instruction, space_id, origin_concept, source_ids, created_at FROM docs WHERE id = ?"
+      "SELECT id, parent_id, title, doc, instruction, space_id, origin_concept, source_ids, source_context, created_at FROM docs WHERE id = ?"
     )
     .get(id) as unknown as RawRow | undefined;
   if (!row) return null;
@@ -98,6 +107,7 @@ export function getDoc(id: number): DocRow | null {
     spaceId: row.space_id,
     originConcept: row.origin_concept,
     sourceIds: parseSourceIds(row.source_ids),
+    sourceContext: row.source_context ? JSON.parse(row.source_context) : null,
     createdAt: row.created_at,
   };
 }

@@ -21,6 +21,7 @@ export interface SpaceRow {
   examDate: string | null;
   roadmap: RoadmapStage[] | null;
   roadmapAt: string | null;
+  roadmapStale: boolean;
   createdAt: string;
   /** 面板/枢纽用计数（聚合子查询带出） */
   sourceCount: number;
@@ -34,6 +35,7 @@ interface RawSpace {
   exam_date: string | null;
   roadmap: string;
   roadmap_at: string | null;
+  roadmap_stale: number;
   created_at: string;
   source_count: number;
   doc_count: number;
@@ -58,6 +60,7 @@ function toSpace(raw: RawSpace): SpaceRow {
     examDate: raw.exam_date,
     roadmap: parseRoadmap(raw.roadmap),
     roadmapAt: raw.roadmap_at,
+    roadmapStale: !!raw.roadmap_stale,
     createdAt: raw.created_at,
     sourceCount: Number(raw.source_count),
     docCount: Number(raw.doc_count),
@@ -65,7 +68,7 @@ function toSpace(raw: RawSpace): SpaceRow {
 }
 
 const SELECT_SPACE =
-  "SELECT id, name, note, exam_date, roadmap, roadmap_at, created_at, " +
+  "SELECT id, name, note, exam_date, roadmap, roadmap_at, roadmap_stale, created_at, " +
   "(SELECT COUNT(*) FROM sources WHERE space_id = spaces.id) AS source_count, " +
   "(SELECT COUNT(*) FROM docs WHERE space_id = spaces.id) AS doc_count " +
   "FROM spaces";
@@ -110,13 +113,14 @@ export function updateSpace(
 /** 写入/覆盖学习路线快照（生成时间取本地时间） */
 export function setRoadmap(id: number, stages: RoadmapStage[]): void {
   getDb()
-    .prepare("UPDATE spaces SET roadmap = ?, roadmap_at = datetime('now','localtime') WHERE id = ?")
+    .prepare("UPDATE spaces SET roadmap = ?, roadmap_at = datetime('now','localtime'), roadmap_stale = 0 WHERE id = ?")
     .run(JSON.stringify({ stages }), id);
 }
 
 /** 删除空间：资料与讲解移回未分组（不级联删除学习资产），再删空间本身 */
 export function deleteSpace(id: number): void {
   const db = getDb();
+  deleteExamSessions(id);
   db.prepare("UPDATE sources SET space_id = NULL WHERE space_id = ?").run(id);
   db.prepare("UPDATE docs SET space_id = NULL WHERE space_id = ?").run(id);
   db.prepare("DELETE FROM spaces WHERE id = ?").run(id);
@@ -126,6 +130,8 @@ export function deleteSpace(id: number): void {
  *  顺序遵守外键：先删引用方（asks/attempts/cards/docs）再删被引用方（sources/spaces） */
 export function deleteSpaceDeep(id: number): void {
   const db = getDb();
+  deleteExamSessions(id);
+  db.prepare("DELETE FROM review_events WHERE card_id IN (SELECT id FROM cards WHERE space_id = ?)").run(id);
   const docIds = (
     db.prepare("SELECT id FROM docs WHERE space_id = ?").all(id) as unknown as { id: number }[]
   ).map((r) => r.id);
@@ -141,7 +147,20 @@ export function deleteSpaceDeep(id: number): void {
   db.prepare("DELETE FROM spaces WHERE id = ?").run(id);
 }
 
-export type ConceptStatus = "new" | "explained" | "practiced" | "weak";
+function deleteExamSessions(spaceId: number): void {
+  const db = getDb();
+  db.prepare("DELETE FROM exam_answers WHERE session_id IN (SELECT id FROM exam_sessions WHERE space_id = ?)").run(spaceId);
+  db.prepare("DELETE FROM exam_sessions WHERE space_id = ?").run(spaceId);
+}
+
+export type ConceptStatus = "new" | "explained" | "learning" | "practiced" | "weak";
+
+export interface ConceptRecall {
+  again: number;
+  fuzzy: number;
+  easy: number;
+  forgottenCardIds: number[];
+}
 
 export interface ConceptState {
   /** 概念名（跨资料同名合并） */
@@ -152,6 +171,7 @@ export interface ConceptState {
   docIds: number[];
   status: ConceptStatus;
   practice: { total: number; correct: number };
+  recall: ConceptRecall;
 }
 
 export interface SpaceMap {
@@ -208,6 +228,19 @@ export function getSpaceMap(spaceId: number): SpaceMap | null {
   }
 
   const concepts: ConceptState[] = [];
+  const recallByConcept = new Map<string, ConceptRecall>();
+  const recalls = getDb().prepare(
+    `SELECT c.id, c.origin_concept, e.grade FROM cards c
+     JOIN review_events e ON e.id = (SELECT MAX(id) FROM review_events WHERE card_id = c.id)
+     WHERE c.space_id = ? AND c.origin_concept IS NOT NULL`
+  ).all(spaceId) as unknown as { id: number; origin_concept: string; grade: "again" | "fuzzy" | "easy" }[];
+  for (const row of recalls) {
+    const key = row.origin_concept.trim();
+    const recall = recallByConcept.get(key) ?? { again: 0, fuzzy: 0, easy: 0, forgottenCardIds: [] };
+    recall[row.grade]++;
+    if (row.grade === "again") recall.forgottenCardIds.push(row.id);
+    recallByConcept.set(key, recall);
+  }
   for (const [text, sourceIds] of byText) {
     const docIds = docIdsByText.get(text) ?? [];
     const practice = docIds.reduce(
@@ -222,7 +255,7 @@ export function getSpaceMap(spaceId: number): SpaceMap | null {
       status = "explained";
       if (practice.total > 0) {
         const rate = practice.correct / practice.total;
-        status = practice.total >= WEAK_MIN_ATTEMPTS && rate < WEAK_RATE ? "weak" : "practiced";
+        status = practice.total < WEAK_MIN_ATTEMPTS ? "learning" : rate < WEAK_RATE ? "weak" : "practiced";
       }
     }
     concepts.push({
@@ -231,10 +264,11 @@ export function getSpaceMap(spaceId: number): SpaceMap | null {
       docIds,
       status,
       practice,
+      recall: recallByConcept.get(text) ?? { again: 0, fuzzy: 0, easy: 0, forgottenCardIds: [] },
     });
   }
   // 未学在前、薄弱优先，其后按已练/已讲，最后按资料顺序（Map 保持插入序）
-  const order: Record<ConceptStatus, number> = { weak: 0, new: 1, practiced: 2, explained: 3 };
+  const order: Record<ConceptStatus, number> = { weak: 0, new: 1, learning: 2, practiced: 3, explained: 4 };
   concepts.sort((a, b) => order[a.status] - order[b.status] || b.practice.total - a.practice.total);
 
   const sourceCount = listSources(200, spaceId).filter((s) => s.status === "ready").length;
