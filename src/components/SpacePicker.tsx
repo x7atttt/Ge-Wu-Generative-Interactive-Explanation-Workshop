@@ -12,25 +12,25 @@ import {
   type SpaceInfo,
 } from "@/lib/api/spaces";
 import { listSources, type SourceItem } from "@/lib/api/sources";
+import { useConfirmation, type ConfirmAction } from "./ConfirmDialog";
 
 /**
  * 工具行的「空间」切换器与管理枢纽。
  * 下拉=快速切换（全局 ↔ 各空间，选定后资料/历史/统计按空间过滤并显示概念地图）；
  * 🗂 枢纽=集中管理：空间一览（资料/讲解计数）、新建/重命名/删除、资料跨空间移动与移出。
  */
-/** 空间删除两段确认：先问"连内容一起删？"，拒绝再问"仅删空间？"，都取消则不动 */
-async function confirmDeleteSpace(space: SpaceInfo): Promise<"deep" | "plain" | "cancel"> {
-  const deep = window.confirm(
-    `连内容一起删除空间「${space.name}」？\n其中 ${space.sourceCount} 份资料、${space.docCount} 篇讲解及其练习记录与复习卡将全部删除，不可恢复。`
-  );
-  if (deep) {
-    await deleteSpace(space.id, true);
-    return "deep";
-  }
-  const plain = window.confirm(`仅删除空间「${space.name}」？\n资料与讲解会移回未分组（保留不删）。`);
-  if (!plain) return "cancel";
-  await deleteSpace(space.id, false);
-  return "plain";
+async function confirmDeleteSpace(space: SpaceInfo, confirm: ConfirmAction) {
+  const mode = await confirm({
+    title: `删除空间「${space.name}」`,
+    description: "选择内容的处理方式。取消会直接退出，不会删除任何内容。",
+    choices: [
+      { value: "plain", label: "仅删除空间", description: "保留资料、讲解、练习记录与复习卡，移回未分组。" },
+      { value: "deep", label: "连内容一起删除", description: `${space.sourceCount} 份资料、${space.docCount} 篇讲解及其练习记录与复习卡将全部删除，不可恢复。`, danger: true },
+    ],
+  });
+  if (!mode) return null;
+  await deleteSpace(space.id, mode === "deep");
+  return mode;
 }
 
 export function SpacePicker({
@@ -51,6 +51,7 @@ export function SpacePicker({
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [hubOpen, setHubOpen] = useState(false);
+  const { confirm, confirmation } = useConfirmation();
 
   async function handleCreate() {
     const trimmed = name.trim();
@@ -71,8 +72,8 @@ export function SpacePicker({
     const space = spaces.find((s) => s.id === spaceId);
     if (!space) return;
     try {
-      const mode = await confirmDeleteSpace(space);
-      if (mode === "cancel") return;
+      const mode = await confirmDeleteSpace(space, confirm);
+      if (!mode) return;
       onSpacesChange();
       onChange(null);
     } catch (err) {
@@ -82,6 +83,7 @@ export function SpacePicker({
 
   return (
     <div className="relative flex items-center gap-1.5">
+      {confirmation}
       <select
         value={spaceId ?? ""}
         onChange={(e) => {
@@ -205,6 +207,7 @@ function SpaceHub({
   const [noteText, setNoteText] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [newName, setNewName] = useState("");
+  const { confirm, confirmation } = useConfirmation();
 
   const refreshSources = useCallback(async () => {
     try {
@@ -255,6 +258,7 @@ function SpaceHub({
 
   return (
     <>
+      {confirmation}
       <div className="fixed inset-0 z-30" onClick={onClose} />
       <motion.div
         initial={{ opacity: 0, y: -6 }}
@@ -421,8 +425,8 @@ function SpaceHub({
                         type="button"
                         disabled={busyId === space.id}
                         onClick={() => {
-                          confirmDeleteSpace(space)
-                            .then((mode) => (mode === "cancel" ? null : run(async () => {}, space.id)))
+                          confirmDeleteSpace(space, confirm)
+                            .then((mode) => (!mode ? null : run(async () => {}, space.id)))
                             .catch((err) =>
                               onError(err instanceof Error ? err.message : "删除失败")
                             );

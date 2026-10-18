@@ -11,6 +11,8 @@ import {
   type ReviewCard,
 } from "@/lib/api/cards";
 import { playPop } from "@/lib/audio/sound";
+import { useConfirmation } from "./ConfirmDialog";
+import { MarkdownView } from "./dsl/MarkdownView";
 
 /** 卡片调度状态的小字摘要（稳定度 = 记忆率降到 90% 的预估天数） */
 function schedText(card: ReviewCard): string {
@@ -39,6 +41,7 @@ export function CardManagerPanel({
   onChanged: () => void;
 }) {
   const [cards, setCards] = useState<ReviewCard[] | null>(null);
+  const { confirm, confirmation } = useConfirmation();
   const [error, setError] = useState<string | null>(null);
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
@@ -131,7 +134,7 @@ export function CardManagerPanel({
   }
 
   async function handleDelete(card: ReviewCard) {
-    if (!window.confirm(`删除这张卡？\n${card.front.slice(0, 60)}`)) return;
+    if (!await confirm({ title: "删除这张卡", description: `${card.front.slice(0, 120)}\n该卡的复习进度将一并删除。`, confirmLabel: "删除卡片", danger: true })) return;
     setBusy(true);
     try {
       await deleteCard(card.id);
@@ -155,6 +158,7 @@ export function CardManagerPanel({
 
   return (
     <>
+      {confirmation}
       <div className="fixed inset-0 z-40 bg-stone-900/30" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <motion.div
@@ -321,13 +325,12 @@ export function CardManagerPanel({
                     </div>
                   ) : (
                     <div key={card.id} className="group mb-1.5 rounded-xl border border-stone-100 px-3 py-2">
-                      <p className="line-clamp-2 text-xs leading-5 text-stone-800">{card.front}</p>
-                      <p className="mt-0.5 line-clamp-1 text-[10px] text-stone-400" title={card.back}>
-                        {card.back}
-                      </p>
+                      <div className="line-clamp-2 text-xs leading-5 text-stone-800"><MarkdownView content={card.front} /></div>
+                      <div className="mt-0.5 line-clamp-1 text-[10px] text-stone-500"><MarkdownView content={card.back} /></div>
+                      {card.issue && <p className="mt-1 text-xs text-amber-800">{card.issue}</p>}
                       <div className="mt-1 flex items-center gap-2">
                         <span className="text-[10px] text-stone-300">{schedText(card)}</span>
-                        <span className="ml-auto flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                        <span className="ml-auto flex gap-1.5">
                           <button
                             type="button"
                             disabled={busy}

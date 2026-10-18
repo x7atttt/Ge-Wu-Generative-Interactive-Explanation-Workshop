@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { deleteDoc, type DocSummary } from "@/lib/api/explanation";
+import { useConfirmation } from "./ConfirmDialog";
 
 function formatDay(iso: string): string {
   const d = new Date(iso);
@@ -37,6 +38,7 @@ export function DocHistoryButton({
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [batchBusy, setBatchBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { confirm, confirmation } = useConfirmation();
 
   useEffect(() => {
     if (!open) return;
@@ -49,7 +51,7 @@ export function DocHistoryButton({
   }, [open]);
 
   async function handleDelete(id: number, title: string) {
-    if (!window.confirm(`删除「${title}」？\n其深化版本、追问、练习记录与复习卡将一并删除，不可恢复。`)) return;
+    if (!await confirm({ title: `删除「${title}」`, description: "其深化版本、追问、练习记录与复习卡将一并删除，不可恢复。", confirmLabel: "删除讲解", danger: true })) return;
     setDeletingId(id);
     setError(null);
     try {
@@ -66,12 +68,7 @@ export function DocHistoryButton({
   async function handleBatchDelete() {
     const ids = [...picked];
     if (ids.length === 0 || batchBusy) return;
-    if (
-      !window.confirm(
-        `删除所选 ${ids.length} 篇讲解？\n各篇的深化版本、追问、练习记录与复习卡将一并删除，不可恢复。`
-      )
-    )
-      return;
+    if (!await confirm({ title: `删除所选 ${ids.length} 篇讲解`, description: "各篇的深化版本、追问、练习记录与复习卡将一并删除，不可恢复。", confirmLabel: "删除所选讲解", danger: true })) return;
     setBatchBusy(true);
     setError(null);
     const allDeleted: number[] = [];
@@ -112,6 +109,7 @@ export function DocHistoryButton({
 
   return (
     <div className="relative">
+      {confirmation}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

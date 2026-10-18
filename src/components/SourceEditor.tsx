@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { correctSource, getSource, type SourceDetail } from "@/lib/api/sources";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
+import { useConfirmation } from "./ConfirmDialog";
 
 export function SourceEditor({ id, onClose, onSaved }: { id: number; onClose: () => void; onSaved: () => void }) {
   const [source, setSource] = useState<SourceDetail | null>(null);
+  const { confirm, confirmation } = useConfirmation();
   const dialogRef = useDialogFocus<HTMLElement>();
   const [content, setContent] = useState("");
   const [concepts, setConcepts] = useState("");
@@ -34,16 +36,17 @@ export function SourceEditor({ id, onClose, onSaved }: { id: number; onClose: ()
     finally { setBusy(false); }
   }
 
-  function close() {
+  async function close() {
     if (busy) return;
-    if (!dirty || window.confirm("有未保存修改，确认放弃草稿并关闭？")) onClose();
+    if (!dirty || await confirm({ title: "放弃未保存的修改", description: "关闭后将丢弃当前草稿，已保存的资料不受影响。", confirmLabel: "放弃并关闭", danger: true })) onClose();
   }
 
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/30 p-3" onClick={close}>
+    {confirmation}
     <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="查看与纠正资料" onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); if (!busy) close(); } }} onClick={(e) => e.stopPropagation()} className="max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-stone-200 bg-card p-5 shadow-xl">
       <div className="flex items-center gap-3"><h3 className="font-display text-lg font-semibold">查看与纠正资料</h3><button type="button" disabled={busy} className="ml-auto min-h-11 px-3 text-sm" onClick={close}>关闭</button></div>
       <p className="mb-3 text-sm text-stone-600">{source?.title} {source && `· 版本 ${source.revision}`}</p>
-      {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}<button type="button" disabled={busy} className="ml-2 underline" onClick={() => { if (!dirty || window.confirm("重新加载会替换草稿，请先复制需要保留的修改。继续？")) load(); }}>重新加载正文</button></p>}
+      {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}<button type="button" disabled={busy} className="ml-2 underline" onClick={async () => { if (!dirty || await confirm({ title: "重新加载正文", description: "这会用已保存的版本替换草稿，请先复制需要保留的修改。", confirmLabel: "替换草稿", danger: true })) load(); }}>重新加载正文</button></p>}
       {note && <p role="status" className="mb-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{note}</p>}
       {busy && !source && <p className="py-8 text-sm text-stone-500">加载正文…</p>}
       {source && <>
