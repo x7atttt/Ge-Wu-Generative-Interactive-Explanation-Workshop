@@ -47,7 +47,7 @@ with sync_playwright() as p:
     canvas_after = chart.locator('canvas').first.screenshot()
     assert canvas_before != canvas_after
     # Exact legacy auto cards now contain all choices, including resumed sessions.
-    page.get_by_role('button', name='📝 测验', exact=True).click()
+    page.get_by_role('button', name='测验', exact=True).click()
     exam = page.get_by_role('dialog', name='综合自测')
     count = len(page.request.get(f'{BASE}/api/exams?spaceId={f["spaceId"]}').json()['sessions'][0]['cards'])
     found = False
@@ -129,7 +129,7 @@ with sync_playwright() as p:
     assert page.request.get(f'{BASE}/api/docs/{f["keepDoc"]}').status == 404
     # An invalid legacy question is explicitly skipped without a grade.
     select_space(page, f['badSpace'])
-    page.get_by_role('button', name='📝 测验', exact=True).click()
+    page.get_by_role('button', name='测验', exact=True).click()
     expect(exam.get_by_role('button', name='跳过不完整题目')).to_be_visible()
     exam.get_by_role('button', name='跳过不完整题目').click()
     expect(exam.get_by_text('未计分', exact=True)).to_be_visible()

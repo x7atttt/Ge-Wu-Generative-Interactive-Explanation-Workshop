@@ -77,7 +77,7 @@ with sync_playwright() as p:
     expect(page.get_by_text('线性结构', exact=True)).to_be_visible()
 
     # 自测退出和整页刷新后题序、已提交答案均保留。
-    page.get_by_role('button', name='📝 测验', exact=True).click()
+    page.get_by_role('button', name='测验', exact=True).click()
     exam = page.get_by_role('dialog', name='综合自测', exact=True)
     exam.get_by_role('button', name='开始新自测').click()
     expect(exam.get_by_role('button', name='显示答案（空格）')).to_be_visible()
@@ -88,7 +88,7 @@ with sync_playwright() as p:
     exam.get_by_role('button', name='保存并退出').click()
     page.reload()
     expect(page.get_by_role('heading', name='今天从这里开始')).to_be_visible()
-    page.get_by_role('button', name='📝 测验', exact=True).click()
+    page.get_by_role('button', name='测验', exact=True).click()
     expect(exam.get_by_text('第 2 题', exact=False)).to_be_visible()
     exam.get_by_role('button', name='显示答案（空格）').click()
     with page.expect_response(lambda r: '/answers' in r.url and r.request.method == 'POST'):
@@ -101,7 +101,7 @@ with sync_playwright() as p:
     expect(review.get_by_text('1 张卡', exact=False)).to_be_visible()
     review.get_by_role('button', name='稍后再练').click()
     review.get_by_role('button', name='完成', exact=True).click()
-    page.get_by_role('button', name='📝 测验', exact=True).click()
+    page.get_by_role('button', name='测验', exact=True).click()
     exam.get_by_role('button', name='查看报告', exact=False).first.click()
     expect(exam.get_by_text('报告已保存。', exact=False)).to_be_visible()
     if exam.get_by_role('button', name='相关讲解').count():

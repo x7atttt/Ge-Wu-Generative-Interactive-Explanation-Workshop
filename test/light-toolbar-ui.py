@@ -130,6 +130,11 @@ with sync_playwright() as p:
     expect(plan).to_be_visible()
     map_heading = overview.get_by_role('heading', name='概念地图', exact=False)
     assert plan.bounding_box()['y'] + plan.bounding_box()['height'] < map_heading.bounding_box()['y']
+    actions = overview.get_by_role('group', name='地图学习操作', exact=True)
+    legend = overview.get_by_role('group', name='学习状态图例', exact=True)
+    countdown = actions.get_by_text('距考试', exact=False)
+    assert abs(countdown.bounding_box()['x'] - map_heading.bounding_box()['x']) < 1
+    assert legend.bounding_box()['y'] > actions.bounding_box()['y'] + actions.bounding_box()['height']
     overview.screenshot(path='data/space-map-panel-desktop.png')
 
     for width in [925, 714, 390]:
@@ -140,6 +145,8 @@ with sync_playwright() as p:
         widths = cards.evaluate_all('(nodes)=>nodes.map(node=>node.getBoundingClientRect().width)')
         assert max(widths) - min(widths) < 1, (width, widths)
         assert plan.bounding_box()['y'] + plan.bounding_box()['height'] < map_heading.bounding_box()['y']
+        assert abs(countdown.bounding_box()['x'] - map_heading.bounding_box()['x']) < 1
+        assert legend.bounding_box()['y'] > actions.bounding_box()['y'] + actions.bounding_box()['height']
         if width == 390:
             evidence.locator('summary').click()
             expect(evidence.locator('dt')).to_have_count(10)

@@ -15,7 +15,7 @@ const STATUS_META: Record<
     label: "未学",
     dot: "bg-stone-400",
     badge: "border-stone-300 bg-stone-100 text-stone-700",
-    chip: "border-stone-200 bg-paper/70 text-stone-700 hover:border-secondary-300 hover:text-secondary-700",
+    chip: "border-stone-200 bg-card text-stone-700 hover:border-secondary-300 hover:text-secondary-700",
     hint: "点击生成讲解",
   },
   explained: {
@@ -273,7 +273,7 @@ export function SpaceMapPanel({
         }}>{map.cards.due > 0 ? "开始到期复习" : forgotten.length > 0 ? "回顾忘记的卡" : weak ? "开始补弱" : nextConcept ? "继续学习" : map.concepts.length === 0 ? (map.space.sourceCount > 0 ? "打开资料提炼概念" : "导入第一份资料") : map.cards.total === 0 ? "添加复习卡" : "查看自测与报告"}</button>
       </div>}
       {examPlan.length > 0 && (
-        <section aria-label="考前计划" className="mb-5 rounded-xl border border-secondary-200 bg-secondary-50/70 p-3">
+        <section aria-label="考前计划" className="mb-5 rounded-xl border border-secondary-200 bg-secondary-50/50 p-3">
           <h3 className="font-display text-sm font-semibold text-secondary-700">考前计划</h3>
           <ol className="mt-2 space-y-2">
             {examPlan.map((line, i) => (
@@ -289,8 +289,9 @@ export function SpaceMapPanel({
         </section>
       )}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h2 className="font-display text-base font-bold text-stone-900">
-          📖 概念地图{map ? ` · ${map.space.name}` : ""}
+        <h2 className="flex min-w-0 items-center gap-2 font-display text-base font-bold text-stone-900">
+          <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0 text-secondary-600"><path d="M10 4c-2-1-4-1-7-1v12c3 0 5 0 7 1m0-12c2-1 4-1 7-1v12c-3 0-5 0-7 1V4Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>
+          <span className="min-w-0 [overflow-wrap:anywhere]">概念地图{map ? ` · ${map.space.name}` : ""}</span>
         </h2>
         {map && (
           <p className="text-xs text-stone-500">
@@ -300,23 +301,26 @@ export function SpaceMapPanel({
             )}
           </p>
         )}
-        <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
-          {examDate && countdownText(examDate) && (
-            <span className="text-xs font-medium text-orange-600">{countdownText(examDate)}</span>
-          )}
+      </div>
+      <div role="group" aria-label="地图学习操作" className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-3">
+        {examDate && countdownText(examDate) && (
+          <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700">{countdownText(examDate)}</span>
+        )}
+        <div className="flex max-w-full flex-wrap items-center gap-2 sm:ml-auto">
           {map && map.cards.total > 0 && (
             <button
               type="button"
               disabled={disabled}
               onClick={() => openReview()}
-              className={`rounded-full border px-2.5 py-1 text-xs transition-colors disabled:opacity-50 ${
+              className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors disabled:opacity-50 ${
                 map.cards.due > 0
-                  ? "border-orange-300 bg-orange-50 font-medium text-orange-700 hover:border-orange-400"
-                  : "border-stone-200 text-stone-400 hover:border-orange-200 hover:text-orange-600"
+                  ? "border-accent-200 bg-accent-50 font-medium text-accent-700 hover:border-accent-300"
+                  : "border-stone-200 bg-card text-stone-600 hover:border-accent-200 hover:text-accent-700"
               }`}
               title="FSRS 间隔复习：讲解底部的题目按遗忘曲线安排回来"
             >
-              🔖 复习{map.cards.due > 0 ? ` ${map.cards.due}` : "·已清"}
+              <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5"><path d="M5 3h10v14l-5-3-5 3V3Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>
+              复习{map.cards.due > 0 ? ` ${map.cards.due}` : "·已清"}
             </button>
           )}
           {map && (
@@ -324,46 +328,46 @@ export function SpaceMapPanel({
               type="button"
               disabled={disabled}
               onClick={() => setExamOpen(true)}
-              className="rounded-full border border-stone-200 px-2.5 py-1 text-xs text-stone-500 transition-colors hover:border-accent-300 hover:text-accent-600 disabled:opacity-50"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-stone-200 bg-card px-2.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-accent-300 hover:text-accent-700 disabled:opacity-50"
               title="综合测验：全部复习卡随机抽卷模拟考试，按概念出分定位薄弱"
             >
-              📝 测验
+              <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5"><path d="M5 3h7l3 3v11H5V3Zm7 0v4h3M8 10h4m-4 3h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              测验
             </button>
           )}
           <button
             type="button"
             disabled={disabled}
             onClick={() => setCardsOpen(true)}
-            className="rounded-full border border-stone-200 px-2.5 py-1 text-xs text-stone-500 transition-colors hover:border-secondary-300 hover:text-secondary-600 disabled:opacity-50"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-stone-200 bg-card px-2.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-secondary-300 hover:text-secondary-700 disabled:opacity-50"
             title="卡片管理：查看/手写补充/编辑/删除复习卡（复习与测验共用题库）"
           >
-            🗂 卡片
+            <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5"><path d="M3 6h14v10H3V6Zm3-3h10M6 9h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            卡片
           </button>
           {hasDoc && onJumpToDoc && (
             <button
               type="button"
               disabled={disabled}
               onClick={onJumpToDoc}
-              className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700 transition-colors hover:border-emerald-400 disabled:opacity-50"
+              className="inline-flex min-h-9 items-center rounded-lg border border-secondary-200 bg-secondary-50 px-2.5 py-1.5 text-xs text-secondary-700 transition-colors hover:border-secondary-400 disabled:opacity-50"
               title="跳转到下方当前讲解"
             >
               ⤓ 讲解
             </button>
           )}
-          <div className="flex items-center gap-2 text-[10px] text-stone-400">
-            {(["weak", "new", "learning", "practiced", "explained"] as const).map((status) => (
-              <span key={status} className="flex items-center gap-1" title={STATUS_META[status].hint}>
-                <span
-                  className={`h-2 w-2 rounded-full ${STATUS_META[status].dot}`}
-                />
-                {STATUS_META[status].label}
-              </span>
-            ))}
-          </div>
         </div>
       </div>
+      <div role="group" aria-label="学习状态图例" className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-stone-100 pt-3 text-xs text-stone-600">
+        {(["weak", "new", "learning", "practiced", "explained"] as const).map((status) => (
+          <span key={status} className="flex items-center gap-1.5" title={STATUS_META[status].hint}>
+            <span className={`h-2 w-2 rounded-full ${STATUS_META[status].dot}`} />
+            {STATUS_META[status].label}
+          </span>
+        ))}
+      </div>
 
-      <p className="mb-4 mt-3 text-xs leading-6 text-stone-500">待练习：已有讲解，尚无作答。待巩固：已有作答，练习证据尚未达标。</p>
+      <p className="mb-4 mt-2 text-xs leading-6 text-stone-500">待练习：已有讲解，尚无作答。待巩固：已有作答，练习证据尚未达标。</p>
       {(note || map?.space.note) && (
         <p className="mt-1 text-xs leading-5 text-stone-500">{note || map?.space.note}</p>
       )}
@@ -392,10 +396,10 @@ export function SpaceMapPanel({
               disabled={disabled}
               className={`group flex min-w-0 flex-col items-start rounded-xl border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-500 disabled:opacity-50 ${meta.chip}`}
             >
-              <span className="max-w-full rounded-lg border border-stone-200 bg-card px-2 py-1 text-sm font-medium leading-5 text-stone-800 [overflow-wrap:anywhere]">{concept.text}</span>
+              <span className="max-w-full rounded-lg border border-stone-200/80 bg-paper/80 px-2 py-1 text-sm font-medium leading-5 text-stone-700 [overflow-wrap:anywhere]">{concept.text}</span>
               <span className="mt-2 flex max-w-full flex-wrap items-center gap-1.5 text-xs leading-5">
                 <span className={`whitespace-nowrap rounded-md border px-2 py-0.5 ${meta.badge}`}>{meta.label}</span>
-                <span className="max-w-full rounded-md border border-secondary-200 bg-secondary-50 px-2 py-0.5 text-secondary-700">
+                <span className="max-w-full rounded-md border border-secondary-100 bg-secondary-50/70 px-2 py-0.5 text-secondary-700">
                   {concept.status === "new"
                     ? `${concept.sourceIds.length} 份资料提及`
                     : rate !== null
