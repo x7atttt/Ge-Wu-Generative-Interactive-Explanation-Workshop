@@ -1,10 +1,10 @@
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
+from ui_controls import select_space, space_picker, expect_space_absent
 
 BASE = 'http://127.0.0.1:3100'
 f = json.loads(Path('data/iteration28-fixture.json').read_text(encoding='utf-8'))
-SPACE_TITLE = '空间：资料/历史/统计按空间分组，选定后显示概念地图'
 HUB_TITLE = '空间管理：查看所有空间与资料归属、新建/重命名/删除/移动'
 
 with sync_playwright() as p:
@@ -17,18 +17,18 @@ with sync_playwright() as p:
     page.evaluate('(ids) => localStorage.setItem("gewu-attached", JSON.stringify(ids))', [f['current']['sourceId'], f['other']['sourceId']])
     page.reload()
     page.wait_for_load_state('networkidle')
-    picker = page.get_by_title(SPACE_TITLE)
+    picker = space_picker(page)
     confirm = page.get_by_role('alertdialog')
     def row(item):
         return page.get_by_text('空间管理', exact=True).locator('..').locator('div.rounded-lg.border.border-stone-100').filter(has_text=item['name']).first
     def select(item):
-        picker.select_option(str(item['id']))
+        select_space(page, item['id'])
         expect(page.get_by_role('heading', name='今天从这里开始')).to_be_visible()
     def open_lecture(item):
         page.get_by_role('button', name=f'{item["name"]} 待巩固', exact=False).click()
         expect(page.get_by_role('heading', name=item['childTitle'], exact=True)).to_be_visible()
     def assert_gone(item):
-        expect(picker.locator(f'option[value="{item["id"]}"]')).to_have_count(0)
+        expect_space_absent(page, item['id'])
         assert page.request.get(f'{BASE}/api/spaces/{item["id"]}').status == 404
         assert page.request.get(f'{BASE}/api/docs/{item["rootId"]}').status == 404
         assert page.request.get(f'{BASE}/api/sources/{item["sourceId"]}').status == 404
@@ -68,7 +68,7 @@ with sync_playwright() as p:
         page.wait_for_timeout(20)
     assert len(deletion) == 1
     deletion[0][0].fulfill(response=deletion[0][1])
-    expect(picker).to_have_value('')
+    expect(picker).to_have_attribute('data-value', '')
     expect(row(f['current'])).to_have_count(0)
     expect(page.get_by_role('heading', name='今天从这里开始')).to_have_count(0)
     expect(page.get_by_role('heading', name=f['current']['childTitle'], exact=True)).to_have_count(0)
@@ -98,7 +98,7 @@ with sync_playwright() as p:
     page.get_by_title(HUB_TITLE).click()
     row(f['other']).get_by_role('button', name='删除', exact=True).click()
     approve()
-    expect(picker).to_have_value(str(f['toolbar']['id']))
+    expect(picker).to_have_attribute('data-value', str(f['toolbar']['id']))
     expect(row(f['other'])).to_have_count(0)
     expect(page.get_by_role('heading', name=f['toolbar']['childTitle'], exact=True)).to_be_visible()
     assert page.request.get(f'{BASE}/api/docs/{f["toolbar"]["rootId"]}').status == 200
@@ -107,7 +107,7 @@ with sync_playwright() as p:
     page.unroute('**/api/spaces')
     page.get_by_title('彻底删除当前空间及其内容').click()
     approve()
-    expect(picker).to_have_value('')
+    expect(picker).to_have_attribute('data-value', '')
     assert_gone(f['toolbar'])
 
     # A previously persisted selection can point at an externally deleted space while list data is stale.
@@ -117,8 +117,8 @@ with sync_playwright() as p:
     page.route('**/api/spaces', lambda route: route.fulfill(json=stale))
     with page.expect_response(lambda response: response.url.endswith(f'/api/spaces/{f["missing"]["id"]}/map') and response.status == 404):
         page.reload()
-    expect(picker).to_have_value('')
-    expect(picker.locator(f'option[value="{f["missing"]["id"]}"]')).to_have_count(0)
+    expect(picker).to_have_attribute('data-value', '')
+    expect_space_absent(page, f['missing']['id'])
     assert page.evaluate('localStorage.getItem("gewu-space")') == ''
     expect(page.get_by_text('空间不存在，已保留上次内容。', exact=False)).to_have_count(0)
     page.unroute('**/api/spaces')
@@ -138,7 +138,7 @@ with sync_playwright() as p:
     assert len(pending) == 2, len(pending)
     page.get_by_title('彻底删除当前空间及其内容').click()
     approve()
-    expect(picker).to_have_value('')
+    expect(picker).to_have_attribute('data-value', '')
     for route, response in pending:
         route.fulfill(response=response)
     page.wait_for_load_state('networkidle')

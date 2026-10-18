@@ -1,4 +1,5 @@
 """运行隔离实体验收；直接管理 node 进程，避免 Windows shell 留下后台服务。"""
+import os
 import socket
 import subprocess
 import sys
@@ -6,6 +7,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
 (ROOT / 'data').mkdir(exist_ok=True)
 servers = []
 logs = []
@@ -31,15 +33,12 @@ try:
             if time.monotonic() > deadline:
                 raise RuntimeError(f'验收服务启动超时：{port}')
             time.sleep(0.2)
-    if '--content-only' not in sys.argv and '--deletion-only' not in sys.argv:
-        result = subprocess.run(['node', 'test/learning-loop.mjs', '--browser'], cwd=ROOT)
+    choices = {'--hover-only': ['hover-select.mjs'], '--deletion-only': ['space-deletion.mjs'], '--content-only': ['content-quality.mjs']}
+    scripts = next((scripts for flag, scripts in choices.items() if flag in sys.argv), ['learning-loop.mjs', 'content-quality.mjs', 'space-deletion.mjs', 'hover-select.mjs'])
+    for script in scripts:
+        result = subprocess.run(['node', f'test/{script}', *(['--browser'] if script == 'learning-loop.mjs' else [])], cwd=ROOT)
         if result.returncode:
             sys.exit(result.returncode)
-    if '--deletion-only' not in sys.argv:
-        result = subprocess.run(['node', 'test/content-quality.mjs'], cwd=ROOT)
-        if result.returncode:
-            sys.exit(result.returncode)
-    sys.exit(subprocess.run(['node', 'test/space-deletion.mjs'], cwd=ROOT).returncode)
 finally:
     for proc in reversed(servers):
         if proc.poll() is None:

@@ -2,10 +2,10 @@ import json
 import re
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
+from ui_controls import select_space, space_picker
 
 BASE = 'http://127.0.0.1:3100'
 f = json.loads(Path('data/iteration27-fixture.json').read_text(encoding='utf-8'))
-SPACE_TITLE = '空间：资料/历史/统计按空间分组，选定后显示概念地图'
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
@@ -16,8 +16,8 @@ with sync_playwright() as p:
     page.on('request', lambda request: deletions.append(request.url) if request.method == 'DELETE' else None)
     page.goto(BASE)
     page.wait_for_load_state('networkidle')
-    picker = page.get_by_title(SPACE_TITLE)
-    picker.select_option(str(f['spaceId']))
+    picker = space_picker(page)
+    select_space(page, f['spaceId'])
     expect(page.get_by_role('button', name='递归 待练习', exact=False)).to_be_visible()
     expect(page.get_by_role('button', name='练习过 待巩固', exact=False)).to_be_visible()
     expect(page.get_by_text('待练习：已有讲解', exact=False)).to_be_visible()
@@ -94,7 +94,7 @@ with sync_playwright() as p:
         else:
             page.mouse.click(5, 5)
         expect(confirm).to_have_count(0)
-        expect(picker).to_have_value(str(f['spaceId']))
+        expect(picker).to_have_attribute('data-value', str(f['spaceId']))
     assert not deletions, deletions
     # A nested confirmation is usable on narrow screens and traps focus.
     page.set_viewport_size({'width': 390, 'height': 844})
@@ -107,7 +107,7 @@ with sync_playwright() as p:
     confirm.get_by_role('button', name='取消', exact=True).click()
     page.set_viewport_size({'width': 1280, 'height': 900})
     # Deep delete failure is visible and can be retried, then sends exactly one request.
-    picker.select_option(str(f['deepSpace']))
+    select_space(page, f['deepSpace'])
     page.route(f'**/api/spaces/{f["deepSpace"]}', lambda route: route.fulfill(status=503, json={'error': '验收删除失败'}))
     delete_current.click()
     confirm.get_by_role('button', name='彻底删除空间', exact=True).click()
@@ -116,25 +116,25 @@ with sync_playwright() as p:
     before = len(deletions)
     delete_current.click()
     confirm.get_by_role('button', name='彻底删除空间', exact=True).click()
-    expect(picker).to_have_value('')
+    expect(picker).to_have_attribute('data-value', '')
     assert len(deletions) == before + 1 and deletions[-1].endswith(f'/api/spaces/{f["deepSpace"]}')
     assert page.request.get(f'{BASE}/api/docs/{f["deepDoc"]}').status == 404
-    picker.select_option(str(f['plainSpace']))
+    select_space(page, f['plainSpace'])
     before = len(deletions)
     delete_current.click()
     expect(confirm.get_by_role('radio')).to_have_count(0)
     confirm.get_by_role('button', name='彻底删除空间', exact=True).click()
-    expect(picker).to_have_value('')
+    expect(picker).to_have_attribute('data-value', '')
     assert len(deletions) == before + 1 and deletions[-1].endswith(f'/api/spaces/{f["plainSpace"]}')
     assert page.request.get(f'{BASE}/api/docs/{f["keepDoc"]}').status == 404
     # An invalid legacy question is explicitly skipped without a grade.
-    picker.select_option(str(f['badSpace']))
+    select_space(page, f['badSpace'])
     page.get_by_role('button', name='📝 测验', exact=True).click()
     expect(exam.get_by_role('button', name='跳过不完整题目')).to_be_visible()
     exam.get_by_role('button', name='跳过不完整题目').click()
     expect(exam.get_by_text('未计分', exact=True)).to_be_visible()
     exam.get_by_role('button', name='关闭报告', exact=True).click()
-    picker.select_option(str(f['spaceId']))
+    select_space(page, f['spaceId'])
     page.get_by_role('button', name='递归 待练习', exact=False).click()
     page.set_viewport_size({'width': 390, 'height': 844})
     expect(blank).to_be_visible()

@@ -1,10 +1,10 @@
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
+from ui_controls import select_space
 
 BASE = 'http://127.0.0.1:3100'
 fixture = json.loads(Path('data/iteration26-fixture.json').read_text(encoding='utf-8'))
-SPACE_TITLE = '空间：资料/历史/统计按空间分组，选定后显示概念地图'
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
@@ -13,7 +13,7 @@ with sync_playwright() as p:
     page.on('pageerror', lambda err: errors.append(str(err)))
     page.goto(BASE)
     page.wait_for_load_state('networkidle')
-    page.get_by_title(SPACE_TITLE).select_option(str(fixture['spaceId']))
+    select_space(page, fixture['spaceId'])
     expect(page.get_by_role('heading', name='今天从这里开始')).to_be_visible()
     expect(page.get_by_role('button', name='开始到期复习')).to_be_visible()
     page.get_by_text('学习依据', exact=False).first.click()
@@ -136,12 +136,12 @@ with sync_playwright() as p:
     page.screenshot(path='data/iteration26-desktop.png', full_page=True)
 
     # 新空间可直达资料；窄屏没有整体横向滚动。
-    page.get_by_title(SPACE_TITLE).select_option(str(fixture['emptyId']))
+    select_space(page, fixture['emptyId'])
     page.get_by_role('button', name='导入第一份资料').click()
     expect(page.get_by_role('button', name='导入文件')).to_be_visible()
     page.get_by_role('button', name='关闭资料', exact=True).click()
     expect(page.get_by_role('button', name='关闭资料', exact=True)).to_have_count(0)
-    page.get_by_title(SPACE_TITLE).select_option(str(fixture['spaceId']))
+    select_space(page, fixture['spaceId'])
     expect(page.get_by_role('heading', name='今天从这里开始')).to_be_visible()
     page.set_viewport_size({'width': 390, 'height': 844})
     page.screenshot(path='data/iteration26-mobile.png', full_page=True)
