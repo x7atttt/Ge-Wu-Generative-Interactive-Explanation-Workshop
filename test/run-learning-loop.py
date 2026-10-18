@@ -23,7 +23,8 @@ try:
             raise RuntimeError(f'验收端口 {port} 已占用，请先关闭旧的验收服务。')
         output = open(ROOT / f'data/test-server-{port}.log', 'w', encoding='utf-8')
         logs.append(output)
-        proc = subprocess.Popen(['node', script], cwd=ROOT, stdout=output, stderr=subprocess.STDOUT,
+        args = ['node', script, *(['--dev'] if port == 3100 and '--keys-only' in sys.argv else [])]
+        proc = subprocess.Popen(args, cwd=ROOT, stdout=output, stderr=subprocess.STDOUT,
                                 creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         servers.append(proc)
         deadline = time.monotonic() + 60
@@ -33,6 +34,8 @@ try:
             if time.monotonic() > deadline:
                 raise RuntimeError(f'验收服务启动超时：{port}')
             time.sleep(0.2)
+    if '--keys-only' in sys.argv:
+        sys.exit(subprocess.run(['python', 'test/header-keys-ui.py'], cwd=ROOT).returncode)
     choices = {'--hover-only': ['hover-select.mjs'], '--deletion-only': ['space-deletion.mjs'], '--content-only': ['content-quality.mjs']}
     scripts = next((scripts for flag, scripts in choices.items() if flag in sys.argv), ['learning-loop.mjs', 'content-quality.mjs', 'space-deletion.mjs', 'hover-select.mjs'])
     for script in scripts:

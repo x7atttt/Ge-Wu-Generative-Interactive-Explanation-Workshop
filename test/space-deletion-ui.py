@@ -11,9 +11,13 @@ with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
     page = browser.new_page(viewport={'width': 763, 'height': 871})
     errors = []
+    # 同时捕获控制台诊断；开发模式的 key 专项用 --keys-only 运行。
+    key_errors = set()
+    page.on('console', lambda message: key_errors.add(message.text) if 'Encountered two children with the same key' in message.text else None)
     page.on('pageerror', lambda error: errors.append(str(error)))
     page.goto(BASE)
     page.wait_for_load_state('networkidle')
+    assert not key_errors, key_errors
     page.evaluate('(ids) => localStorage.setItem("gewu-attached", JSON.stringify(ids))', [f['current']['sourceId'], f['other']['sourceId']])
     page.reload()
     page.wait_for_load_state('networkidle')
@@ -149,6 +153,12 @@ with sync_playwright() as p:
     expect(page.get_by_text('空间不存在，已保留上次内容。', exact=False)).to_have_count(0)
     page.keyboard.press('Escape')
     page.screenshot(path='data/iteration28-after-delete.png', full_page=True)
+    expect(page.get_by_role('button', name='学习统计', exact=True)).to_have_count(1)
+    expect(page.get_by_role('button', name='历史讲解', exact=False)).to_have_count(1)
+    page.get_by_role('button', name='学习统计', exact=True).click()
+    expect(page.get_by_role('button', name='收起', exact=True)).to_be_visible()
+    page.keyboard.press('Escape')
+    assert not key_errors, key_errors
     assert not errors, errors
     print('PASS: manager current/noncurrent deletion, toolbar deep deletion, attached/history/cache cleanup, missing-space 404, stale list and lecture responses')
     browser.close()

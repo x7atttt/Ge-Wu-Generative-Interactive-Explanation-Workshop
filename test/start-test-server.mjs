@@ -5,5 +5,5 @@ process.env.LLM_MODEL = "local-test";
 process.env.LLM_MODEL_FAST = "local-test";
 process.env.BOCHA_API_KEY = "";
 process.env.MINERU_API_TOKEN = "";
-process.argv = [process.argv[0], "next", "start", "--port", "3100", "--hostname", "127.0.0.1"];
+process.argv = [process.argv[0], "next", process.argv.includes("--dev") ? "dev" : "start", "--port", "3100", "--hostname", "127.0.0.1"];
 await import("next/dist/bin/next");
