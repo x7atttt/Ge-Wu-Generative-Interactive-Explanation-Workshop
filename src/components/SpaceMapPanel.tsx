@@ -239,15 +239,19 @@ export function SpaceMapPanel({
   const weak = map?.concepts.find((c) => c.status === "weak");
 
   return (
-    <section className="mt-4 rounded-2xl border border-secondary-100 bg-card/80 p-4 shadow-sm">
+    <section className="mt-6">
       {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}，已保留上次内容。
         <button type="button" disabled={loading} onClick={refresh} className="ml-2 underline">重试加载地图</button>
       </p>}
-      {map && <div className="mb-4 rounded-xl border border-accent-200 bg-accent-50/50 p-4">
-        <h3 className="font-display text-base font-semibold text-stone-900">今天从这里开始</h3>
-        <p className="mt-1 text-xs leading-5 text-stone-600">到期复习 {map.cards.due} 张 · 建议回顾 {forgotten.length} 张 · 薄弱概念 {map.summary.weak} 个</p>
+      {map && <div aria-label="今日学习安排" className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-1 pb-5">
+        <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h3 className="font-display text-base font-medium text-stone-900">今天从这里开始</h3>
+        <p className="text-xs leading-5 text-stone-600">{[map.cards.due > 0 ? `${map.cards.due} 张卡片到期` : null, forgotten.length > 0 ? `建议回顾 ${forgotten.length} 张` : null, map.summary.weak > 0 ? `${map.summary.weak} 个薄弱概念` : null].filter(Boolean).join(" · ")}</p>
+        </div>
         <p className="mt-1 text-sm leading-6 text-stone-700">{map.cards.due > 0 ? "先清理到期卡，再继续学习路线。" : forgotten.length > 0 ? "有自评忘记的概念，建议回看学习依据。" : weak ? `继续巩固「${weak.text}」。` : nextConcept ? `下一步：${nextConcept.text}。` : map.concepts.length === 0 ? "先导入资料并确认概念，建立你的学习地图。" : "当前练习已达标，到期复习已清。今天可以收尾，也可以做一次综合自测。"}</p>
-        <button type="button" disabled={disabled} className="mt-3 min-h-11 rounded-xl bg-accent-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50" onClick={() => {
+        </div>
+        <button type="button" disabled={disabled} className="min-h-9 shrink-0 rounded-lg border border-accent-200 bg-accent-50 px-3 py-2 text-xs font-medium text-accent-700 transition-colors hover:bg-accent-100 disabled:opacity-50" onClick={() => {
           if (map.cards.due > 0) openReview();
           else if (forgotten.length > 0) openReview(forgotten);
           else if (weak) conceptClick(weak.text);

@@ -10,13 +10,13 @@ export interface SelectOption {
   action?: boolean;
 }
 
-export function HoverSelect({ value, options, onChange, label, description, icon, tone = "accent", disabled }: {
+export function HoverSelect({ value, options, onChange, label, description, prefix, tone = "accent", disabled }: {
   value: string;
   options: SelectOption[];
   onChange: (value: string) => void;
   label: string;
   description: string;
-  icon: ReactNode;
+  prefix: ReactNode;
   tone?: "accent" | "secondary";
   disabled?: boolean;
 }) {
@@ -132,8 +132,8 @@ export function HoverSelect({ value, options, onChange, label, description, icon
       onPointerEnter={(event) => { if (event.pointerType === "mouse" && window.matchMedia("(hover: hover)").matches) show(); }}
       onPointerLeave={(event) => leave(event.pointerType)}
       onClick={() => { if (expanded && clicked.current) close(); else { clicked.current = true; show(); } }}
-      className={`inline-flex min-h-9 max-w-44 items-center gap-2 rounded-full border px-3 py-1.5 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${expanded ? "border-stone-400 bg-stone-50" : "border-stone-200 bg-card hover:border-stone-400"} ${tone === "secondary" ? "text-secondary-700" : "text-stone-700"}`}>
-      <span aria-hidden="true" className={`shrink-0 ${color}`}>{icon}</span>
+      className={`inline-flex min-h-9 max-w-52 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-stone-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 disabled:cursor-not-allowed disabled:opacity-50 ${expanded ? "bg-stone-100" : "hover:bg-stone-100/70"}`}>
+      <span className="shrink-0 text-stone-500">{prefix}</span>
       <span className="truncate">{options[selected]?.label ?? "请选择"}</span>
       <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" className={`h-3.5 w-3.5 shrink-0 transition-transform motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`}><path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
     </button>

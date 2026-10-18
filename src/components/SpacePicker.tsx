@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   createSpace,
@@ -37,6 +37,7 @@ export function SpacePicker({
   onDeleted,
   onChange,
   disabled,
+  children,
 }: {
   spaces: SpaceInfo[];
   spaceId: number | null;
@@ -45,6 +46,7 @@ export function SpacePicker({
   onDeleted: (id: number, deleted: DeletedSpace) => void;
   onChange: (spaceId: number | null) => void;
   disabled?: boolean;
+  children?: ReactNode;
 }) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
@@ -82,13 +84,13 @@ export function SpacePicker({
   }
 
   return (
-    <div className="relative flex max-w-full flex-wrap items-center gap-1.5">
+    <div className="relative flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5" data-toolbar>
       {confirmation}
       <HoverSelect
         label="切换空间"
         description="按科目整理资料、讲解与学习进度"
         tone="secondary"
-        icon={<svg viewBox="0 0 20 20" fill="none" className="h-4 w-4"><path d="m10 2 8 4-8 4-8-4 8-4Zm-8 8 8 4 8-4M2 14l8 4 8-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+        prefix="空间"
         value={spaceId === null ? "" : String(spaceId)}
         onChange={(value) => {
           if (value === "__new__") setCreating(true);
@@ -101,30 +103,21 @@ export function SpacePicker({
           { value: "__new__", label: "新建空间", description: "为新的科目或学习目标建立空间", action: true },
         ]}
       />
+      {children}
       <button
         type="button"
         onClick={() => setHubOpen((v) => !v)}
         disabled={disabled}
         title="空间管理：查看所有空间与资料归属、新建/重命名/删除/移动"
-        className={`rounded-full border px-2.5 py-1 text-xs transition-colors disabled:opacity-50 ${
+        className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs transition-colors disabled:opacity-50 ${
           hubOpen
-            ? "border-secondary-300 bg-secondary-50 text-secondary-700"
-            : "border-stone-200 bg-card text-stone-500 hover:border-secondary-300 hover:text-secondary-600"
+            ? "bg-secondary-50 text-secondary-700"
+            : "text-stone-600 hover:bg-stone-100"
         }`}
       >
-        🗂 空间
+        <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4"><path d="M2 5a1 1 0 0 1 1-1h5l2 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5Z" stroke="currentColor" strokeWidth="1.3"/><path d="M6 10h8M6 13h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+        空间管理
       </button>
-      {spaceId !== null && (
-        <button
-          type="button"
-          onClick={() => { const current = spaces.find((space) => space.id === spaceId); if (current) void handleDelete(current); }}
-          disabled={disabled || deletingId !== null}
-          title="彻底删除当前空间及其内容"
-          className="rounded-full border border-stone-200 px-2 py-1 text-xs text-stone-400 transition-colors hover:border-red-300 hover:text-red-500 disabled:opacity-50"
-        >
-          {deletingId === spaceId ? "删除中…" : "✕"}
-        </button>
-      )}
       <AnimatePresence>
         {creating && (
           <motion.div
@@ -267,9 +260,9 @@ function SpaceHub({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -6 }}
         transition={{ duration: 0.16 }}
-        className="absolute left-0 z-40 mt-2 w-[380px] max-w-[calc(100vw-2rem)] rounded-xl border border-stone-200 bg-card p-3 shadow-lg"
+        className="absolute right-0 top-full z-40 mt-2 w-[420px] max-w-full rounded-xl border border-stone-200 bg-card p-4 shadow-lg"
       >
-        <p className="text-xs font-semibold text-stone-700">空间管理</p>
+        <h3 className="font-display text-base font-semibold text-stone-800">空间管理</h3>
         <div className="mt-2 flex items-center gap-1.5">
           <input
             value={newName}

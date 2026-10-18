@@ -64,3 +64,13 @@ body {
 ::selection {
   background: var(--color-accent-100);
 }
+
+@keyframes generation-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(500%); }
+}
+
+.generation-activity { animation: generation-sweep 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .generation-activity { animation: none; left: 37.5%; }
+}

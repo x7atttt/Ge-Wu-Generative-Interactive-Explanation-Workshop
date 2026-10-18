@@ -21,10 +21,10 @@ export function SoundToggle() {
       }}
       aria-pressed={on}
       title={on ? "关闭所有音效" : "开启音效"}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur transition-colors ${
+      className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
         on
-          ? "border-stone-200 bg-card/90 text-stone-600 hover:border-accent-300 hover:text-accent-600"
-          : "border-stone-200 bg-card/90 text-stone-300 hover:text-stone-500"
+          ? "text-stone-600 hover:bg-stone-100 hover:text-accent-700"
+          : "text-stone-500 hover:bg-stone-100"
       }`}
     >
       <svg

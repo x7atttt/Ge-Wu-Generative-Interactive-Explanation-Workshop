@@ -35,6 +35,7 @@ import { useDropZone } from "@/hooks/useDropZone";
 import { importSources } from "@/lib/api/sources";
 import { computeDeepens } from "@/lib/dsl/deepen";
 import type { ExplainDoc } from "@/lib/dsl/schema";
+import type { GenerationStage } from "@/lib/generation-progress";
 
 // 示例概念覆盖四类交互形态：波形滑块（数学/信号）、填空配对（语言）、分类自测（计算机）、图表（经济）
 const EXAMPLE_CONCEPTS = ["正弦波的频率", "英语名词复数", "快速排序", "供需与价格"];
@@ -74,6 +75,7 @@ export default function Home() {
   const [versions, setVersions] = useState<VersionPayload[]>([]);
   const [busy, setBusy] = useState<null | "generate" | "refine">(null);
   const [buildText, setBuildText] = useState("");
+  const [generationStage, setGenerationStage] = useState<GenerationStage>("prepare");
   const [searchNote, setSearchNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -276,6 +278,7 @@ export default function Home() {
     abortRef.current = controller;
     ensureAudio(); // 点击手势内预建 AudioContext，完成提示音不被自动播放策略拦截
     setBusy("generate");
+    setGenerationStage("prepare");
     setError(null);
     setBuildText("");
     setSearchNote(null);
@@ -295,6 +298,7 @@ export default function Home() {
         {
           onDelta: (t) => setBuildText((prev) => prev + t),
           onInfo: (m) => setSearchNote(m),
+          onStage: setGenerationStage,
           signal: controller.signal,
         }
       );
@@ -438,6 +442,7 @@ export default function Home() {
     abortRef.current = controller;
     ensureAudio();
     setBusy("refine");
+    setGenerationStage("prepare");
     setRefineError(null);
     setBuildText("");
     try {
@@ -445,6 +450,7 @@ export default function Home() {
         "refine",
         { doc: parentDoc, instruction, docId },
         {
+          onStage: setGenerationStage,
           onDelta: (t) => setBuildText((prev) => prev + t),
           signal: controller.signal,
         }
@@ -519,9 +525,11 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-paper px-4 py-10 font-sans">
+    <div className="flex flex-1 flex-col items-center bg-paper px-4 pb-10 font-sans">
       {/* 右上角标签组：学习统计 + 历史讲解 + 音效开关 */}
-      <div className="fixed right-4 top-4 z-40 flex items-center gap-2">
+      <div className="relative z-40 mb-8 flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 border-b border-stone-200/80 py-4">
+        <div className="flex items-baseline gap-2 font-display text-xl tracking-widest text-stone-800">格物<span className="font-sans text-[11px] tracking-wider text-stone-500">GEWU</span></div>
+        <div className="flex items-center gap-1 sm:gap-2">
         <SoundToggle />
         <StatsPanel key={`stats-${contentRevision}`} onPractice={startPractice} spaceId={spaceId ?? undefined} />
         <DocHistoryButton
@@ -532,20 +540,16 @@ export default function Home() {
           onSelect={loadDoc}
           onDeleted={handleDocsDeleted}
         />
+        </div>
       </div>
-      <main className={`w-full ${wide ? "max-w-5xl" : "max-w-2xl"} transition-[max-width] duration-300`}>
+      <main className={`w-full ${wide ? "max-w-5xl" : "max-w-3xl"} transition-[max-width] duration-300`}>
         <header className="mb-8 text-center">
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-card px-3 py-1 text-xs text-stone-500">
-            <span className="font-display font-medium text-stone-800">格物</span>
-            <span className="h-3 w-px bg-stone-300" />
-            <span>Gewu · 生成式交互讲解工坊</span>
-          </div>
           <h1 className="font-display text-3xl font-bold tracking-wide text-stone-900">
             输入一个概念，
             <span className="relative text-accent-600">玩着懂</span>
           </h1>
           <p className="mt-2 text-sm leading-6 text-stone-500">
-            AI 现场生成带滑块与图表的交互讲解——拖动参数建立直觉，追问深入细节，一句话继续改造
+            拖动参数建立直觉，追问深入细节，一句话继续改造。
           </p>
         </header>
 
@@ -563,7 +567,7 @@ export default function Home() {
               </p>
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 sm:flex-nowrap">
             <input
               value={concept}
               onChange={(e) => {
@@ -577,7 +581,7 @@ export default function Home() {
                   : "想搞懂什么概念？如：正弦波的频率、英语名词复数、快速排序"
               }
               maxLength={200}
-              className="h-11 min-w-0 flex-1 rounded-xl border border-stone-200 px-4 text-sm outline-none transition-colors focus:border-accent-400"
+              className="h-11 min-w-0 basis-full rounded-xl border border-stone-200 px-4 text-base outline-none transition-colors placeholder:text-stone-500 focus:border-accent-400 sm:flex-1 sm:basis-auto sm:text-sm"
               disabled={busy === "generate"}
             />
             <input
@@ -598,12 +602,12 @@ export default function Home() {
               title={`拍题/截图生成（最多 3 张，可直接拖入本区域；概念可留空）`}
               className="h-11 rounded-xl border border-stone-200 px-3 text-sm text-stone-500 transition-colors hover:border-accent-300 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              📷
+              <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4"><path d="M11 4H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-5M13 4h5m-2.5-2.5v5M3 13l4-4 4 4 2-2 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
             <button
               onClick={handleGenerate}
               disabled={busy !== null || (!concept.trim() && attachedSourceIds.length === 0 && genImages.length === 0)}
-              className="h-11 shrink-0 whitespace-nowrap rounded-xl bg-stone-900 px-3 text-sm font-medium text-paper shadow-sm transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-50 sm:px-5"
+              className="ml-auto h-11 shrink-0 whitespace-nowrap rounded-xl bg-stone-900 px-4 text-sm font-medium text-paper transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-50 sm:ml-0 sm:px-5"
             >
               生成讲解
             </button>
@@ -638,6 +642,7 @@ export default function Home() {
             </p>
           )}
           <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-stone-500">试一试</span>
             {EXAMPLE_CONCEPTS.map((example) => (
               <button
                 key={example}
@@ -646,12 +651,13 @@ export default function Home() {
                   setOriginConcept(null);
                 }}
                 disabled={busy === "generate"}
-                className="rounded-full border border-stone-200 px-3 py-1 text-xs text-stone-500 transition-colors hover:border-accent-300 hover:text-accent-600 disabled:opacity-50"
+                className="min-h-8 rounded-md px-2 py-1 text-xs text-stone-600 transition-colors hover:bg-stone-100 hover:text-accent-700 disabled:opacity-50"
               >
                 {example}
               </button>
             ))}
-            <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
+          </div>
+          <div className="mt-3 border-t border-stone-200/80 pt-2">
               <SpacePicker
                 spaces={spaces}
                 spaceId={spaceId}
@@ -659,21 +665,12 @@ export default function Home() {
                 onDeleted={handleSpaceDeleted}
                 onChange={setSpaceId}
                 disabled={busy !== null}
-              />
-              <SourcesPanel
-                key={contentRevision}
-                openSignal={sourcesOpenSignal}
-                onChanged={() => { setMapRefresh((k) => k + 1); refreshSpaces(); }}
-                attachedIds={attachedSourceIds}
-                onAttachChange={updateAttached}
-                onPickConcept={pickSourceConcept}
-                spaceId={spaceId}
-                disabled={busy === "generate"}
-              />
+              >
+              <span aria-hidden="true" className="h-4 w-px bg-stone-200" />
               <HoverSelect
                 label="讲解风格"
                 description="选择适合自己的讲解与追问方式"
-                icon={<svg viewBox="0 0 20 20" fill="none" className="h-4 w-4"><path d="M4 3h12a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-6l-4 3v-3H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" /><path d="M6 7h8M6 10h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>}
+                prefix="风格"
                 value={persona.id}
                 onChange={(value) => updatePersona({ id: value, custom: persona.custom })}
                 disabled={busy === "generate"}
@@ -689,31 +686,45 @@ export default function Home() {
                   placeholder="一句话描述人设…"
                   maxLength={100}
                   disabled={busy === "generate"}
-                  className="w-36 rounded-full border border-stone-200 bg-card px-3 py-1 text-xs text-stone-600 outline-none transition-colors focus:border-accent-400 disabled:opacity-50"
+                  className="h-9 w-36 min-w-0 rounded-lg border border-stone-200 bg-card px-3 text-xs text-stone-600 outline-none transition-colors focus:border-accent-400 disabled:opacity-50"
                 />
               )}
+              <div className="ml-auto flex flex-wrap items-center gap-1">
+              <SourcesPanel
+                key={contentRevision}
+                openSignal={sourcesOpenSignal}
+                onChanged={() => { setMapRefresh((k) => k + 1); refreshSpaces(); }}
+                attachedIds={attachedSourceIds}
+                onAttachChange={updateAttached}
+                onPickConcept={pickSourceConcept}
+                spaceId={spaceId}
+                spaceName={spaces.find((space) => space.id === spaceId)?.name}
+                disabled={busy === "generate"}
+              />
               <button
                 type="button"
                 onClick={() => setWebSearchOn((v) => !v)}
                 aria-pressed={webSearchOn}
                 disabled={busy === "generate"}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-50 ${
+                className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs transition-colors disabled:opacity-50 ${
                   webSearchOn
-                    ? "border-accent-300 bg-accent-50 text-accent-600"
-                    : "border-stone-200 text-stone-400 hover:text-stone-600"
+                    ? "text-stone-700 hover:bg-stone-100"
+                    : "text-stone-500 hover:bg-stone-100"
                 }`}
                 title="生成前用博查检索网络资料补充事实依据"
               >
                 <span
-                  className={`h-1.5 w-1.5 rounded-full ${webSearchOn ? "bg-accent-500" : "bg-stone-300"}`}
-                />
+                  aria-hidden="true"
+                  className={`flex h-3 w-5 items-center rounded-full p-0.5 ${webSearchOn ? "justify-end bg-secondary-600" : "justify-start bg-stone-300"}`}
+                ><span className="h-2 w-2 rounded-full bg-white" /></span>
                 联网检索
               </button>
             </div>
+            </SpacePicker>
           </div>
 
           {busy === "generate" && (
-            <BuildProgressPanel raw={buildText} phase="generate" note={searchNote} onCancel={cancel} />
+            <BuildProgressPanel raw={buildText} stage={generationStage} phase="generate" note={searchNote} onCancel={cancel} />
           )}
           <AnimatePresence>
             {error && (
@@ -846,7 +857,7 @@ export default function Home() {
                   </button>
                 </div>
                 {busy === "refine" && (
-                  <BuildProgressPanel raw={buildText} phase="refine" onCancel={cancel} />
+                  <BuildProgressPanel raw={buildText} stage={generationStage} phase="refine" onCancel={cancel} />
                 )}
                 {refineError && (
                   <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
