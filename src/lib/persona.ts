@@ -6,30 +6,35 @@
 export interface Persona {
   id: string;
   label: string;
+  description: string;
   /** 注入提示词的风格描述；默认人设为空串（不注入，保持既有行为） */
   hint: string;
 }
 
 export const PERSONAS: Persona[] = [
-  { id: "default", label: "默认", hint: "" },
+  { id: "default", label: "默认", description: "自然清晰，按概念逐步讲解", hint: "" },
   {
     id: "scholar",
     label: "严谨学者",
+    description: "术语规范，按逻辑展开讲解",
     hint: "用语准确严谨，术语规范，逻辑链条完整，像教科书一样可靠",
   },
   {
     id: "buddy",
     label: "轻松伙伴",
+    description: "用生活类比和轻松口吻解释",
     hint: "语气轻松亲切，多用生活化的类比和口语表达，鼓励式反馈",
   },
   {
     id: "feynman",
     label: "费曼·讲给小白",
+    description: "从零开始，把复杂知识讲成大白话",
     hint: "假设读者零基础，把每个术语都拆成大白话和类比，像给完全不懂的朋友讲",
   },
   {
     id: "exam",
     label: "备考冲刺",
+    description: "聚焦考点、易错点与答题技巧",
     hint: "面向应试：突出考点、易错点与答题技巧，表达简洁直接",
   },
 ];

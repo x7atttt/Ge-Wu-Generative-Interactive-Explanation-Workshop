@@ -9,6 +9,7 @@ import { SourceContextPanel } from "@/components/SourceContextPanel";
 import { SoundToggle } from "@/components/SoundToggle";
 import { SpaceMapPanel } from "@/components/SpaceMapPanel";
 import { SpacePicker } from "@/components/SpacePicker";
+import { HoverSelect } from "@/components/HoverSelect";
 import { StatsPanel } from "@/components/StatsPanel";
 import { compressImage } from "@/lib/imageCompress";
 import { AskPanel, type AskItem } from "@/components/dsl/AskPanel";
@@ -669,20 +670,18 @@ export default function Home() {
                 spaceId={spaceId}
                 disabled={busy === "generate"}
               />
-              <select
+              <HoverSelect
+                label="讲解风格"
+                description="选择适合自己的讲解与追问方式"
+                icon={<svg viewBox="0 0 20 20" fill="none" className="h-4 w-4"><path d="M4 3h12a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-6l-4 3v-3H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" /><path d="M6 7h8M6 10h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>}
                 value={persona.id}
-                onChange={(e) => updatePersona({ id: e.target.value, custom: persona.custom })}
+                onChange={(value) => updatePersona({ id: value, custom: persona.custom })}
                 disabled={busy === "generate"}
-                title="讲解与追问的语气人设"
-                className="rounded-full border border-stone-200 bg-card px-2.5 py-1 text-xs text-stone-600 outline-none transition-colors hover:border-accent-300 focus:border-accent-400 disabled:opacity-50"
-              >
-                {PERSONAS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-                <option value={CUSTOM_PERSONA_ID}>自定义</option>
-              </select>
+                options={[
+                  ...PERSONAS.map((item) => ({ value: item.id, label: item.label, description: item.description })),
+                  { value: CUSTOM_PERSONA_ID, label: "自定义", description: "用一句话设定表达方式", action: true },
+                ]}
+              />
               {persona.id === CUSTOM_PERSONA_ID && (
                 <input
                   value={persona.custom}

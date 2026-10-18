@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/spaces";
 import { listSources, type SourceItem } from "@/lib/api/sources";
 import { useConfirmation, type ConfirmAction } from "./ConfirmDialog";
+import { HoverSelect } from "./HoverSelect";
 
 /**
  * 工具行的「空间」切换器与管理枢纽。
@@ -81,31 +82,25 @@ export function SpacePicker({
   }
 
   return (
-    <div className="relative flex items-center gap-1.5">
+    <div className="relative flex max-w-full flex-wrap items-center gap-1.5">
       {confirmation}
-      <select
-        value={spaceId ?? ""}
-        onChange={(e) => {
-          const value = e.target.value;
+      <HoverSelect
+        label="切换空间"
+        description="按科目整理资料、讲解与学习进度"
+        tone="secondary"
+        icon={<svg viewBox="0 0 20 20" fill="none" className="h-4 w-4"><path d="m10 2 8 4-8 4-8-4 8-4Zm-8 8 8 4 8-4M2 14l8 4 8-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+        value={spaceId === null ? "" : String(spaceId)}
+        onChange={(value) => {
           if (value === "__new__") setCreating(true);
           else onChange(value === "" ? null : Number(value));
         }}
         disabled={disabled || deletingId !== null}
-        title="空间：资料/历史/统计按空间分组，选定后显示概念地图"
-        className={`max-w-40 rounded-full border px-2.5 py-1 text-xs outline-none transition-colors disabled:opacity-50 ${
-          spaceId !== null
-            ? "border-secondary-300 bg-secondary-50 text-secondary-700"
-            : "border-stone-200 bg-card text-stone-600 hover:border-secondary-300 focus:border-secondary-400"
-        }`}
-      >
-        <option value="">全局</option>
-        {spaces.map((space) => (
-          <option key={space.id} value={space.id}>
-            {space.name}
-          </option>
-        ))}
-        <option value="__new__">＋ 新建空间…</option>
-      </select>
+        options={[
+          { value: "", label: "全局", description: "查看全部资料与讲解" },
+          ...spaces.map((space) => ({ value: String(space.id), label: space.name, description: `${space.sourceCount} 份资料 · ${space.docCount} 篇讲解` })),
+          { value: "__new__", label: "新建空间", description: "为新的科目或学习目标建立空间", action: true },
+        ]}
+      />
       <button
         type="button"
         onClick={() => setHubOpen((v) => !v)}
@@ -136,7 +131,7 @@ export function SpacePicker({
             initial={{ opacity: 0, width: 0 }}
             animate={{ opacity: 1, width: "auto" }}
             exit={{ opacity: 0, width: 0 }}
-            className="flex items-center gap-1.5 overflow-hidden"
+            className="flex min-w-0 max-w-full basis-full items-center gap-1.5 overflow-hidden"
           >
             <input
               value={name}
@@ -145,7 +140,7 @@ export function SpacePicker({
               placeholder="空间名，如：期末·操作系统"
               maxLength={60}
               autoFocus
-              className="w-40 rounded-full border border-stone-200 bg-card px-3 py-1 text-xs text-stone-600 outline-none focus:border-secondary-400"
+              className="min-w-0 flex-1 rounded-full border border-stone-200 bg-card px-3 py-1 text-xs text-stone-600 outline-none focus:border-secondary-400"
             />
             <button
               type="button"
