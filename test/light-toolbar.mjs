@@ -18,6 +18,11 @@ try {
   const concepts = ["队列", "栈", "循环队列与队首队尾的边界判断", "链式存储", "顺序存储", "入队与出队", "栈的应用", "递归调用栈", "表达式求值", "复杂度分析"];
   const updated = await fetch(`${base}/api/sources/${sourceId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revision: source.revision, concepts }) });
   assert(updated.ok);
+  const exam = new Date();
+  exam.setDate(exam.getDate() + 4);
+  const examDate = `${exam.getFullYear()}-${String(exam.getMonth() + 1).padStart(2, "0")}-${String(exam.getDate()).padStart(2, "0")}`;
+  const dated = await fetch(`${base}/api/spaces/${spaceId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ examDate }) });
+  assert(dated.ok);
   const createdCard = await fetch(base + "/api/cards", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ spaceId, front: "队列从哪里移出元素？", back: "队头", concept: "队列" }) });
   assert(createdCard.ok);
   const { card } = await createdCard.json();

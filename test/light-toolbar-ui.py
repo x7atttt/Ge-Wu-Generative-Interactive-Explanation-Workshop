@@ -106,6 +106,8 @@ with sync_playwright() as p:
 
     # 多概念地图只保留一个依据入口，键盘可展开；忘记卡的定向复习仍可达。
     overview = page.get_by_role('region', name='空间学习概览', exact=True)
+    plan = overview.get_by_role('region', name='考前计划', exact=True)
+    expect(plan).to_have_count(0)
     evidence = overview.locator('details')
     expect(evidence).to_have_count(1)
     expect(evidence).not_to_have_attribute('open', '')
@@ -124,6 +126,10 @@ with sync_playwright() as p:
     expect(evidence).not_to_have_attribute('open', '')
     page.get_by_role('button', name='生成学习路线', exact=True).click()
     expect(page.get_by_role('button', name='重新生成', exact=True)).to_be_visible()
+    # 计划只出现一处，先于概念地图；不能再被长概念列表和路线挤到页尾。
+    expect(plan).to_be_visible()
+    map_heading = overview.get_by_role('heading', name='概念地图', exact=False)
+    assert plan.bounding_box()['y'] + plan.bounding_box()['height'] < map_heading.bounding_box()['y']
     overview.screenshot(path='data/space-map-panel-desktop.png')
 
     for width in [925, 714, 390]:
@@ -133,6 +139,7 @@ with sync_playwright() as p:
         expect(cards).to_have_count(10)
         widths = cards.evaluate_all('(nodes)=>nodes.map(node=>node.getBoundingClientRect().width)')
         assert max(widths) - min(widths) < 1, (width, widths)
+        assert plan.bounding_box()['y'] + plan.bounding_box()['height'] < map_heading.bounding_box()['y']
         if width == 390:
             evidence.locator('summary').click()
             expect(evidence.locator('dt')).to_have_count(10)

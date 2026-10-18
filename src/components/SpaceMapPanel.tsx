@@ -9,35 +9,40 @@ import { CardManagerPanel } from "@/components/CardManagerPanel";
 
 const STATUS_META: Record<
   string,
-  { label: string; chip: string; hint: string; dot: string }
+  { label: string; chip: string; badge: string; hint: string; dot: string }
 > = {
   new: {
     label: "未学",
     dot: "bg-stone-400",
+    badge: "border-stone-300 bg-stone-100 text-stone-700",
     chip: "border-stone-200 bg-paper/70 text-stone-700 hover:border-secondary-300 hover:text-secondary-700",
     hint: "点击生成讲解",
   },
   explained: {
     label: "待练习",
     dot: "bg-blue-500",
+    badge: "border-blue-200 bg-blue-100 text-blue-800",
     chip: "border-blue-200 bg-blue-50 text-blue-800 hover:border-blue-400",
     hint: "已生成讲解，尚无练习记录；点击开始练习",
   },
   practiced: {
     label: "练习达标",
     dot: "bg-secondary-600",
+    badge: "border-secondary-200 bg-secondary-100 text-secondary-700",
     chip: "border-secondary-200 bg-secondary-50 text-secondary-700 hover:border-secondary-400",
     hint: "点击打开讲解",
   },
   learning: {
     label: "待巩固",
     dot: "bg-amber-500",
+    badge: "border-amber-200 bg-amber-100 text-amber-800",
     chip: "border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-400",
     hint: "已有练习，样本不足，点击继续巩固",
   },
   weak: {
     label: "薄弱",
     dot: "bg-red-500",
+    badge: "border-red-200 bg-red-100 text-red-700",
     chip: "border-red-300 bg-red-50 text-red-600 hover:border-red-400 font-medium",
     hint: "点击生成针对性补练",
   },
@@ -237,6 +242,12 @@ export function SpaceMapPanel({
     ?? map.concepts.find((c) => c.status !== "practiced"));
   const forgotten = map?.concepts.flatMap((c) => c.recall.forgottenCardIds) ?? [];
   const weak = map?.concepts.find((c) => c.status === "weak");
+  const examPlan = map?.roadmap ? buildExamPlan({
+    roadmap: map.roadmap,
+    statusOf: (text) => map.concepts.find((concept) => concept.text === text)?.status ?? "new",
+    examDate,
+    today: localDay(),
+  }) : [];
 
   return (
     <section aria-label="空间学习概览" className="mt-6 rounded-2xl border border-stone-200 bg-card p-4 shadow-sm sm:p-6">
@@ -261,6 +272,22 @@ export function SpaceMapPanel({
           else setExamOpen(true);
         }}>{map.cards.due > 0 ? "开始到期复习" : forgotten.length > 0 ? "回顾忘记的卡" : weak ? "开始补弱" : nextConcept ? "继续学习" : map.concepts.length === 0 ? (map.space.sourceCount > 0 ? "打开资料提炼概念" : "导入第一份资料") : map.cards.total === 0 ? "添加复习卡" : "查看自测与报告"}</button>
       </div>}
+      {examPlan.length > 0 && (
+        <section aria-label="考前计划" className="mb-5 rounded-xl border border-secondary-200 bg-secondary-50/70 p-3">
+          <h3 className="font-display text-sm font-semibold text-secondary-700">考前计划</h3>
+          <ol className="mt-2 space-y-2">
+            {examPlan.map((line, i) => (
+              <li key={i} className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-3 text-xs leading-5">
+                <span className="font-mono text-secondary-700">{line.days}</span>
+                <div className="min-w-0 [overflow-wrap:anywhere]">
+                  <p className="font-medium text-stone-800">{line.label}</p>
+                  <p className="text-stone-600">{line.detail}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h2 className="font-display text-base font-bold text-stone-900">
           📖 概念地图{map ? ` · ${map.space.name}` : ""}
@@ -336,7 +363,7 @@ export function SpaceMapPanel({
         </div>
       </div>
 
-      <p className="mb-3 text-xs leading-5 text-stone-500">待练习：已有讲解，尚无作答。待巩固：已有作答，练习证据尚未达标。</p>
+      <p className="mb-4 mt-3 text-xs leading-6 text-stone-500">待练习：已有讲解，尚无作答。待巩固：已有作答，练习证据尚未达标。</p>
       {(note || map?.space.note) && (
         <p className="mt-1 text-xs leading-5 text-stone-500">{note || map?.space.note}</p>
       )}
@@ -365,14 +392,16 @@ export function SpaceMapPanel({
               disabled={disabled}
               className={`group flex min-w-0 flex-col items-start rounded-xl border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-500 disabled:opacity-50 ${meta.chip}`}
             >
-              <span className="text-sm font-medium leading-5 [overflow-wrap:anywhere]">{concept.text}</span>
-              <span className="mt-2 text-xs">{meta.label}</span>
-              <span className="mt-1 text-xs opacity-80">
-                {concept.status === "new"
-                  ? `${concept.sourceIds.length} 份资料提及`
-                  : rate !== null
-                    ? `练习 ${concept.practice.total} 次 · 正确率 ${rate}%`
-                    : "已生成讲解"}
+              <span className="max-w-full rounded-lg border border-stone-200 bg-card px-2 py-1 text-sm font-medium leading-5 text-stone-800 [overflow-wrap:anywhere]">{concept.text}</span>
+              <span className="mt-2 flex max-w-full flex-wrap items-center gap-1.5 text-xs leading-5">
+                <span className={`whitespace-nowrap rounded-md border px-2 py-0.5 ${meta.badge}`}>{meta.label}</span>
+                <span className="max-w-full rounded-md border border-secondary-200 bg-secondary-50 px-2 py-0.5 text-secondary-700">
+                  {concept.status === "new"
+                    ? `${concept.sourceIds.length} 份资料提及`
+                    : rate !== null
+                      ? `练习 ${concept.practice.total} 次 · 正确率 ${rate}%`
+                      : "已生成讲解"}
+                </span>
               </span>
               {concept.recall.again > 0 && <span className="mt-1 text-xs text-accent-700">有忘记的卡片，建议回顾</span>}
             </button>
@@ -491,30 +520,6 @@ export function SpaceMapPanel({
             )
           )}
 
-          {/* 考前每日计划：路线未完成站按概念数加权瓜分学习日（确定性派生，无 LLM） */}
-          {(() => {
-            if (!map?.roadmap) return null;
-            const byText = new Map(map.concepts.map((c) => [c.text, c]));
-            const plan = buildExamPlan({
-              roadmap: map.roadmap,
-              statusOf: (t) => byText.get(t)?.status ?? "new",
-              examDate,
-              today: localDay(),
-            });
-            if (plan.length === 0) return null;
-            return (
-              <div className="mt-2 rounded-xl bg-stone-50/70 p-2.5">
-                <p className="mb-1 text-[11px] font-semibold text-stone-500">📅 考前计划</p>
-                {plan.map((line, i) => (
-                  <p key={i} className="flex items-baseline gap-2 text-[11px] leading-5 text-stone-600">
-                    <span className="w-20 shrink-0 font-mono text-stone-400">{line.days}</span>
-                    <span className="font-medium text-stone-700">{line.label}</span>
-                    <span className="text-stone-400">{line.detail}</span>
-                  </p>
-                ))}
-              </div>
-            );
-          })()}
         </div>
       )}
 
