@@ -9,6 +9,7 @@ import { celebrateAt } from "@/lib/celebrate";
 import { useAttempt } from "./attempt-context";
 import { CheckDraw } from "./CheckDraw";
 import { SHAKE, SHAKE_IDLE, SHAKE_TRANSITION } from "./motion-presets";
+import { MarkdownView } from "./MarkdownView";
 
 /**
  * 配对：点左列一项选中，再点右列对应项；配对按内容判定（schema 保证两列各自不重复），
@@ -77,12 +78,12 @@ export function MatchView({ block }: { block: MatchBlock }) {
 
   return (
     <div ref={cardRef} className="rounded-xl border border-stone-200 bg-card p-4">
-      <p className="mb-1 text-sm font-medium text-stone-800">
+      <div className="mb-1 text-sm font-medium text-stone-800">
         <span className="mr-1.5 rounded bg-accent-100 px-1.5 py-0.5 text-xs font-semibold text-accent-700">
           配对
         </span>
-        {block.prompt}
-      </p>
+        <MarkdownView content={block.prompt} />
+      </div>
       <p className="mb-3 text-xs text-stone-400">点击左列一项，再点右列中与它对应的项</p>
 
       <div className="grid gap-2 sm:grid-cols-2">
@@ -105,7 +106,7 @@ export function MatchView({ block }: { block: MatchBlock }) {
                 onClick={() => state !== "wrong" && setSelected(selected === li ? null : li)}
                 className={itemClass(state)}
               >
-                {pair.left}
+                <MarkdownView content={pair.left} />
               </motion.button>
             );
           })}
@@ -127,7 +128,7 @@ export function MatchView({ block }: { block: MatchBlock }) {
                 onClick={() => clickRight(j)}
                 className={`${itemClass(state)} ${selected !== null && state === "idle" ? "cursor-pointer" : "cursor-default"} disabled:opacity-100`}
               >
-                {block.pairs[orig].right}
+                <MarkdownView content={block.pairs[orig].right} />
               </motion.button>
             );
           })}

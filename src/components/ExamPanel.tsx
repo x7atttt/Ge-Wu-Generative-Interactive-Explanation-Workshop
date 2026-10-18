@@ -6,6 +6,7 @@ import { answerExam, getExam, listExams, startExam, type ExamSession, type ExamG
 import { playComplete, playCorrect, playPop, playWrong } from "@/lib/audio/sound";
 import type { ReviewGrade } from "@/lib/fsrs";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
+import { MarkdownView } from "./dsl/MarkdownView";
 
 const GRADE_BUTTONS: { grade: ReviewGrade; label: string; hint: string; className: string }[] = [
   {
@@ -113,6 +114,7 @@ export function ExamPanel({
 
   async function handleGrade(grade: ExamGrade) {
     if (!card || !session || gradeLock.current) return;
+    if (card.issue && grade !== "skipped") return;
     gradeLock.current = true;
     setGrading(true);
     setError(null);
@@ -227,8 +229,9 @@ export function ExamPanel({
                 </p>
               )}
               <div className="rounded-xl border border-stone-100 bg-stone-50/60 p-4">
-                <p className="whitespace-pre-wrap text-sm leading-6 text-stone-800">{card.front}</p>
+                <div className="text-sm leading-6 text-stone-800"><MarkdownView content={card.front} /></div>
               </div>
+              {card.issue && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900"><p>{card.issue} 此题不计分，也不改变复习排期。</p><button type="button" disabled={grading} onClick={() => handleGrade("skipped")} className="mt-2 min-h-11 rounded-lg border border-amber-400 px-3 font-medium">跳过不完整题目</button></div>}
 
               {revealed ? (
                 <motion.div
@@ -236,7 +239,7 @@ export function ExamPanel({
                   animate={{ opacity: 1, y: 0 }}
                   className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4"
                 >
-                  <p className="whitespace-pre-wrap text-sm leading-6 text-emerald-900">{card.back}</p>
+                  <div className="text-sm leading-6 text-emerald-900"><MarkdownView content={card.back} /></div>
                 </motion.div>
               ) : (
                 <button
@@ -251,7 +254,7 @@ export function ExamPanel({
                 </button>
               )}
 
-              {revealed && (
+              {revealed && !card.issue && (
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   {GRADE_BUTTONS.map((btn, i) => (
                     <button
@@ -274,7 +277,7 @@ export function ExamPanel({
           {finished && queue !== null && queue.length > 0 && (
             <div className="py-4">
               <div className="text-center">
-                <p className="font-display text-4xl font-bold text-accent-600">{score} 分</p>
+                <p className="font-display text-4xl font-bold text-accent-600">{total > 0 ? `${score} 分` : "未计分"}</p>
                 <p className="mt-1 text-xs text-stone-500">
                   共 {total} 题 · <span className="text-emerald-600">记得 {tally.easy}</span> ·{" "}
                   <span className="text-amber-600">模糊 {tally.fuzzy}</span> ·{" "}
@@ -312,16 +315,16 @@ export function ExamPanel({
               <p className="mt-3 text-center text-xs text-stone-400">
                 {tally.again > 0
                   ? `本次忘记 ${tally.again} 张，可复习其中仍到期的卡片`
-                  : "全卷没有忘记的卡，保持这个节奏"}
+                  : total > 0 ? "全卷没有忘记的卡，保持这个节奏" : "本次没有可计分的题目，请先完善卡片"}
               </p>
               <div className="mt-3 text-center">
                 <details className="mb-3 rounded-xl border border-stone-200 p-3 text-left text-xs text-stone-700">
                   <summary className="cursor-pointer">本次作答明细</summary>
                   <div className="mt-2 max-h-52 space-y-2 overflow-y-auto">
                     {queue.map((c) => <div key={c.id} className="rounded-lg bg-stone-50 p-2">
-                      <p className="whitespace-pre-wrap leading-5">{c.front}</p>
-                      <p className="mt-1 font-medium">本次自评：{({ again: "忘记", fuzzy: "模糊", easy: "记得", skipped: "卡片已删除，未计分" } as const)[session!.answers[c.id]]}</p>
-                      <p className="mt-1 whitespace-pre-wrap leading-5 text-stone-600">{c.back}</p>
+                      <MarkdownView content={c.front} />
+                      <p className="mt-1 font-medium">本次自评：{({ again: "忘记", fuzzy: "模糊", easy: "记得", skipped: "已跳过，未计分" } as const)[session!.answers[c.id]]}</p>
+                      <div className="mt-1 leading-5 text-stone-600"><MarkdownView content={c.back} /></div>
                     </div>)}
                   </div>
                 </details>
@@ -329,7 +332,7 @@ export function ExamPanel({
                   const ids = queue.filter((c) => session?.answers[c.id] === "again").map((c) => c.id);
                   handleClose(); onReview(ids);
                 }} className="mb-3 w-full rounded-xl border border-accent-300 py-2 text-sm text-accent-600">复习本次忘记的卡</button>}
-                <p className="mb-2 text-xs text-stone-500">报告已保存。已删除而跳过的卡不计分。</p>
+                <p className="mb-2 text-xs text-stone-500">报告已保存。已删除或题面不完整而跳过的卡不计分。</p>
                 <button
                   type="button"
                   onClick={() => { setSession(null); load(); }}

@@ -9,30 +9,35 @@ import { CardManagerPanel } from "@/components/CardManagerPanel";
 
 const STATUS_META: Record<
   string,
-  { label: string; chip: string; hint: string }
+  { label: string; chip: string; hint: string; dot: string }
 > = {
   new: {
     label: "未学",
+    dot: "bg-stone-400",
     chip: "border-stone-200 bg-card text-stone-600 hover:border-secondary-300 hover:text-secondary-700",
     hint: "点击生成讲解",
   },
   explained: {
-    label: "已讲解",
-    chip: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-400",
-    hint: "点击打开讲解继续练习",
+    label: "待练习",
+    dot: "bg-blue-500",
+    chip: "border-blue-200 bg-blue-50 text-blue-800 hover:border-blue-400",
+    hint: "已生成讲解，尚无练习记录；点击开始练习",
   },
   practiced: {
     label: "练习达标",
+    dot: "bg-secondary-600",
     chip: "border-secondary-200 bg-secondary-50 text-secondary-700 hover:border-secondary-400",
     hint: "点击打开讲解",
   },
   learning: {
     label: "待巩固",
+    dot: "bg-amber-500",
     chip: "border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-400",
     hint: "已有练习，样本不足，点击继续巩固",
   },
   weak: {
     label: "薄弱",
+    dot: "bg-red-500",
     chip: "border-red-300 bg-red-50 text-red-600 hover:border-red-400 font-medium",
     hint: "点击生成针对性补练",
   },
@@ -305,17 +310,9 @@ export function SpaceMapPanel({
           )}
           <div className="flex items-center gap-2 text-[10px] text-stone-400">
             {(["weak", "new", "learning", "practiced", "explained"] as const).map((status) => (
-              <span key={status} className="flex items-center gap-1">
+              <span key={status} className="flex items-center gap-1" title={STATUS_META[status].hint}>
                 <span
-                  className={`h-2 w-2 rounded-full ${
-                    status === "weak"
-                      ? "bg-red-400"
-                      : status === "new"
-                        ? "bg-stone-300"
-                        : status === "practiced"
-                          ? "bg-secondary-400"
-                          : "bg-emerald-400"
-                  }`}
+                  className={`h-2 w-2 rounded-full ${STATUS_META[status].dot}`}
                 />
                 {STATUS_META[status].label}
               </span>
@@ -324,6 +321,7 @@ export function SpaceMapPanel({
         </div>
       </div>
 
+      <p className="mb-3 text-xs leading-5 text-stone-500">待练习：已有讲解，尚无作答。待巩固：已有作答，练习证据尚未达标。</p>
       {(note || map?.space.note) && (
         <p className="mt-1 text-xs leading-5 text-stone-500">{note || map?.space.note}</p>
       )}

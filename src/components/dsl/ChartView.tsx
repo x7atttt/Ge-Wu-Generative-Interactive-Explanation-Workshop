@@ -122,6 +122,7 @@ export function ChartView({ block }: { block: ChartBlock }) {
   }, [block, values]);
 
   const containerRef = useEChart(option);
+  const bindings = block.series.flatMap((series, si) => series.data.flatMap((slot, i) => typeof slot === "number" ? [] : [`${series.name ?? `系列${si + 1}`} · ${block.categories?.[i] ?? `数据${i + 1}`}（当前值：${values[slot.$var] ?? "—"}）`]));
 
   return (
     <figure className="relative rounded-xl border border-stone-200 p-3">
@@ -134,6 +135,10 @@ export function ChartView({ block }: { block: ChartBlock }) {
       {block.title ? (
         <figcaption className="pt-1 text-center text-xs text-stone-500">{block.title}</figcaption>
       ) : null}
+      {bindings.length > 0 && <figcaption className="mt-2 rounded-lg bg-stone-50 p-2 text-xs leading-5 text-stone-600">
+        {block.interactionHint && <p>{block.interactionHint}</p>}
+        <p>随参数变化：{bindings.join("；")}。{block.series.some((series) => series.data.some((slot) => typeof slot === "number")) ? "其余数据为固定参考值。" : ""}</p>
+      </figcaption>}
     </figure>
   );
 }

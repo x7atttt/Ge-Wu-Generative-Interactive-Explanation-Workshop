@@ -470,8 +470,8 @@ export default function Home() {
     if (docId === null || docSpaceId === null) return;
     setCardsNote(null);
     try {
-      const { added, skipped } = await makeCardsFromDoc(docId);
-      setCardsNote(`已新增 ${added} 张复习卡${skipped > 0 ? `（跳过 ${skipped} 张重复）` : ""}，到概念地图点「复习」开始`);
+      const { added, skipped, rejected } = await makeCardsFromDoc(docId);
+      setCardsNote(`已新增 ${added} 张复习卡${skipped > 0 ? `（跳过 ${skipped} 张重复）` : ""}${rejected > 0 ? `；${rejected} 道题不完整，未制卡，请先纠正讲解` : ""}。到概念地图点「复习」开始`);
       setMapRefresh((k) => k + 1);
       playComplete();
     } catch (err) {

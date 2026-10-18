@@ -7,6 +7,7 @@ import { playCorrect, playWrong } from "@/lib/audio/sound";
 import { useAttempt } from "./attempt-context";
 import { CheckDraw } from "./CheckDraw";
 import { useFeedbackMotion } from "./motion-presets";
+import { MarkdownView } from "./MarkdownView";
 
 export function QuizView({ block }: { block: QuizBlock }) {
   const [selected, setSelected] = useState<number | null>(null);
@@ -25,12 +26,12 @@ export function QuizView({ block }: { block: QuizBlock }) {
 
   return (
     <div className="rounded-xl border border-stone-200 bg-card p-4">
-      <p className="mb-3 text-sm font-medium text-stone-800">
+      <div className="mb-3 text-sm font-medium text-stone-800">
         <span className="mr-1.5 rounded bg-accent-100 px-1.5 py-0.5 text-xs font-semibold text-accent-700">
           自测
         </span>
-        {block.question}
-      </p>
+        <MarkdownView content={block.question} />
+      </div>
       <div className="grid gap-2 sm:grid-cols-2">
         {block.options.map((option, i) => {
           const correct = answered && i === block.answer;
@@ -53,7 +54,7 @@ export function QuizView({ block }: { block: QuizBlock }) {
                       : "border-stone-200 bg-card text-stone-700 hover:border-accent-300 hover:text-accent-700",
               ].join(" ")}
             >
-              {option}
+              <MarkdownView content={option} />
             </motion.button>
           );
         })}
@@ -72,7 +73,7 @@ export function QuizView({ block }: { block: QuizBlock }) {
               {isCorrect && <CheckDraw />}
               {isCorrect ? "回答正确！" : "再想想～"}
             </p>
-            <p className="mt-1 text-sm leading-6 text-stone-600">{block.explanation}</p>
+            <div className="mt-1 text-sm leading-6 text-stone-600"><MarkdownView content={block.explanation} /></div>
             <button
               onClick={() => setSelected(null)}
               className="mt-2 text-xs text-accent-600 hover:underline"

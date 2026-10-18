@@ -7,6 +7,7 @@ import { playComplete, playCorrect, playPop, playWrong } from "@/lib/audio/sound
 import { useReducedMotion } from "motion/react";
 import { localDay, type ReviewGrade } from "@/lib/fsrs";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
+import { MarkdownView } from "./dsl/MarkdownView";
 
 const GRADE_BUTTONS: { grade: ReviewGrade; label: string; hint: string; className: string }[] = [
   {
@@ -83,7 +84,7 @@ export function ReviewPanel({
   }
 
   async function handleGrade(grade: ReviewGrade) {
-    if (!card || gradeLock.current) return;
+    if (!card || card.issue || gradeLock.current) return;
     gradeLock.current = true;
     setGrading(true);
     setError(null);
@@ -179,13 +180,14 @@ export function ReviewPanel({
                 {!!card.docId && <button type="button" disabled={grading} className="min-h-9 text-accent-600 underline" onClick={() => { handleClose(); onOpenDoc(card.docId); }}>查看原讲解</button>}
               </div>
               <p className="mb-2 text-xs text-stone-500">难卡可暂缓，仍保留在今日到期队列。</p>
+              {card.issue && <p role="alert" className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{card.issue} 请先点“稍后再练”，本题暂不评分。</p>}
               {card.originConcept && (
                 <p className="mb-2 inline-block rounded-full bg-secondary-50 px-2 py-0.5 text-[10px] text-secondary-600">
                   {card.originConcept}
                 </p>
               )}
               <div className="rounded-xl border border-stone-100 bg-stone-50/60 p-4">
-                <p className="whitespace-pre-wrap text-sm leading-6 text-stone-800">{card.front}</p>
+                <div className="text-sm leading-6 text-stone-800"><MarkdownView content={card.front} /></div>
               </div>
 
               {revealed ? (
@@ -194,7 +196,7 @@ export function ReviewPanel({
                   animate={{ opacity: 1, y: 0 }}
                   className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4"
                 >
-                  <p className="whitespace-pre-wrap text-sm leading-6 text-emerald-900">{card.back}</p>
+                  <div className="text-sm leading-6 text-emerald-900"><MarkdownView content={card.back} /></div>
                 </motion.div>
               ) : (
                 <button
@@ -209,7 +211,7 @@ export function ReviewPanel({
                 </button>
               )}
 
-              {revealed && (
+              {revealed && !card.issue && (
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   {GRADE_BUTTONS.map((btn, i) => (
                     <button

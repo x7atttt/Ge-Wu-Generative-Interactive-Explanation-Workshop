@@ -8,6 +8,8 @@ import { celebrateAt } from "@/lib/celebrate";
 import { useAttempt } from "./attempt-context";
 import { CheckDraw } from "./CheckDraw";
 import { useFeedbackMotion } from "./motion-presets";
+import { isCodeBlank, normalizeBlankText } from "@/lib/study-content";
+import { MarkdownView } from "./MarkdownView";
 
 /**
  * 完形填空：句中空位为行内 chip，下方按空位列选项；全部选完才可检查，
@@ -20,7 +22,9 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const { shake, shakeIdle, shakeTransition } = useFeedbackMotion();
 
-  const parts = block.text.split("___");
+  const parts = normalizeBlankText(block.text).split("___");
+  const code = isCodeBlank(block);
+  const Body = code ? "pre" : "div";
   const allFilled = choices.every((c) => c !== null);
   const correctCount = choices.reduce<number>(
     (acc, c, i) => acc + (c === block.blanks[i].answer ? 1 : 0),
@@ -51,17 +55,17 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
 
   return (
     <div ref={cardRef} className="rounded-xl border border-stone-200 bg-card p-4">
-      <p className="mb-3 text-sm font-medium text-stone-800">
+      <div className="mb-3 text-sm font-medium text-stone-800">
         <span className="mr-1.5 rounded bg-accent-100 px-1.5 py-0.5 text-xs font-semibold text-accent-700">
           填空
         </span>
-        {block.prompt ?? "选词完成下面的句子"}
-      </p>
+        <MarkdownView content={block.prompt ?? "选词完成下面的句子"} />
+      </div>
 
-      <p className="text-[15px] leading-8 text-stone-800">
+      <Body className={code ? "overflow-x-auto whitespace-pre rounded-lg bg-stone-100 p-3 font-mono text-sm leading-8 text-stone-800" : "whitespace-pre-wrap text-[15px] leading-8 text-stone-800"}>
         {parts.map((part, i) => (
           <span key={i}>
-            {part}
+            {code ? part : <MarkdownView content={part} inline />}
             {i < block.blanks.length && (
               <BlankChip
                 label={choices[i] !== null ? block.blanks[i].options[choices[i] as number] : null}
@@ -82,7 +86,7 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
             )}
           </span>
         ))}
-      </p>
+      </Body>
 
       {!checked && (
         <div className="mt-4 flex flex-col gap-2.5">
@@ -101,7 +105,7 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
                       : "border-stone-200 bg-card text-stone-600 hover:border-accent-300 hover:text-accent-700",
                   ].join(" ")}
                 >
-                  {option}
+                  <MarkdownView content={option} inline />
                 </button>
               ))}
             </div>
@@ -142,11 +146,11 @@ export function FillBlankView({ block }: { block: FillBlankBlock }) {
             </p>
             {block.blanks.map((blank, bi) =>
               choices[bi] === blank.answer ? null : (
-                <p key={bi} className="mt-1.5 text-sm leading-6 text-stone-600">
+                <div key={bi} className="mt-1.5 text-sm leading-6 text-stone-600">
                   空{bi + 1}：正确答案{" "}
                   <span className="font-medium text-stone-800">{blank.options[blank.answer]}</span>
-                  {blank.explanation ? ` —— ${blank.explanation}` : ""}
-                </p>
+                  {blank.explanation && <MarkdownView content={` —— ${blank.explanation}`} inline />}
+                </div>
               )
             )}
           </motion.div>

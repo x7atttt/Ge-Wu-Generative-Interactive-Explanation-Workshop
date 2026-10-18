@@ -15,14 +15,14 @@ function renderKatex(raw: string, displayMode: boolean): string | null {
 }
 
 /** 轻量 Markdown 渲染：数学定界符预处理 + 手写样式映射，不引排版/数学插件 */
-export function MarkdownView({ content }: { content: string }) {
+export function MarkdownView({ content, inline = false }: { content: string; inline?: boolean }) {
   const processed = useMemo(() => preprocessMarkdown(content), [content]);
 
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       components={{
-        p: ({ children }) => <p className="leading-6 [&:not(:first-child)]:mt-2">{children}</p>,
+        p: ({ children }) => inline ? <span className="whitespace-pre-wrap">{children}</span> : <p className="whitespace-pre-wrap leading-6 [&:not(:first-child)]:mt-2">{children}</p>,
         ul: ({ children }) => <ul className="mt-1 list-disc space-y-1 pl-4">{children}</ul>,
         ol: ({ children }) => <ol className="mt-1 list-decimal space-y-1 pl-4">{children}</ol>,
         strong: ({ children }) => <strong className="font-semibold text-stone-900">{children}</strong>,

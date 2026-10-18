@@ -9,6 +9,7 @@ import { celebrateAt } from "@/lib/celebrate";
 import { useAttempt } from "./attempt-context";
 import { CheckDraw } from "./CheckDraw";
 import { SHAKE, SHAKE_IDLE, SHAKE_TRANSITION } from "./motion-presets";
+import { MarkdownView } from "./MarkdownView";
 
 /**
  * 分类练习：每条目点类别 chip 归类，全部归完检查；题面用确定性洗牌打乱，
@@ -52,12 +53,12 @@ export function SortView({ block }: { block: SortBlock }) {
 
   return (
     <div ref={cardRef} className="rounded-xl border border-stone-200 bg-card p-4">
-      <p className="mb-2 text-sm font-medium text-stone-800">
+      <div className="mb-2 text-sm font-medium text-stone-800">
         <span className="mr-1.5 rounded bg-accent-100 px-1.5 py-0.5 text-xs font-semibold text-accent-700">
           分类
         </span>
-        {block.prompt}
-      </p>
+        <MarkdownView content={block.prompt} />
+      </div>
       <div className="mb-3 flex flex-wrap gap-1.5">
         {block.categories.map((c, ci) => (
           <span
@@ -89,7 +90,7 @@ export function SortView({ block }: { block: SortBlock }) {
                     : "border-stone-200",
               ].join(" ")}
             >
-              <span className="mr-1 text-sm text-stone-800">{item.label}</span>
+              <div className="mr-1 text-sm text-stone-800"><MarkdownView content={item.label} /></div>
               {block.categories.map((c, ci) => (
                 <button
                   key={ci}

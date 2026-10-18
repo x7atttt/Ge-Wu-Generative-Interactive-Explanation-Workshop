@@ -68,6 +68,7 @@ export function escapeUnknownTags(content: string): string {
   const { mask, unmask } = createMask();
   const masked = content.replace(BACKTICK_SPAN_RE, (match) => mask(match));
   const escaped = masked.replace(TAG_RE, (match, name: string) => {
+    if (name.toLowerCase() === "br") return "  \n";
     return ALLOWED_TAGS.has(name.toLowerCase()) ? match : `\`${match}\``;
   });
   return unmask(escaped);
