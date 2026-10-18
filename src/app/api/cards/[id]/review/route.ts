@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { reviewCard } from "@/lib/db/cards";
+import { CardContentError, reviewCard } from "@/lib/db/cards";
 import type { ReviewGrade } from "@/lib/fsrs";
 
 const GRADES: readonly ReviewGrade[] = ["again", "fuzzy", "easy"];
@@ -20,7 +20,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (typeof body.grade !== "string" || !GRADES.includes(body.grade as ReviewGrade)) {
     return NextResponse.json({ error: "grade 必须是 again | fuzzy | easy" }, { status: 400 });
   }
-  const card = reviewCard(cardId, body.grade as ReviewGrade);
-  if (!card) return NextResponse.json({ error: "卡片不存在" }, { status: 404 });
-  return NextResponse.json({ card });
+  try {
+    const card = reviewCard(cardId, body.grade as ReviewGrade);
+    if (!card) return NextResponse.json({ error: "卡片不存在" }, { status: 404 });
+    return NextResponse.json({ card });
+  } catch (error) {
+    if (error instanceof CardContentError) return NextResponse.json({ error: error.message }, { status: 422 });
+    throw error;
+  }
 }

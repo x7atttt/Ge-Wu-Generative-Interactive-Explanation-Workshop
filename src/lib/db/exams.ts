@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "./index";
-import { sampleExamCards, scheduleAndLogReview, type ReviewCard } from "./cards";
+import { hydrateStudyCard, sampleExamCards, scheduleAndLogReview, type ReviewCard } from "./cards";
 import type { ReviewGrade } from "@/lib/fsrs";
 
 export type ExamGrade = ReviewGrade | "skipped";
@@ -24,7 +24,8 @@ export function getExam(id: string): ExamSession | null {
   if (!row) return null;
   const answers = db.prepare("SELECT card_id, grade FROM exam_answers WHERE session_id = ?").all(id) as
     { card_id: number; grade: ExamGrade }[];
-  return { id: row.id, spaceId: row.space_id, cards: JSON.parse(row.cards),
+  const cards: ReviewCard[] = JSON.parse(row.cards);
+  return { id: row.id, spaceId: row.space_id, cards: row.completed_at ? cards : cards.map(hydrateStudyCard),
     answers: Object.fromEntries(answers.map((a) => [a.card_id, a.grade])),
     createdAt: row.created_at, completedAt: row.completed_at };
 }
@@ -73,8 +74,9 @@ export function answerExam(id: string, cardId: number, grade: ExamGrade): ExamSe
     if (!next || next.id !== cardId) throw new ExamError("请按当前题序作答", 409);
     const exists = db.prepare("SELECT id FROM cards WHERE id = ? AND space_id = ?").get(cardId, session.spaceId);
     if (grade === "skipped") {
-      if (exists) throw new ExamError("仍存在的卡片不能跳过评分", 409);
+      if (exists && !next.issue) throw new ExamError("仍存在且题面完整的卡片不能跳过评分", 409);
     } else {
+      if (next.issue) throw new ExamError("题面不完整，请跳过此题；不会影响记忆排期", 422);
       if (!exists) throw new ExamError("卡片已被删除，可跳过此题；历史题面仍保留", 410);
       scheduleAndLogReview(cardId, grade);
     }

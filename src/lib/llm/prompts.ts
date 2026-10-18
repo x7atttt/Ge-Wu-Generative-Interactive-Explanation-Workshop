@@ -3,6 +3,14 @@
  * 修改 schema 时同步更新此处（校验层 zod 会兜底拦截不一致的输出）。
  */
 
+const CONTENT_RULES = `
+教学内容完整性：
+- text、题干和解析支持 Markdown（加粗、列表、代码围栏），不要输出 HTML 标签或转义后的加粗标记。
+- quiz 必须提供独立可理解的完整问题和全部选项，不能只给情境或以逗号、冒号结束；问题中说明计数是否包含初始调用。
+- fillBlank 若包含多行程序，text 必须使用 JSON 的 \\n 表示真正换行并保留每层缩进，可加 language（如 python）；空位仍用 ___。禁止把 if/else/return 等语句平铺在一行，禁止用 <br> 代替换行。
+- chart 的联动必须和正文一致；固定数字不会随滑块变化。若比较当前递归深度 n 的递与归，用一个“当前 n”类目，两组 data 都为 [{"$var":"depth"}]。若只让一个点变化，必须用 interactionHint 明说哪一组、哪一个类目会变，其他数据为固定参考值。
+`;
+
 export interface GeneratePromptOpts {
   /** 语气人设（仅影响文字风格，结构要求优先）；null/省略 = 默认 */
   personaStyle?: string | null;
@@ -11,9 +19,9 @@ export interface GeneratePromptOpts {
 }
 
 export function generateSystemPrompt(opts: GeneratePromptOpts = {}): string {
-  const persona = opts.personaStyle
+  const persona = CONTENT_RULES + (opts.personaStyle
     ? `\n- 行文人设：${opts.personaStyle}（只在文字风格上贯彻，块结构要求优先）`
-    : "";
+    : "");
   const lead = opts.practice
     ? `你是「格物」的讲解设计师。用户在一个概念上练习出错较多，你为其生成一篇**针对性补练**讲解，只输出一个 JSON 文档（不要 markdown 代码块）。`
     : `你是「格物」的讲解设计师。用户给你一个概念，你设计一篇可交互的讲解，只输出一个 JSON 文档（不要 markdown 代码块）。`;
@@ -45,7 +53,7 @@ export function generateSystemPrompt(opts: GeneratePromptOpts = {}): string {
    同一图数据跨数量级（如 0.02 与 2000）线性轴会压扁小值：数据全为正时加 "yType":"log"（对数轴，渲染层自动标注）；含 0 或负值则拆成两张图
    **禁止**用它手写 sin/cos 等函数值表——逐点手算三角函数极易出错；函数曲线一律用 wavePlot
    （渲染层精确计算）。wavePlot 画标准三角曲线（周期 2π，自变量为弧度）时 freq 取 0.159（即 1/(2π)）
-7. {"type":"fillBlank","prompt?":"任务说明","text":"句子，空位用 ___ 表示","blanks":[{"options":["词1","词2","词3"],"answer":正确项下标,"explanation?":"解析"}]}
+7. {"type":"fillBlank","prompt?":"任务说明","language?":"python","text":"句子，空位用 ___ 表示","blanks":[{"options":["词1","词2","词3"],"answer":正确项下标,"explanation?":"解析"}]}
    text 中 ___ 的个数必须等于 blanks 数量；用于语法/词汇/代码语法等在语境中回忆的练习
 8. {"type":"match","prompt":"任务说明","pairs":[{"left":"词","right":"对应项"}]} —— 2~5 对，left 与 right 各自不重复；用于术语↔含义等配对记忆
 9. {"type":"sort","prompt":"任务说明","categories":["类A","类B"],"items":[{"label":"条目","category":"所属类别"}]} —— category 必须取自 categories；用于分类判断练习
@@ -88,7 +96,7 @@ ${opts.practice ? "" : `
 export function refineSystemPrompt(): string {
   return `你是「格物」的讲解改造器。输入是当前讲解文档（JSON）与用户的一句改造指令，输出修改后的完整文档 JSON。只输出 JSON 本身，不要用 markdown 代码块包裹。
 
-规则：
+规则：${CONTENT_RULES}
 - version 保持 1，块类型不变；指令未提及的既有块保持逐字不变（前端靠块级 diff 做"深化"分组）
 - 新增内容以 heading 块开头，标题概括本次深化主题；heading 文本**不要以「深化：」开头**（界面已用分组卡表达深化语义），直接写主题，如 {"type":"heading","text":"自测题——检验你的理解"}
 - 尽量把新增块追加在文档末尾

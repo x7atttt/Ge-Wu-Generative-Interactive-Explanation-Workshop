@@ -2,6 +2,7 @@
 import { getDb } from "./index";
 import { getDoc } from "./docs";
 import { localDay, schedule, type ReviewGrade } from "@/lib/fsrs";
+import { completeStudyCard, studyCards } from "@/lib/study-content";
 
 export interface ReviewCard {
   id: number;
@@ -9,6 +10,7 @@ export interface ReviewCard {
   originConcept: string | null;
   front: string;
   back: string;
+  issue?: string;
   /** FSRS 记忆状态（0 = 未初始化新卡） */
   difficulty: number;
   stability: number;
@@ -18,6 +20,8 @@ export interface ReviewCard {
   repetitions: number;
   due: string;
 }
+
+export class CardContentError extends Error {}
 
 interface RawCard {
   id: number;
@@ -37,7 +41,7 @@ const SELECT_CARD =
   "SELECT id, doc_id, origin_concept, front, back, difficulty, stability, last_review, interval_days, repetitions, due FROM cards";
 
 function toCard(raw: RawCard): ReviewCard {
-  return {
+  return hydrateStudyCard({
     id: raw.id,
     docId: raw.doc_id,
     originConcept: raw.origin_concept,
@@ -49,13 +53,18 @@ function toCard(raw: RawCard): ReviewCard {
     intervalDays: raw.interval_days,
     repetitions: raw.repetitions,
     due: raw.due,
-  };
+  });
 }
 
-/** 从讲解的 quiz/fillBlank 块机械提取卡片（零 LLM，内容已被练习验证）；同 doc 重复提取按 front 去重 */
-export function createCardsFromDoc(docId: number): { added: number; skipped: number } {
+export function hydrateStudyCard(card: ReviewCard): ReviewCard {
+  const row = card.docId ? getDoc(card.docId) : null;
+  return row ? completeStudyCard(card, row.doc) : card;
+}
+
+/** 从讲解提取完整题面，缺陷题不进入评分队列；同 doc 重复提取去重。 */
+export function createCardsFromDoc(docId: number): { added: number; skipped: number; rejected: number } {
   const row = getDoc(docId);
-  if (!row) return { added: 0, skipped: 0 };
+  if (!row) return { added: 0, skipped: 0, rejected: 0 };
 
   const existing = new Set(
     (
@@ -65,33 +74,18 @@ export function createCardsFromDoc(docId: number): { added: number; skipped: num
     ).map((r) => r.front)
   );
 
-  const inserts: { front: string; back: string }[] = [];
-  for (const block of row.doc.blocks) {
-    if (block.type === "quiz") {
-      const answer = block.options[block.answer] ?? "";
-      inserts.push({
-        front: block.question,
-        back: `答案：${answer}${block.explanation ? `\n解析：${block.explanation}` : ""}`,
-      });
-    } else if (block.type === "fillBlank") {
-      const back = block.blanks
-        .map((b, i) => `空${i + 1}：${b.options[b.answer] ?? ""}${b.explanation ? ` —— ${b.explanation}` : ""}`)
-        .join("\n");
-      inserts.push({
-        front: `${block.prompt ? `${block.prompt}\n` : ""}${block.text}`,
-        back,
-      });
-    }
-  }
+  const inserts = studyCards(row.doc);
 
   let added = 0;
   let skipped = 0;
+  let rejected = 0;
   const db = getDb();
   const stmt = db.prepare(
     "INSERT INTO cards (space_id, doc_id, origin_concept, front, back, due) VALUES (?, ?, ?, ?, ?, ?)"
   );
   for (const card of inserts) {
-    if (existing.has(card.front) || inserts.filter((c) => c.front === card.front).length > 1) {
+    if (card.issue) { rejected++; continue; }
+    if (existing.has(card.front) || existing.has(card.legacyFront) || inserts.filter((c) => c.front === card.front).length > 1) {
       skipped++;
       continue;
     }
@@ -99,7 +93,7 @@ export function createCardsFromDoc(docId: number): { added: number; skipped: num
     stmt.run(row.spaceId, docId, row.originConcept, card.front, card.back, localDay());
     added++;
   }
-  return { added, skipped };
+  return { added, skipped, rejected };
 }
 
 /** 到期队列（due <= today），按到期先后 */
@@ -220,6 +214,7 @@ export function scheduleAndLogReview(id: number, grade: ReviewGrade): ReviewCard
   const db = getDb();
   const raw = db.prepare(`${SELECT_CARD} WHERE id = ?`).get(id) as unknown as RawCard | undefined;
   if (!raw) return null;
+  if (toCard(raw).issue) throw new CardContentError("题面不完整，不能评分；请先纠正原讲解或编辑卡片");
   const next = schedule(
     { difficulty: raw.difficulty, stability: raw.stability, lastReview: raw.last_review },
     grade

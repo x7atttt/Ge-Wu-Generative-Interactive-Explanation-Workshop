@@ -12,6 +12,7 @@ import {
 import { llmConfigFromEnv } from "@/lib/llm/client";
 import type { SearchRef } from "@/lib/search/bocha";
 import { validateDoc, type ExplainDoc } from "./schema";
+import { teachingContentIssue } from "@/lib/study-content";
 
 export class DslError extends Error {
   constructor(message: string) {
@@ -45,6 +46,8 @@ function parseAndValidate(raw: string): ExplainDoc {
   if (issues) throw new DslError(`文档结构校验失败：${issues}`);
   const chartIssue = strictChartChecks(parsed as ExplainDoc);
   if (chartIssue) throw new DslError(`文档结构校验失败：${chartIssue}`);
+  const contentIssue = teachingContentIssue(parsed as ExplainDoc);
+  if (contentIssue) throw new DslError(`教学内容校验失败：${contentIssue}`);
   return parsed as ExplainDoc;
 }
 

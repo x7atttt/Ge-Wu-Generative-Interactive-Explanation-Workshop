@@ -13,9 +13,9 @@ export async function POST(req: Request) {
   if (typeof docId !== "number" || !Number.isInteger(docId) || docId <= 0) {
     return NextResponse.json({ error: "无效的 docId" }, { status: 400 });
   }
-  const { added, skipped } = createCardsFromDoc(docId);
-  if (added === 0 && skipped === 0) {
+  const { added, skipped, rejected } = createCardsFromDoc(docId);
+  if (added === 0 && skipped === 0 && rejected === 0) {
     return NextResponse.json({ error: "讲解不存在，或没有可提取的自测题/填空" }, { status: 400 });
   }
-  return NextResponse.json({ added, skipped });
+  return NextResponse.json({ added, skipped, rejected });
 }

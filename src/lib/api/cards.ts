@@ -7,6 +7,7 @@ export interface ReviewCard {
   originConcept: string | null;
   front: string;
   back: string;
+  issue?: string;
   difficulty: number;
   stability: number;
   lastReview: string | null;
@@ -41,14 +42,14 @@ export async function getExamCards(spaceId: number, count?: number): Promise<Rev
 }
 
 /** 从讲解提取复习卡；返回新增/跳过数 */
-export async function makeCardsFromDoc(docId: number): Promise<{ added: number; skipped: number }> {
+export async function makeCardsFromDoc(docId: number): Promise<{ added: number; skipped: number; rejected: number }> {
   const res = await fetch("/api/cards/from-doc", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ docId }),
   });
   if (!res.ok) throw await readError(res);
-  return (await res.json()) as { added: number; skipped: number };
+  return (await res.json()) as { added: number; skipped: number; rejected: number };
 }
 
 export async function reviewCard(id: number, grade: ReviewGrade): Promise<ReviewCard> {
