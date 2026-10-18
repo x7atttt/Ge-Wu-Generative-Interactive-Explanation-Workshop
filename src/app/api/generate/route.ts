@@ -146,9 +146,13 @@ export async function POST(req: Request) {
       if (sources.length > 0) extras.sources = sources;
       if (statLines) extras.practiceLines = statLines;
       if (images.length > 0) extras.images = images;
+      send({ type: "stage", stage: "build" });
       const doc = await generateDoc(concept, extras, (text) => {
         if (signal.aborted) throw new DOMException("客户端已取消", "AbortError");
         send({ type: "delta", text });
+      }, (stage) => {
+        if (signal.aborted) throw new DOMException("客户端已取消", "AbortError");
+        send({ type: "stage", stage });
       });
       // 断开后到达的成品不入库（中途的每个 delta 都会抛 AbortError，这里是兜底）
       if (signal.aborted) return;

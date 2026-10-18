@@ -41,9 +41,13 @@ export async function POST(req: Request) {
 
   return sseResponse(async (send) => {
     try {
+      send({ type: "stage", stage: "build" });
       const doc = await refineDoc(parsed.data, instruction.trim(), (text) => {
         if (signal.aborted) throw new DOMException("客户端已取消", "AbortError");
         send({ type: "delta", text });
+      }, (stage) => {
+        if (signal.aborted) throw new DOMException("客户端已取消", "AbortError");
+        send({ type: "stage", stage });
       });
       if (signal.aborted) return;
       // refine 子版本继承父版本的空间归属与出身概念（概念地图状态不被深化打散）

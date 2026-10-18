@@ -1,11 +1,13 @@
 /** 前端 API 调用层：组件不直接 fetch，统一从这里走（SSE 流式 + 持久化数据加载） */
 import type { AskItem } from "@/components/dsl/AskPanel";
 import type { Block, ExplainDoc } from "@/lib/dsl/schema";
+import type { GenerationStage } from "@/lib/generation-progress";
 
 interface StreamHandlers {
   onDelta: (text: string) => void;
   /** 生成过程中的阶段提示（如网络检索完成）；可选 */
   onInfo?: (message: string) => void;
+  onStage?: (stage: GenerationStage) => void;
   signal?: AbortSignal;
 }
 
@@ -15,6 +17,7 @@ export type PersonaStyle = string | null;
 type SSEEvent =
   | { type: "delta"; text: string }
   | { type: "info"; message: string }
+  | { type: "stage"; stage: GenerationStage }
   | { type: "done"; doc?: ExplainDoc; docId?: number }
   | { type: "error"; message: string };
 
@@ -71,12 +74,13 @@ async function consumeSSE<T>(
 export async function streamExplanation(
   kind: "generate" | "refine",
   body: unknown,
-  { onDelta, onInfo, signal }: StreamHandlers
+  { onDelta, onInfo, onStage, signal }: StreamHandlers
 ): Promise<DocResult> {
   const reader = await openSSE(`/api/${kind}`, body, signal);
   return consumeSSE(reader, (event) => {
     if (event.type === "delta" && event.text) onDelta(event.text);
     if (event.type === "info" && event.message) onInfo?.(event.message);
+    if (event.type === "stage") onStage?.(event.stage);
     if (event.type === "done" && event.doc && typeof event.docId === "number") {
       return { doc: event.doc, docId: event.docId };
     }

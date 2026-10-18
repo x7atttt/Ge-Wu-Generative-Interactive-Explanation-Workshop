@@ -13,6 +13,7 @@ import { llmConfigFromEnv } from "@/lib/llm/client";
 import type { SearchRef } from "@/lib/search/bocha";
 import { validateDoc, type ExplainDoc } from "./schema";
 import { teachingContentIssue } from "@/lib/study-content";
+import type { GenerationStage } from "@/lib/generation-progress";
 
 export class DslError extends Error {
   constructor(message: string) {
@@ -69,11 +70,13 @@ function strictChartChecks(doc: ExplainDoc): string | null {
 }
 
 /** 校验失败时携带错误让 LLM 自修复一次（非流式，罕见路径不值得流式复杂度） */
-async function withRepair(raw: string, history: ChatMessage[]): Promise<ExplainDoc> {
+async function withRepair(raw: string, history: ChatMessage[], onStage?: (stage: GenerationStage) => void): Promise<ExplainDoc> {
   const toMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
+  onStage?.("verify");
   try {
     return parseAndValidate(raw);
   } catch (firstError) {
+    onStage?.("repair");
     const repaired = await chat(
       [
         { role: "system", content: repairSystemPrompt() },
@@ -86,6 +89,7 @@ async function withRepair(raw: string, history: ChatMessage[]): Promise<ExplainD
       ],
       { jsonMode: true, temperature: 0.1 }
     );
+    onStage?.("verify");
     try {
       return parseAndValidate(repaired);
     } catch (secondError) {
@@ -147,7 +151,8 @@ export interface GenerateExtras {
 export async function generateDoc(
   concept: string,
   extras: GenerateExtras = {},
-  onDelta?: (text: string) => void
+  onDelta?: (text: string) => void,
+  onStage?: (stage: GenerationStage) => void
 ): Promise<ExplainDoc> {
   const images = extras.images ?? [];
   const sections: string[] = [`概念：${concept}`];
@@ -176,14 +181,15 @@ export async function generateDoc(
   const raw = onDelta
     ? await streamChat(history, { jsonMode: true, temperature: 0.4 }, onDelta)
     : await chat(history, { jsonMode: true, temperature: 0.4 });
-  return withRepair(raw, history);
+  return withRepair(raw, history, onStage);
 }
 
 /** 改造走 fast 模型（未配置回落主模型） */
 export async function refineDoc(
   doc: ExplainDoc,
   instruction: string,
-  onDelta?: (text: string) => void
+  onDelta?: (text: string) => void,
+  onStage?: (stage: GenerationStage) => void
 ): Promise<ExplainDoc> {
   const { fastModel } = llmConfigFromEnv();
   const history: ChatMessage[] = [
@@ -197,7 +203,7 @@ export async function refineDoc(
   const raw = onDelta
     ? await streamChat(history, options, onDelta)
     : await chat(history, options);
-  return withRepair(raw, history);
+  return withRepair(raw, history, onStage);
 }
 
 /** 追问的既有对话轮次（user/assistant 交替），由路由层从库中组装 */
