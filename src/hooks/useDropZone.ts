@@ -6,6 +6,7 @@ import { useCallback, useRef, useState } from "react";
  * 文件拖放区：挂到容器的 Drag 事件处理器 + isOver 高亮态。
  * dragenter/leave 用计数器配对（子元素间切换会成对触发，直接布尔的会闪烁）；
  * dragover 必须 preventDefault 浏览器才允许 drop。
+ * Portal 事件会沿 React 树冒泡，只接收 DOM 内的拖放，避免抽屉上传污染高亮态。
  */
 export function useDropZone(onFiles: (files: File[]) => void, enabled = true) {
   const [isOver, setIsOver] = useState(false);
@@ -16,7 +17,7 @@ export function useDropZone(onFiles: (files: File[]) => void, enabled = true) {
 
   const onDragEnter = useCallback(
     (e: React.DragEvent) => {
-      if (!enabled || !hasFiles(e)) return;
+      if (!e.currentTarget.contains(e.target as Node) || !enabled || !hasFiles(e)) return;
       e.preventDefault();
       depth.current += 1;
       setIsOver(true);
@@ -26,7 +27,7 @@ export function useDropZone(onFiles: (files: File[]) => void, enabled = true) {
 
   const onDragOver = useCallback(
     (e: React.DragEvent) => {
-      if (!enabled || !hasFiles(e)) return;
+      if (!e.currentTarget.contains(e.target as Node) || !enabled || !hasFiles(e)) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = "copy";
     },
@@ -34,6 +35,7 @@ export function useDropZone(onFiles: (files: File[]) => void, enabled = true) {
   );
 
   const onDragLeave = useCallback((e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.target as Node)) return;
     e.preventDefault();
     depth.current = Math.max(0, depth.current - 1);
     if (depth.current === 0) setIsOver(false);
@@ -41,6 +43,7 @@ export function useDropZone(onFiles: (files: File[]) => void, enabled = true) {
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
+      if (!e.currentTarget.contains(e.target as Node)) return;
       e.preventDefault();
       depth.current = 0;
       setIsOver(false);

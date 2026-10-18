@@ -37,6 +37,35 @@ with sync_playwright() as p:
     expect(drawer.get_by_title(f['source']['title'], exact=True)).to_be_visible()
     drawer.locator('input[type=file]').set_input_files({'name': f['uploadName'], 'mimeType': 'text/plain', 'buffer': b'Stack is last in first out.'})
     expect(drawer.get_by_title(f['uploadName'].removesuffix('.txt'), exact=True)).to_be_visible()
+    # Portal 内拖入资料不应激活主输入区；只导入一次，且关闭后没有残留遮罩。
+    drop_hint = page.get_by_text('松开添加：图片 → 讲解附图 · txt / md / pdf / doc → 资料库并自动附加', exact=True)
+    drag_name = 'drag-' + f['uploadName']
+    transfer = page.evaluate_handle('''name => {
+        const transfer = new DataTransfer();
+        transfer.items.add(new File(['Drawer drag regression.'], name, {type: 'text/plain'}));
+        return transfer;
+    }''', drag_name)
+    # 上传区之外的抽屉区域也不能冒泡成主输入区上传。
+    header = drawer.get_by_role('heading', name='资料库', exact=True)
+    header.dispatch_event('dragenter', {'dataTransfer': transfer})
+    header.dispatch_event('dragover', {'dataTransfer': transfer})
+    header.dispatch_event('drop', {'dataTransfer': transfer})
+    header.dispatch_event('dragleave', {'dataTransfer': transfer})
+    page.wait_for_load_state('networkidle')
+    expect(drawer.get_by_title(drag_name.removesuffix('.txt'), exact=True)).to_have_count(0)
+    expect(drop_hint).to_have_count(0)
+    upload = drawer.locator('div.border-dashed')
+    upload.dispatch_event('dragenter', {'dataTransfer': transfer})
+    upload.get_by_text('添加参考资料', exact=True).dispatch_event('dragenter', {'dataTransfer': transfer})
+    upload.get_by_text('添加参考资料', exact=True).dispatch_event('dragleave', {'dataTransfer': transfer})
+    expect(drop_hint).to_have_count(0)
+    upload.dispatch_event('dragover', {'dataTransfer': transfer})
+    upload.dispatch_event('drop', {'dataTransfer': transfer})
+    expect(drawer.get_by_title(drag_name.removesuffix('.txt'), exact=True)).to_be_visible()
+    expect(drop_hint).to_have_count(0)
+    imported = page.request.get(f'{BASE}/api/sources').json()['sources']
+    assert len([source for source in imported if source['title'] == drag_name.removesuffix('.txt')]) == 1
+    transfer.dispose()
     drawer.get_by_role('button', name='查看与纠错', exact=True).first.click()
     editor = page.get_by_role('dialog', name='查看与纠正资料', exact=True)
     expect(editor).to_be_visible()
@@ -49,6 +78,31 @@ with sync_playwright() as p:
     page.keyboard.press('Escape')
     expect(drawer).to_have_count(0)
     expect(source_button).to_be_focused()
+    expect(drop_hint).to_have_count(0)
+
+    # 主输入区仍支持拖入文档并自动附加，子节点切换/离开后正确清理提示。
+    hero = source_button.locator('xpath=ancestor::section[1]')
+    transfer = page.evaluate_handle('''name => {
+        const transfer = new DataTransfer();
+        transfer.items.add(new File(['Hero drag regression.'], name, {type: 'text/plain'}));
+        return transfer;
+    }''', 'hero-' + f['uploadName'])
+    hero.dispatch_event('dragenter', {'dataTransfer': transfer})
+    expect(drop_hint).to_be_visible()
+    hero.locator('input').first.dispatch_event('dragenter', {'dataTransfer': transfer})
+    hero.locator('input').first.dispatch_event('dragleave', {'dataTransfer': transfer})
+    expect(drop_hint).to_be_visible()
+    hero.dispatch_event('dragleave', {'dataTransfer': transfer})
+    expect(drop_hint).to_have_count(0)
+    hero.dispatch_event('dragenter', {'dataTransfer': transfer})
+    hero.dispatch_event('dragover', {'dataTransfer': transfer})
+    hero.dispatch_event('drop', {'dataTransfer': transfer})
+    expect(drop_hint).to_have_count(0)
+    expect(page.get_by_text('已导入 1 份资料并附加', exact=True)).to_be_visible()
+    expect(source_button).to_have_text('资料 2')
+    imported = page.request.get(f'{BASE}/api/sources').json()['sources']
+    assert len([source for source in imported if source['title'] == ('hero-' + f['uploadName']).removesuffix('.txt')]) == 1
+    transfer.dispose()
 
     for width in [925, 714, 390]:
         page.set_viewport_size({'width': width, 'height': 900})
