@@ -14,7 +14,7 @@ const STATUS_META: Record<
   new: {
     label: "未学",
     dot: "bg-stone-400",
-    chip: "border-stone-200 bg-card text-stone-600 hover:border-secondary-300 hover:text-secondary-700",
+    chip: "border-stone-200 bg-paper/70 text-stone-700 hover:border-secondary-300 hover:text-secondary-700",
     hint: "点击生成讲解",
   },
   explained: {
@@ -239,7 +239,7 @@ export function SpaceMapPanel({
   const weak = map?.concepts.find((c) => c.status === "weak");
 
   return (
-    <section className="mt-6">
+    <section aria-label="空间学习概览" className="mt-6 rounded-2xl border border-stone-200 bg-card p-4 shadow-sm sm:p-6">
       {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}，已保留上次内容。
         <button type="button" disabled={loading} onClick={refresh} className="ml-2 underline">重试加载地图</button>
       </p>}
@@ -342,14 +342,14 @@ export function SpaceMapPanel({
       )}
 
       {map && map.concepts.length === 0 && (
-        <p className="mt-3 rounded-lg bg-stone-50 px-3 py-4 text-center text-xs leading-5 text-stone-500">
+        <p className="mt-4 rounded-xl border border-dashed border-stone-200 bg-paper/70 px-4 py-8 text-center text-sm leading-6 text-stone-600">
           {map.summary.sources === 0
             ? "还没有资料——用上方「资料」面板导入本空间的讲义/真题，然后在各资料上「提炼讲解点」"
             : "资料还没有提炼讲解点——在「资料」面板点各资料的「提炼讲解点」，概念会自动出现在这张地图上"}
         </p>
       )}
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-4 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-3">
         {map?.concepts.map((concept) => {
           const meta = STATUS_META[concept.status];
           const rate =
@@ -357,46 +357,62 @@ export function SpaceMapPanel({
               ? Math.round((concept.practice.correct / concept.practice.total) * 100)
               : null;
           return (
-            <div key={concept.text} className="max-w-full rounded-xl border border-stone-100 p-1">
             <button
               key={concept.text}
               type="button"
               onClick={() => handleClick(concept)}
               title={meta.hint}
-              className={`group flex flex-col items-start rounded-xl border px-3 py-2 text-left transition-colors disabled:opacity-50 ${meta.chip}`}
+              disabled={disabled}
+              className={`group flex min-w-0 flex-col items-start rounded-xl border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-500 disabled:opacity-50 ${meta.chip}`}
             >
-              <span className="text-sm">{concept.text}</span>
-              <span className="text-xs">{meta.label}</span>
-              <span className="mt-0.5 text-[10px] opacity-70">
+              <span className="text-sm font-medium leading-5 [overflow-wrap:anywhere]">{concept.text}</span>
+              <span className="mt-2 text-xs">{meta.label}</span>
+              <span className="mt-1 text-xs opacity-80">
                 {concept.status === "new"
                   ? `${concept.sourceIds.length} 份资料提及`
                   : rate !== null
                     ? `练习 ${concept.practice.total} 次 · 正确率 ${rate}%`
                     : "已生成讲解"}
               </span>
+              {concept.recall.again > 0 && <span className="mt-1 text-xs text-accent-700">有忘记的卡片，建议回顾</span>}
             </button>
-            <details className="px-2 py-1 text-xs leading-5 text-stone-600">
-              <summary className="cursor-pointer">学习依据{concept.recall.again > 0 ? " · 建议回顾" : ""}</summary>
-              <p>讲解内练习：{concept.practice.total} 次，正确 {concept.practice.correct} 次。至少 3 次且正确率不低于 60% 计为练习达标。</p>
-              <p>卡片最近自评：记得 {concept.recall.easy} · 模糊 {concept.recall.fuzzy} · 忘记 {concept.recall.again}。自评不替代练习判题。</p>
-              {concept.recall.again > 0 && <button type="button" disabled={disabled} onClick={() => openReview(concept.recall.forgottenCardIds)} className="min-h-9 text-accent-600 underline">复习忘记的卡</button>}
-            </details>
-            </div>
           );
         })}
       </div>
+      {map && map.concepts.length > 0 && (
+        <details className="mt-4 rounded-xl border border-stone-200 bg-paper/50 text-xs leading-5 text-stone-600">
+          <summary className="min-h-11 cursor-pointer rounded-xl px-4 py-3 font-medium text-stone-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-500">
+            学习依据<span className="ml-2 font-normal text-stone-500">判题与自评记录{forgotten.length > 0 ? ` · ${forgotten.length} 张建议回顾` : ""}</span>
+          </summary>
+          <div className="border-t border-stone-200 px-4 pb-2">
+            <p className="py-3">至少 3 次讲解内练习且正确率不低于 60% 计为练习达标。自评不替代练习判题。</p>
+            <dl className="divide-y divide-stone-200">
+              {map.concepts.map((concept) => (
+                <div key={concept.text} className="grid gap-1 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] sm:gap-4">
+                  <dt className="font-medium text-stone-800 [overflow-wrap:anywhere]">{concept.text}</dt>
+                  <dd>
+                    <p>讲解内练习：{concept.practice.total} 次，正确 {concept.practice.correct} 次。</p>
+                    <p>卡片最近自评：记得 {concept.recall.easy} · 模糊 {concept.recall.fuzzy} · 忘记 {concept.recall.again}。</p>
+                    {concept.recall.again > 0 && <button type="button" disabled={disabled} onClick={() => openReview(concept.recall.forgottenCardIds)} className="min-h-11 text-accent-700 underline disabled:opacity-50">复习忘记的卡</button>}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </details>
+      )}
       {loading && <p className="mt-2 text-xs text-stone-300">刷新中…</p>}
 
       {/* 学习路线：概念按依赖/难度编排的攻克路径（LLM 快照，重生成覆盖；完成度由概念状态推出） */}
       {map && (map.roadmap || map.concepts.length >= 2) && (
-        <div className="mt-3 border-t border-stone-100 pt-3">
+        <div className="mt-6 border-t border-stone-200 pt-5">
           {roadmapError && <p role="alert" className="mb-2 text-sm text-red-700">{roadmapError}，原路线已保留。<button type="button" disabled={roadmapBusy} onClick={handleGenRoadmap} className="ml-2 underline">重试编排</button></p>}
           {map.space.roadmapStale && map.roadmap && <p className="mb-2 text-xs text-amber-800">资料或概念已变更，当前路线为旧快照，建议重新生成。已移除概念不会再触发无资料生成。</p>}
           <p className="mb-2 text-xs text-stone-500">推进依据：站内概念的讲解练习均达标；自评回顾单独提示。</p>
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-semibold text-stone-600">🗺 学习路线</h3>
+            <h3 className="font-display text-base font-semibold text-stone-900">🗺 学习路线</h3>
             {map.roadmap && map.roadmapAt && (
-              <span className="text-[10px] text-stone-300">生成于 {map.roadmapAt.slice(5, 16)}</span>
+              <span className="text-xs text-stone-500">生成于 {map.roadmapAt.slice(5, 16)}</span>
             )}
             <button
               type="button"
@@ -423,8 +439,8 @@ export function SpaceMapPanel({
                   return (
                     <div
                       key={`${stage.title}-${i}`}
-                      className={`rounded-xl border p-2.5 transition-colors ${
-                        isCurrent ? "border-accent-300 bg-accent-50/40" : "border-stone-100"
+                      className={`rounded-xl border p-3 transition-colors ${
+                        isCurrent ? "border-accent-300 bg-accent-50" : "border-stone-200 bg-paper/50"
                       }`}
                     >
                       <div className="flex flex-wrap items-center gap-2">
@@ -444,7 +460,7 @@ export function SpaceMapPanel({
                         </span>
                       </div>
                       {stage.goal && (
-                        <p className="mt-1 text-[11px] leading-4 text-stone-400">{stage.goal}</p>
+                        <p className="mt-1 text-xs leading-5 text-stone-600">{stage.goal}</p>
                       )}
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {stage.concepts.map((text) => (

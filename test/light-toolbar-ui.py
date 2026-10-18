@@ -104,9 +104,41 @@ with sync_playwright() as p:
     assert len([source for source in imported if source['title'] == ('hero-' + f['uploadName']).removesuffix('.txt')]) == 1
     transfer.dispose()
 
+    # 多概念地图只保留一个依据入口，键盘可展开；忘记卡的定向复习仍可达。
+    overview = page.get_by_role('region', name='空间学习概览', exact=True)
+    evidence = overview.locator('details')
+    expect(evidence).to_have_count(1)
+    expect(evidence).not_to_have_attribute('open', '')
+    expect(overview.get_by_text('有忘记的卡片，建议回顾', exact=True)).to_be_visible()
+    evidence.locator('summary').focus()
+    page.keyboard.press('Enter')
+    expect(evidence).to_have_attribute('open', '')
+    expect(evidence.locator('dt')).to_have_count(10)
+    expect(evidence.get_by_text('卡片最近自评：记得 0 · 模糊 0 · 忘记 1。', exact=True)).to_be_visible()
+    evidence.get_by_role('button', name='复习忘记的卡', exact=True).click()
+    review = page.get_by_role('dialog', name='复习', exact=True)
+    expect(review.get_by_text('队列从哪里移出元素？', exact=True)).to_be_visible()
+    review.get_by_role('button', name='退出', exact=True).click()
+    expect(review).to_have_count(0)
+    evidence.locator('summary').click()
+    expect(evidence).not_to_have_attribute('open', '')
+    page.get_by_role('button', name='生成学习路线', exact=True).click()
+    expect(page.get_by_role('button', name='重新生成', exact=True)).to_be_visible()
+    overview.screenshot(path='data/space-map-panel-desktop.png')
+
     for width in [925, 714, 390]:
         page.set_viewport_size({'width': width, 'height': 900})
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), width
+        cards = overview.locator(':scope > div.grid > button')
+        expect(cards).to_have_count(10)
+        widths = cards.evaluate_all('(nodes)=>nodes.map(node=>node.getBoundingClientRect().width)')
+        assert max(widths) - min(widths) < 1, (width, widths)
+        if width == 390:
+            evidence.locator('summary').click()
+            expect(evidence.locator('dt')).to_have_count(10)
+            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+            evidence.locator('summary').click()
+            overview.screenshot(path='data/space-map-panel-mobile.png')
         source_button.click()
         expect(drawer).to_be_visible()
         page.keyboard.press('Tab')

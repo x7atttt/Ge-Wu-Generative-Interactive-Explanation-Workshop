@@ -15,6 +15,14 @@ try {
   assert(imported.ok);
   const source = (await imported.json()).sources[0];
   sourceId = source.id;
+  const concepts = ["队列", "栈", "循环队列与队首队尾的边界判断", "链式存储", "顺序存储", "入队与出队", "栈的应用", "递归调用栈", "表达式求值", "复杂度分析"];
+  const updated = await fetch(`${base}/api/sources/${sourceId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revision: source.revision, concepts }) });
+  assert(updated.ok);
+  const createdCard = await fetch(base + "/api/cards", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ spaceId, front: "队列从哪里移出元素？", back: "队头", concept: "队列" }) });
+  assert(createdCard.ok);
+  const { card } = await createdCard.json();
+  const reviewed = await fetch(`${base}/api/cards/${card.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grade: "again" }) });
+  assert(reviewed.ok);
   const valid = { version: 1, title: "轻量工具栏验收", blocks: [
     { type: "heading", text: "队列与栈", level: 2 },
     { type: "text", content: "队列先进先出，栈后进先出。" },
