@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { BuildProgressPanel } from "@/components/BuildProgressPanel";
 import { DocHistoryButton } from "@/components/DocHistoryButton";
 import { SourcesPanel } from "@/components/SourcesPanel";
+import { SourceContextPanel } from "@/components/SourceContextPanel";
 import { SoundToggle } from "@/components/SoundToggle";
 import { SpaceMapPanel } from "@/components/SpaceMapPanel";
 import { SpacePicker } from "@/components/SpacePicker";
@@ -59,6 +60,7 @@ export default function Home() {
   const [originConcept, setOriginConcept] = useState<string | null>(null);
   /** 空间地图刷新信号：生成完成/切换文档后自增 */
   const [mapRefresh, setMapRefresh] = useState(0);
+  const [sourcesOpenSignal, setSourcesOpenSignal] = useState(0);
   const [persona, setPersona] = useState<PersonaState>({ id: "default", custom: "" });
   const [doc, setDoc] = useState<ExplainDoc | null>(null);
   const [docId, setDocId] = useState<number | null>(null);
@@ -199,7 +201,10 @@ export default function Home() {
         ? {
             docId,
             report: (blockType: "quiz" | "fillBlank" | "match" | "sort", correct: boolean) =>
-              postAttempt(docId, blockType, correct),
+              postAttempt(docId, blockType, correct).then((saved) => {
+                if (saved) setMapRefresh((k) => k + 1);
+                else setError("本次练习记录未能保存，地图状态尚未更新，请检查连接后重试练习。");
+              }),
           }
         : null,
     [docId]
@@ -532,7 +537,7 @@ export default function Home() {
                   : "想搞懂什么概念？如：正弦波的频率、英语名词复数、快速排序"
               }
               maxLength={200}
-              className="h-11 flex-1 rounded-xl border border-stone-200 px-4 text-sm outline-none transition-colors focus:border-accent-400"
+              className="h-11 min-w-0 flex-1 rounded-xl border border-stone-200 px-4 text-sm outline-none transition-colors focus:border-accent-400"
               disabled={busy === "generate"}
             />
             <input
@@ -558,7 +563,7 @@ export default function Home() {
             <button
               onClick={handleGenerate}
               disabled={busy !== null || (!concept.trim() && attachedSourceIds.length === 0 && genImages.length === 0)}
-              className="h-11 rounded-xl bg-stone-900 px-5 text-sm font-medium text-paper shadow-sm transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-11 shrink-0 whitespace-nowrap rounded-xl bg-stone-900 px-3 text-sm font-medium text-paper shadow-sm transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-50 sm:px-5"
             >
               生成讲解
             </button>
@@ -606,7 +611,7 @@ export default function Home() {
                 {example}
               </button>
             ))}
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
               <SpacePicker
                 spaces={spaces}
                 spaceId={spaceId}
@@ -615,6 +620,8 @@ export default function Home() {
                 disabled={busy === "generate"}
               />
               <SourcesPanel
+                openSignal={sourcesOpenSignal}
+                onChanged={() => { setMapRefresh((k) => k + 1); refreshSpaces(); }}
                 attachedIds={attachedSourceIds}
                 onAttachChange={updateAttached}
                 onPickConcept={pickSourceConcept}
@@ -685,6 +692,8 @@ export default function Home() {
         {/* 空间模式：概念地图驾驶舱（资料提炼概念 × 讲解/练习状态，一键生成/打开/补练） */}
         {spaceId !== null && (
           <SpaceMapPanel
+            key={spaceId}
+            onOpenSources={() => { setSourcesOpenSignal((k) => k + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}
             spaceId={spaceId}
             examDate={spaces.find((s) => s.id === spaceId)?.examDate ?? null}
             note={spaces.find((s) => s.id === spaceId)?.note ?? ""}
@@ -725,6 +734,7 @@ export default function Home() {
           >
             <AttemptContext.Provider value={attemptValue}>
             <ExplainDocView doc={doc} deepens={deepens} />
+            {docId !== null && <SourceContextPanel key={docId} docId={docId} />}
 
             {/* 底部对话面板：深化讲解｜追问细节 双 tab（双份内容常驻 hidden 切换，保住追问会话态） */}
             <div className="mt-6 border-t border-stone-100 pt-4">

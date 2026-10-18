@@ -11,6 +11,7 @@ import {
 } from "@/lib/api/sources";
 import { moveSource } from "@/lib/api/spaces";
 import { playPop } from "@/lib/audio/sound";
+import { SourceEditor } from "@/components/SourceEditor";
 
 const KIND_LABEL: Record<string, string> = {
   txt: "TXT",
@@ -41,6 +42,8 @@ export function SourcesPanel({
   onPickConcept,
   spaceId,
   disabled,
+  openSignal = 0,
+  onChanged,
 }: {
   attachedIds: number[];
   onAttachChange: (ids: number[]) => void;
@@ -49,19 +52,23 @@ export function SourcesPanel({
   /** 当前空间（null = 全局模式，显示全部资料） */
   spaceId?: number | null;
   disabled?: boolean;
+  openSignal?: number;
+  onChanged: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [panel, setPanel] = useState({ open: false, signal: 0 });
+  const open = panel.open || openSignal > panel.signal;
+  const setOpen = useCallback((value: boolean) => setPanel({ open: value, signal: openSignal }), [openSignal]);
   const [sources, setSources] = useState<SourceItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [extractingId, setExtractingId] = useState<number | null>(null);
   const [movingId, setMovingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [retryAction, setRetryAction] = useState<null | (() => void)>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const refresh = useCallback(async () => {
-    try {
-      const list = await listSources();
+  const refresh = useCallback(() => listSources().then((list) => {
       setSources(list);
       // 对账：附加状态里已不存在/未就绪的资料一律摘除——删除可能发生在任何路径
       // （面板删除、空间清理、外部操作），高亮的资料数必须与实际资料一致
@@ -69,10 +76,9 @@ export function SourcesPanel({
       if (attachedIds.some((id) => !valid.has(id))) {
         onAttachChange(attachedIds.filter((id) => valid.has(id)));
       }
-    } catch {
-      // 列表加载失败不打断面板，保持旧数据
-    }
-  }, [attachedIds, onAttachChange]);
+    }).catch((err) => {
+      setError(err instanceof Error ? err.message : "资料加载失败，已保留上次内容");
+    }).finally(() => setLoading(false)), [attachedIds, onAttachChange]);
 
   // 挂载即加载一次：附加态从 localStorage 恢复后需要列表来校验有效性；
   // attachedIds 变化 → refresh 重建 → 重取列表并及时对账（收敛，无循环）
@@ -83,14 +89,13 @@ export function SourcesPanel({
   // 打开时加载 + 解析中轮询（GET 惰性驱动服务端向 MinerU 同步结果）
   useEffect(() => {
     if (!open) return;
-    setLoading(true);
     refresh().finally(() => setLoading(false));
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, refresh]);
+  }, [open, refresh, setOpen]);
 
   const inSpaceMode = spaceId != null;
   const visible = inSpaceMode ? sources.filter((s) => s.spaceId === spaceId) : sources;
@@ -109,6 +114,7 @@ export function SourcesPanel({
     try {
       await importSources([...files], spaceId ?? null);
       await refresh();
+      onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "导入失败，请重试");
     } finally {
@@ -119,40 +125,48 @@ export function SourcesPanel({
 
   async function handleMove(id: number) {
     if (spaceId == null) return;
+    setError(null); setRetryAction(null);
     setMovingId(id);
     try {
       await moveSource(id, spaceId);
       await refresh();
-    } catch {
-      refresh();
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "移动失败");
+      setRetryAction(() => () => handleMove(id));
     } finally {
       setMovingId(null);
     }
   }
 
   async function handleExtract(id: number) {
+    setRetryAction(null);
     setExtractingId(id);
     setError(null);
     try {
       // 概念在服务端落库缓存，这里只为触发声音反馈
       const concepts = await extractConcepts(id);
       setSources((prev) => prev.map((s) => (s.id === id ? { ...s, concepts } : s)));
+      await refresh(); onChanged();
       playPop();
     } catch (err) {
       setError(err instanceof Error ? err.message : "提炼失败，请稍后重试");
+      setRetryAction(() => () => handleExtract(id));
     } finally {
       setExtractingId(null);
     }
   }
 
   async function handleDelete(id: number) {
+    setError(null); setRetryAction(null);
     try {
       await deleteSource(id);
       onAttachChange(attachedIds.filter((x) => x !== id));
       await refresh();
-    } catch {
-      // 删除失败刷新一次列表看实际状态
-      refresh();
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "删除失败");
+      setRetryAction(() => () => handleDelete(id));
     }
   }
 
@@ -170,7 +184,7 @@ export function SourcesPanel({
     <div className="relative">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(!open)}
         aria-pressed={attachedIds.length > 0}
         disabled={disabled}
         className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-50 ${
@@ -193,9 +207,10 @@ export function SourcesPanel({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.16 }}
-              className="absolute right-0 z-40 mt-2 w-[380px] max-w-[calc(100vw-2rem)] rounded-xl border border-stone-200 bg-card p-3 shadow-lg"
+              className="fixed inset-x-4 top-28 z-40 mt-2 rounded-xl border border-stone-200 bg-card p-3 shadow-lg sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:w-[380px] sm:max-w-[calc(100vw-2rem)]"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => setOpen(false)} className="min-h-9 shrink-0 text-xs text-stone-600 underline">关闭资料</button>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -212,11 +227,11 @@ export function SourcesPanel({
                 >
                   {importing ? "导入中…" : "导入文件"}
                 </button>
-                <p className="text-xs text-stone-400">txt / md 本地解析 · PDF / Word 走 MinerU</p>
+                <p className="order-last w-full text-xs text-stone-500">txt / md 本地解析 · PDF / Word 走 MinerU</p>
                 <span className="ml-auto text-xs text-stone-300">{loading ? "加载中…" : ""}</span>
               </div>
 
-              {error && <p className="mt-2 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs text-red-600">{error}</p>}
+              {error && <p role="alert" className="mt-2 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs text-red-600">{error}<button type="button" onClick={() => { setError(null); if (retryAction) retryAction(); else refresh(); }} className="ml-2 underline">重试</button></p>}
 
               <div className="mt-2 max-h-72 overflow-y-auto">
                 {visible.length === 0 && !loading && (
@@ -260,6 +275,7 @@ export function SourcesPanel({
                       </div>
 
                       <div className="mt-1.5 flex items-center gap-3 text-xs">
+                        <button type="button" disabled={!ready} onClick={() => setEditingId(source.id)} className="min-h-9 text-accent-700 underline disabled:opacity-50">查看与纠错</button>
                         <button
                           type="button"
                           disabled={!ready}
@@ -335,6 +351,7 @@ export function SourcesPanel({
           </>
         )}
       </AnimatePresence>
+      {editingId !== null && <SourceEditor id={editingId} onClose={() => setEditingId(null)} onSaved={() => { refresh(); onChanged(); }} />}
     </div>
   );
 }

@@ -91,7 +91,7 @@ export function SpacePicker({
         }}
         disabled={disabled}
         title="空间：资料/历史/统计按空间分组，选定后显示概念地图"
-        className={`rounded-full border px-2.5 py-1 text-xs outline-none transition-colors disabled:opacity-50 ${
+        className={`max-w-40 rounded-full border px-2.5 py-1 text-xs outline-none transition-colors disabled:opacity-50 ${
           spaceId !== null
             ? "border-secondary-300 bg-secondary-50 text-secondary-700"
             : "border-stone-200 bg-card text-stone-600 hover:border-secondary-300 focus:border-secondary-400"

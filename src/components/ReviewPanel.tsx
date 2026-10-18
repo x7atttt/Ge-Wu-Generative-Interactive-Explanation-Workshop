@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { listDueCards, reviewCard, type ReviewCard } from "@/lib/api/cards";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
+import { listAllCards, listDueCards, reviewCard, type ReviewCard } from "@/lib/api/cards";
 import { playComplete, playCorrect, playPop, playWrong } from "@/lib/audio/sound";
 import { useReducedMotion } from "motion/react";
-import type { ReviewGrade } from "@/lib/fsrs";
+import { localDay, type ReviewGrade } from "@/lib/fsrs";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 const GRADE_BUTTONS: { grade: ReviewGrade; label: string; hint: string; className: string }[] = [
   {
@@ -36,11 +37,15 @@ export function ReviewPanel({
   spaceId,
   onClose,
   onFinish,
+  cardIds,
+  onOpenDoc,
 }: {
   spaceId: number;
   onClose: () => void;
   /** 会话结束（全部过完或中途退出）后刷新地图计数 */
   onFinish: () => void;
+  cardIds?: number[];
+  onOpenDoc: (id: number) => void;
 }) {
   const [queue, setQueue] = useState<ReviewCard[] | null>(null);
   const [index, setIndex] = useState(0);
@@ -48,22 +53,26 @@ export function ReviewPanel({
   const [grading, setGrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tally, setTally] = useState<Record<ReviewGrade, number>>({ again: 0, fuzzy: 0, easy: 0 });
+  const [initialCount, setInitialCount] = useState(0);
+  const [deferred, setDeferred] = useState<number[]>([]);
+  const gradeLock = useRef(false);
+  const dialogRef = useDialogFocus<HTMLDivElement>();
   const reducedMotion = useReducedMotion();
 
+  const load = useCallback(() => (cardIds ? listAllCards(spaceId).then((cards) => cards.filter((c) => cardIds.includes(c.id) && c.due <= localDay())) : listDueCards(spaceId)).then((cards) => {
+      setQueue(cards); setInitialCount(cards.length); setError(null);
+      setIndex(0); setRevealed(false); setDeferred([]); setTally({ again: 0, fuzzy: 0, easy: 0 });
+    }).catch((err) => { setError(err instanceof Error ? err.message : "复习队列加载失败"); }), [spaceId, cardIds]);
+
   useEffect(() => {
-    listDueCards(spaceId)
-      .then((cards) => setQueue(cards))
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : "复习队列加载失败");
-        setQueue([]);
-      });
+    load();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") handleClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spaceId]);
+  }, [load]);
 
   const card = queue !== null ? queue[index] : undefined;
   const finished = queue !== null && index >= queue.length;
@@ -74,8 +83,10 @@ export function ReviewPanel({
   }
 
   async function handleGrade(grade: ReviewGrade) {
-    if (!card || grading) return;
+    if (!card || gradeLock.current) return;
+    gradeLock.current = true;
     setGrading(true);
+    setError(null);
     if (grade === "easy") playCorrect();
     else if (grade === "again") playWrong();
     else playPop();
@@ -91,6 +102,7 @@ export function ReviewPanel({
     } catch (err) {
       setError(err instanceof Error ? err.message : "评分失败，请重试");
     } finally {
+      gradeLock.current = false;
       setGrading(false);
     }
   }
@@ -99,6 +111,8 @@ export function ReviewPanel({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (finished || !card || grading) return;
+      if ((e.target as HTMLElement).closest("input, textarea, select")) return;
+      if ([" ", "Enter"].includes(e.key) && (e.target as HTMLElement).closest("button, a")) return;
       if ((e.key === " " || e.key === "Enter") && !revealed) {
         e.preventDefault();
         setRevealed(true);
@@ -116,16 +130,18 @@ export function ReviewPanel({
       <div className="fixed inset-0 z-40 bg-stone-900/30" onClick={handleClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <motion.div
+          ref={dialogRef} tabIndex={-1}
           initial={reducedMotion ? false : { opacity: 0, y: 14, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ type: "spring", stiffness: 160, damping: 18 }}
-          className="w-full max-w-lg rounded-2xl border border-stone-200 bg-card p-5 shadow-xl"
+          role="dialog" aria-modal="true" aria-label="复习"
+          className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl border border-stone-200 bg-card p-5 shadow-xl"
         >
           <div className="flex items-center gap-2">
             <h3 className="font-display text-base font-bold text-stone-900">🔖 复习</h3>
             {queue !== null && !finished && (
               <span className="text-xs text-stone-400">
-                {index + 1} / {queue.length}
+                {initialCount} 张卡 · 已评分 {tally.again + tally.fuzzy + tally.easy} 次 · 待处理 {queue.length - index} 次
               </span>
             )}
             <button
@@ -137,13 +153,15 @@ export function ReviewPanel({
             </button>
           </div>
 
-          {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}
+          {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}
+            {!queue && <button type="button" className="ml-2 underline" onClick={load}>重试加载</button>}
+          </p>}
 
           {queue === null && !error && <p className="py-10 text-center text-sm text-stone-400">加载复习队列…</p>}
 
-          {queue !== null && queue.length === 0 && (
+          {queue !== null && queue.length === 0 && initialCount === 0 && (
             <p className="py-10 text-center text-sm leading-6 text-stone-500">
-              今日没有到期的复习卡
+              {cardIds ? "本次选中的卡片已处理或删除，没有仍到期的卡" : "今日没有到期的复习卡"}
               <br />
               <span className="text-xs text-stone-400">在讲解底部点「制成复习卡」，题目会按遗忘曲线安排回来</span>
             </p>
@@ -151,6 +169,16 @@ export function ReviewPanel({
 
           {card && (
             <div className="mt-4">
+              <div className="mb-2 flex flex-wrap gap-3 text-xs">
+                <button type="button" disabled={grading} className="min-h-9 text-stone-600 underline" onClick={() => {
+                  if (gradeLock.current) return;
+                  setDeferred((ids) => [...new Set([...ids, card.id])]);
+                  setQueue((q) => q?.filter((c, i) => i < index || c.id !== card.id) ?? null);
+                  setRevealed(false); setError(null);
+                }}>稍后再练</button>
+                {!!card.docId && <button type="button" disabled={grading} className="min-h-9 text-accent-600 underline" onClick={() => { handleClose(); onOpenDoc(card.docId); }}>查看原讲解</button>}
+              </div>
+              <p className="mb-2 text-xs text-stone-500">难卡可暂缓，仍保留在今日到期队列。</p>
               {card.originConcept && (
                 <p className="mb-2 inline-block rounded-full bg-secondary-50 px-2 py-0.5 text-[10px] text-secondary-600">
                   {card.originConcept}
@@ -201,17 +229,17 @@ export function ReviewPanel({
             </div>
           )}
 
-          {finished && queue !== null && queue.length > 0 && (
+          {finished && initialCount > 0 && (
             <div className="py-6 text-center">
               <p className="text-sm font-medium text-stone-800">
-                本轮过完，共 {tally.again + tally.fuzzy + tally.easy} 次评分
+                本轮结束，{initialCount} 张卡 · {tally.again + tally.fuzzy + tally.easy} 次评分
               </p>
               <p className="mt-1 text-xs text-stone-500">
                 <span className="text-emerald-600">记得 {tally.easy}</span> ·{" "}
                 <span className="text-amber-600">模糊 {tally.fuzzy}</span> ·{" "}
                 <span className="text-red-500">忘记 {tally.again}</span>
                 <br />
-                忘记的卡仍留在今日队列，明天记得回来
+                {deferred.length > 0 ? `暂缓 ${deferred.length} 张，仍在今日到期队列，可稍后回来处理` : "本轮卡片已处理，后续按排期回来复习"}
               </p>
               <button
                 type="button"
@@ -231,12 +259,12 @@ export function ReviewPanel({
 
 /** 会话完成音只在完成那一刻响一次（渲染守卫防重复） */
 function SessionDoneSound({ trigger }: { trigger: boolean }) {
-  const [played, setPlayed] = useState(false);
+  const played = useRef(false);
   useEffect(() => {
-    if (trigger && !played) {
+    if (trigger && !played.current) {
       playComplete();
-      setPlayed(true);
+      played.current = true;
     }
-  }, [trigger, played]);
+  }, [trigger]);
   return null;
 }

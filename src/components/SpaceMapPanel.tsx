@@ -22,9 +22,14 @@ const STATUS_META: Record<
     hint: "点击打开讲解继续练习",
   },
   practiced: {
-    label: "已练习",
+    label: "练习达标",
     chip: "border-secondary-200 bg-secondary-50 text-secondary-700 hover:border-secondary-400",
     hint: "点击打开讲解",
+  },
+  learning: {
+    label: "待巩固",
+    chip: "border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-400",
+    hint: "已有练习，样本不足，点击继续巩固",
   },
   weak: {
     label: "薄弱",
@@ -128,6 +133,7 @@ export function SpaceMapPanel({
   onPick,
   onPractice,
   onOpenDoc,
+  onOpenSources,
 }: {
   spaceId: number;
   /** 考试日期（来自空间列表，枢纽改日期后即时生效） */
@@ -146,26 +152,28 @@ export function SpaceMapPanel({
   /** 薄弱概念 → 补练（以该概念最近一次讲解的统计为准） */
   onPractice: (docId: number, title: string) => void;
   onOpenDoc: (docId: number) => void;
+  onOpenSources: () => void;
 }) {
   const [map, setMap] = useState<SpaceMap | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [examOpen, setExamOpen] = useState(false);
   const [cardsOpen, setCardsOpen] = useState(false);
   const [roadmapBusy, setRoadmapBusy] = useState(false);
+  const [roadmapError, setRoadmapError] = useState<string | null>(null);
+  const [reviewIds, setReviewIds] = useState<number[] | undefined>();
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      setMap(await getSpaceMap(spaceId));
+  function openReview(ids?: number[]) {
+    setReviewIds(ids); setReviewOpen(true);
+  }
+
+  const refresh = useCallback(() => getSpaceMap(spaceId).then((value) => {
+      setMap(value);
       setError(null);
-    } catch (err) {
+    }).catch((err) => {
       setError(err instanceof Error ? err.message : "地图加载失败");
-    } finally {
-      setLoading(false);
-    }
-  }, [spaceId]);
+    }).finally(() => setLoading(false)), [spaceId]);
 
   useEffect(() => {
     refresh();
@@ -198,26 +206,41 @@ export function SpaceMapPanel({
   async function handleGenRoadmap() {
     if (disabled || roadmapBusy) return;
     setRoadmapBusy(true);
+    setRoadmapError(null);
     try {
       await generateRoadmap(spaceId);
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "学习路线生成失败");
+      setRoadmapError(err instanceof Error ? err.message : "学习路线生成失败");
     } finally {
       setRoadmapBusy(false);
     }
   }
 
-  if (error) {
-    return (
-      <section className="mt-6 rounded-2xl border border-stone-200 bg-card p-4 shadow-sm">
-        <p className="text-sm text-red-600">{error}</p>
-      </section>
-    );
-  }
+  const nextConcept = map && ((map.roadmap?.flatMap((s) => s.concepts) ?? []).map((text) => map.concepts.find((c) => c.text === text)).find((c) => c && c.status !== "practiced")
+    ?? map.concepts.find((c) => c.status !== "practiced"));
+  const forgotten = map?.concepts.flatMap((c) => c.recall.forgottenCardIds) ?? [];
+  const weak = map?.concepts.find((c) => c.status === "weak");
 
   return (
     <section className="mt-4 rounded-2xl border border-secondary-100 bg-card/80 p-4 shadow-sm">
+      {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}，已保留上次内容。
+        <button type="button" disabled={loading} onClick={refresh} className="ml-2 underline">重试加载地图</button>
+      </p>}
+      {map && <div className="mb-4 rounded-xl border border-accent-200 bg-accent-50/50 p-4">
+        <h3 className="font-display text-base font-semibold text-stone-900">今天从这里开始</h3>
+        <p className="mt-1 text-xs leading-5 text-stone-600">到期复习 {map.cards.due} 张 · 建议回顾 {forgotten.length} 张 · 薄弱概念 {map.summary.weak} 个</p>
+        <p className="mt-1 text-sm leading-6 text-stone-700">{map.cards.due > 0 ? "先清理到期卡，再继续学习路线。" : forgotten.length > 0 ? "有自评忘记的概念，建议回看学习依据。" : weak ? `继续巩固「${weak.text}」。` : nextConcept ? `下一步：${nextConcept.text}。` : map.concepts.length === 0 ? "先导入资料并确认概念，建立你的学习地图。" : "当前练习已达标，到期复习已清。今天可以收尾，也可以做一次综合自测。"}</p>
+        <button type="button" disabled={disabled} className="mt-3 min-h-11 rounded-xl bg-accent-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50" onClick={() => {
+          if (map.cards.due > 0) openReview();
+          else if (forgotten.length > 0) openReview(forgotten);
+          else if (weak) conceptClick(weak.text);
+          else if (nextConcept) conceptClick(nextConcept.text);
+          else if (map.concepts.length === 0) onOpenSources();
+          else if (map.cards.total === 0) setCardsOpen(true);
+          else setExamOpen(true);
+        }}>{map.cards.due > 0 ? "开始到期复习" : forgotten.length > 0 ? "回顾忘记的卡" : weak ? "开始补弱" : nextConcept ? "继续学习" : map.concepts.length === 0 ? (map.space.sourceCount > 0 ? "打开资料提炼概念" : "导入第一份资料") : map.cards.total === 0 ? "添加复习卡" : "查看自测与报告"}</button>
+      </div>}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h2 className="font-display text-base font-bold text-stone-900">
           📖 概念地图{map ? ` · ${map.space.name}` : ""}
@@ -230,7 +253,7 @@ export function SpaceMapPanel({
             )}
           </p>
         )}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
           {examDate && countdownText(examDate) && (
             <span className="text-xs font-medium text-orange-600">{countdownText(examDate)}</span>
           )}
@@ -238,7 +261,7 @@ export function SpaceMapPanel({
             <button
               type="button"
               disabled={disabled}
-              onClick={() => setReviewOpen(true)}
+              onClick={() => openReview()}
               className={`rounded-full border px-2.5 py-1 text-xs transition-colors disabled:opacity-50 ${
                 map.cards.due > 0
                   ? "border-orange-300 bg-orange-50 font-medium text-orange-700 hover:border-orange-400"
@@ -249,7 +272,7 @@ export function SpaceMapPanel({
               🔖 复习{map.cards.due > 0 ? ` ${map.cards.due}` : "·已清"}
             </button>
           )}
-          {map && map.cards.total > 0 && (
+          {map && (
             <button
               type="button"
               disabled={disabled}
@@ -281,7 +304,7 @@ export function SpaceMapPanel({
             </button>
           )}
           <div className="flex items-center gap-2 text-[10px] text-stone-400">
-            {(["weak", "new", "practiced", "explained"] as const).map((status) => (
+            {(["weak", "new", "learning", "practiced", "explained"] as const).map((status) => (
               <span key={status} className="flex items-center gap-1">
                 <span
                   className={`h-2 w-2 rounded-full ${
@@ -321,6 +344,7 @@ export function SpaceMapPanel({
               ? Math.round((concept.practice.correct / concept.practice.total) * 100)
               : null;
           return (
+            <div key={concept.text} className="max-w-full rounded-xl border border-stone-100 p-1">
             <button
               key={concept.text}
               type="button"
@@ -329,6 +353,7 @@ export function SpaceMapPanel({
               className={`group flex flex-col items-start rounded-xl border px-3 py-2 text-left transition-colors disabled:opacity-50 ${meta.chip}`}
             >
               <span className="text-sm">{concept.text}</span>
+              <span className="text-xs">{meta.label}</span>
               <span className="mt-0.5 text-[10px] opacity-70">
                 {concept.status === "new"
                   ? `${concept.sourceIds.length} 份资料提及`
@@ -337,6 +362,13 @@ export function SpaceMapPanel({
                     : "已生成讲解"}
               </span>
             </button>
+            <details className="px-2 py-1 text-xs leading-5 text-stone-600">
+              <summary className="cursor-pointer">学习依据{concept.recall.again > 0 ? " · 建议回顾" : ""}</summary>
+              <p>讲解内练习：{concept.practice.total} 次，正确 {concept.practice.correct} 次。至少 3 次且正确率不低于 60% 计为练习达标。</p>
+              <p>卡片最近自评：记得 {concept.recall.easy} · 模糊 {concept.recall.fuzzy} · 忘记 {concept.recall.again}。自评不替代练习判题。</p>
+              {concept.recall.again > 0 && <button type="button" disabled={disabled} onClick={() => openReview(concept.recall.forgottenCardIds)} className="min-h-9 text-accent-600 underline">复习忘记的卡</button>}
+            </details>
+            </div>
           );
         })}
       </div>
@@ -345,6 +377,9 @@ export function SpaceMapPanel({
       {/* 学习路线：概念按依赖/难度编排的攻克路径（LLM 快照，重生成覆盖；完成度由概念状态推出） */}
       {map && (map.roadmap || map.concepts.length >= 2) && (
         <div className="mt-3 border-t border-stone-100 pt-3">
+          {roadmapError && <p role="alert" className="mb-2 text-sm text-red-700">{roadmapError}，原路线已保留。<button type="button" disabled={roadmapBusy} onClick={handleGenRoadmap} className="ml-2 underline">重试编排</button></p>}
+          {map.space.roadmapStale && map.roadmap && <p className="mb-2 text-xs text-amber-800">资料或概念已变更，当前路线为旧快照，建议重新生成。已移除概念不会再触发无资料生成。</p>}
+          <p className="mb-2 text-xs text-stone-500">推进依据：站内概念的讲解练习均达标；自评回顾单独提示。</p>
           <div className="flex items-center gap-2">
             <h3 className="text-xs font-semibold text-stone-600">🗺 学习路线</h3>
             {map.roadmap && map.roadmapAt && (
@@ -392,7 +427,7 @@ export function SpaceMapPanel({
                           <span className="text-[10px] font-medium text-accent-600">当前站</span>
                         )}
                         <span className="ml-auto text-[10px] tabular-nums text-stone-400">
-                          {done}/{stage.concepts.length} 已练成
+                          {done}/{stage.concepts.length} 练习达标
                         </span>
                       </div>
                       {stage.goal && (
@@ -403,6 +438,7 @@ export function SpaceMapPanel({
                           <button
                             key={text}
                             type="button"
+                            disabled={disabled || !map.concepts.some((c) => c.text === text)}
                             onClick={() => conceptClick(text)}
                             title={STATUS_META[statusOf(text)].hint}
                             className={`rounded-lg border px-2 py-0.5 text-xs transition-colors disabled:opacity-50 ${
@@ -454,10 +490,10 @@ export function SpaceMapPanel({
       )}
 
       {reviewOpen && (
-        <ReviewPanel spaceId={spaceId} onClose={() => setReviewOpen(false)} onFinish={refresh} />
+        <ReviewPanel spaceId={spaceId} cardIds={reviewIds} onOpenDoc={onOpenDoc} onClose={() => setReviewOpen(false)} onFinish={refresh} />
       )}
       {examOpen && (
-        <ExamPanel spaceId={spaceId} onClose={() => setExamOpen(false)} onFinish={refresh} />
+        <ExamPanel spaceId={spaceId} onReview={openReview} onOpenDoc={onOpenDoc} onClose={() => setExamOpen(false)} onFinish={refresh} />
       )}
       {cardsOpen && (
         <CardManagerPanel

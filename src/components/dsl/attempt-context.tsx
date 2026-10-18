@@ -19,12 +19,13 @@ export function useAttempt(): AttemptReporter | null {
   return useContext(AttemptContext);
 }
 
-/** fire-and-forget 上报：任何失败静默吞掉，绝不打断练习交互 */
-export function postAttempt(docId: number, blockType: AttemptBlockType, correct: boolean): void {
-  fetch("/api/attempts", {
+/** 不打断判题，但向调用方报告是否保存成功，避免刷新过期的学习状态。 */
+export async function postAttempt(docId: number, blockType: AttemptBlockType, correct: boolean): Promise<boolean> {
+  const res = await fetch("/api/attempts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ docId, blockType, correct }),
     keepalive: true,
-  }).catch(() => {});
+  }).catch(() => null);
+  return res?.ok ?? false;
 }
