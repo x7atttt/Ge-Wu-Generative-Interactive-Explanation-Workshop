@@ -97,6 +97,12 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         { status: 500 }
       );
     }
+    const current = listSources(200, numeric).filter((s) => s.status === "ready" && s.concepts.length > 0);
+    const versions = (rows: typeof ready) => JSON.stringify(rows.map((s) => [s.id, s.revision]));
+    if (!getSpace(numeric)) return NextResponse.json({ error: "空间已被删除" }, { status: 404 });
+    if (versions(current) !== versions(ready)) {
+      return NextResponse.json({ error: "编排期间资料已变化，原路线保留，请按最新概念重新生成" }, { status: 409 });
+    }
     setRoadmap(numeric, stages);
     return NextResponse.json({ roadmap: stages, generatedAt: getSpace(numeric)?.roadmapAt ?? null });
   } catch (err) {

@@ -51,5 +51,6 @@ export async function GET(
     versions,
     asks: listAsks(docId),
     spaceId: row.spaceId,
+    sourceContext: row.sourceContext,
   });
 }

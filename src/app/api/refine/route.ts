@@ -49,7 +49,7 @@ export async function POST(req: Request) {
       // refine 子版本继承父版本的空间归属与出身概念（概念地图状态不被深化打散）
       const parent = parentDocId !== null ? getDoc(parentDocId) : null;
       const origin: DocOrigin = parent
-        ? { spaceId: parent.spaceId, originConcept: parent.originConcept, sourceIds: parent.sourceIds }
+        ? { spaceId: parent.spaceId, originConcept: parent.originConcept, sourceIds: parent.sourceIds, sourceContext: parent.sourceContext }
         : { spaceId: null, originConcept: null };
       const docId = insertDoc(doc, parentDocId, instruction.trim(), origin);
       send({ type: "done", doc, docId });

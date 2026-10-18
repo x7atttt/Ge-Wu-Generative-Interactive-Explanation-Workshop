@@ -4,7 +4,7 @@ import { sseResponse } from "@/lib/api/sse";
 import { getDoc, insertDoc } from "@/lib/db/docs";
 import { getReadySources } from "@/lib/db/sources";
 import { getDocAttemptStats, type AttemptType } from "@/lib/db/attempts";
-import { generateDoc, type GenerateExtras } from "@/lib/dsl/generate";
+import { formatSources, generateDoc, type GenerateExtras } from "@/lib/dsl/generate";
 import { webSearch } from "@/lib/search/bocha";
 
 const TYPE_LABELS: Record<AttemptType, string> = {
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
   }
   const sources =
     sourceIds.length > 0
-      ? getReadySources(sourceIds).map((row) => ({ id: row.id, title: row.title, content: row.mdContent }))
+      ? getReadySources(sourceIds).map((row) => ({ id: row.id, title: row.title, revision: row.revision, content: row.mdContent }))
       : [];
   const validSourceIds = sources.map((s) => s.id);
   const droppedSources = sourceIds.length - sources.length;
@@ -156,6 +156,7 @@ export async function POST(req: Request) {
         spaceId,
         originConcept: originConcept ?? (spaceId !== null ? concept.slice(0, 100) : null),
         sourceIds: validSourceIds,
+        sourceContext: { text: formatSources(sources), sources: sources.map(({ id, title, revision }) => ({ id, title, revision })) },
       });
       send({ type: "done", doc, docId });
     } catch (err) {

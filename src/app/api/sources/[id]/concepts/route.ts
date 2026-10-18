@@ -54,7 +54,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       { jsonMode: true, temperature: 0.2, model: fastModel, timeoutMs: 60_000 }
     );
     const parsed = conceptsSchema.parse(JSON.parse(extractJson(raw)));
-    setSourceConcepts(numeric, parsed.concepts);
+    if (!setSourceConcepts(numeric, parsed.concepts, source.revision)) {
+      return NextResponse.json({ error: "提炼期间资料已修改，请重新提炼" }, { status: 409 });
+    }
     return NextResponse.json({ concepts: parsed.concepts });
   } catch (err) {
     console.error("[api/sources/concepts]", err);
