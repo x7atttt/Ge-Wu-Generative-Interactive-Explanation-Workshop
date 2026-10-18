@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
-from ui_controls import space_picker, select_space
+from ui_controls import open_current_space_delete, space_picker, select_space
 
 BASE = 'http://127.0.0.1:3100'
 f = json.loads(Path('data/iteration29-fixture.json').read_text(encoding='utf-8'))
@@ -140,7 +140,7 @@ with sync_playwright() as p:
     space.hover()
     expect(spaces.get_by_role('option', name=f['newName'], exact=True)).to_have_attribute('aria-selected', 'true')
     page.keyboard.press('Escape')
-    page.get_by_title('彻底删除当前空间及其内容').click()
+    open_current_space_delete(page)
     page.get_by_role('alertdialog').get_by_role('button', name='彻底删除空间', exact=True).click()
     expect(space).to_have_attribute('data-value', '')
 

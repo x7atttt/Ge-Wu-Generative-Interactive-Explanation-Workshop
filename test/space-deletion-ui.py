@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
-from ui_controls import select_space, space_picker, expect_space_absent
+from ui_controls import open_current_space_delete, select_space, space_picker, expect_space_absent
 
 BASE = 'http://127.0.0.1:3100'
 f = json.loads(Path('data/iteration28-fixture.json').read_text(encoding='utf-8'))
@@ -24,7 +24,7 @@ with sync_playwright() as p:
     picker = space_picker(page)
     confirm = page.get_by_role('alertdialog')
     def row(item):
-        return page.get_by_text('空间管理', exact=True).locator('..').locator('div.rounded-lg.border.border-stone-100').filter(has_text=item['name']).first
+        return page.get_by_role('heading', name='空间管理', exact=True).locator('..').locator('div.rounded-lg.border.border-stone-100').filter(has_text=item['name']).first
     def select(item):
         select_space(page, item['id'])
         expect(page.get_by_role('heading', name='今天从这里开始')).to_be_visible()
@@ -53,7 +53,7 @@ with sync_playwright() as p:
     page.route('**/api/spaces', stale_spaces)
     row(f['current']).get_by_role('button', name='改名', exact=True).click()
     with page.expect_request(lambda request: request.url == BASE + '/api/spaces' and request.method == 'GET'):
-        page.get_by_text('空间管理', exact=True).locator('..').get_by_role('button', name='保存', exact=True).click()
+        page.get_by_role('heading', name='空间管理', exact=True).locator('..').get_by_role('button', name='保存', exact=True).click()
     for _ in range(100):
         if held:
             break
@@ -109,7 +109,7 @@ with sync_playwright() as p:
     assert_gone(f['other'])
     page.keyboard.press('Escape')
     page.unroute('**/api/spaces')
-    page.get_by_title('彻底删除当前空间及其内容').click()
+    open_current_space_delete(page)
     approve()
     expect(picker).to_have_attribute('data-value', '')
     assert_gone(f['toolbar'])
@@ -140,7 +140,7 @@ with sync_playwright() as p:
             break
         page.wait_for_timeout(20)
     assert len(pending) == 2, len(pending)
-    page.get_by_title('彻底删除当前空间及其内容').click()
+    open_current_space_delete(page)
     approve()
     expect(picker).to_have_attribute('data-value', '')
     for route, response in pending:

@@ -54,7 +54,7 @@ with sync_playwright() as p:
         search.fill('保留到删除前')
         # 历史面板有点击遮罩，使用键盘打开管理入口以保留待验证的面板状态。
         hub.press('Enter')
-        row = page.get_by_text('空间管理', exact=True).locator('..').locator('div.rounded-lg.border.border-stone-100').filter(has_text=f'顶部入口回归-{revision}')
+        row = page.get_by_role('heading', name='空间管理', exact=True).locator('..').locator('div.rounded-lg.border.border-stone-100').filter(has_text=f'顶部入口回归-{revision}')
         row.get_by_role('button', name='删除', exact=True).click()
         page.get_by_role('alertdialog').get_by_role('button', name='彻底删除空间', exact=True).click()
         expect(row).to_have_count(0)

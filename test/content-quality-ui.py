@@ -2,7 +2,7 @@ import json
 import re
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
-from ui_controls import select_space, space_picker
+from ui_controls import select_space, space_picker, open_current_space_delete
 
 BASE = 'http://127.0.0.1:3100'
 f = json.loads(Path('data/iteration27-fixture.json').read_text(encoding='utf-8'))
@@ -83,9 +83,9 @@ with sync_playwright() as p:
     expect(editor).to_have_count(0)
     page.get_by_role('button', name='关闭资料', exact=True).click()
     # Cancel/Escape/backdrop never issue a delete or open another confirmation.
-    delete_current = page.get_by_title('彻底删除当前空间及其内容')
+    delete_current = lambda: open_current_space_delete(page)
     for mode in ['cancel', 'escape', 'backdrop']:
-        delete_current.click()
+        delete_current()
         expect(confirm).to_be_visible()
         if mode == 'cancel':
             confirm.get_by_role('button', name='取消', exact=True).click()
@@ -98,7 +98,7 @@ with sync_playwright() as p:
     assert not deletions, deletions
     # A nested confirmation is usable on narrow screens and traps focus.
     page.set_viewport_size({'width': 390, 'height': 844})
-    delete_current.click()
+    delete_current()
     page.keyboard.press('Tab')
     assert confirm.evaluate('(node) => node.contains(document.activeElement)')
     bounds = confirm.bounding_box()
@@ -109,19 +109,19 @@ with sync_playwright() as p:
     # Deep delete failure is visible and can be retried, then sends exactly one request.
     select_space(page, f['deepSpace'])
     page.route(f'**/api/spaces/{f["deepSpace"]}', lambda route: route.fulfill(status=503, json={'error': '验收删除失败'}))
-    delete_current.click()
+    delete_current()
     confirm.get_by_role('button', name='彻底删除空间', exact=True).click()
     expect(page.get_by_text('验收删除失败', exact=False)).to_be_visible()
     page.unroute(f'**/api/spaces/{f["deepSpace"]}')
     before = len(deletions)
-    delete_current.click()
+    delete_current()
     confirm.get_by_role('button', name='彻底删除空间', exact=True).click()
     expect(picker).to_have_attribute('data-value', '')
     assert len(deletions) == before + 1 and deletions[-1].endswith(f'/api/spaces/{f["deepSpace"]}')
     assert page.request.get(f'{BASE}/api/docs/{f["deepDoc"]}').status == 404
     select_space(page, f['plainSpace'])
     before = len(deletions)
-    delete_current.click()
+    delete_current()
     expect(confirm.get_by_role('radio')).to_have_count(0)
     confirm.get_by_role('button', name='彻底删除空间', exact=True).click()
     expect(picker).to_have_attribute('data-value', '')

@@ -4,6 +4,8 @@ let nextDelay = 0;
 let pending = false;
 let outputs = [];
 let calls = 0;
+let streamPause = 0;
+let repairDelay = 0;
 const doc = { version: 1, title: "验收讲解", blocks: [
   { type: "heading", text: "队列与栈", level: 2 },
   { type: "text", content: "队列先进先出，栈后进先出。" },
@@ -16,7 +18,7 @@ createServer(async (req, res) => {
   let raw = "";
   for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw);
-  if (req.url === "/control") { nextDelay = body.delay ?? 0; if (body.outputs) outputs = body.outputs; res.end("ok"); return; }
+  if (req.url === "/control") { nextDelay = body.delay ?? 0; streamPause = body.streamPause ?? 0; repairDelay = body.repairDelay ?? 0; if (body.outputs) outputs = body.outputs; res.end("ok"); return; }
   const system = body.messages?.[0]?.content ?? "";
   calls++;
   const output = JSON.stringify(system.includes("资料分析助手") ? { concepts: ["队列", "栈"] } : system.includes("学习规划师") ? { stages: [{ title: "线性结构", goal: "按顺序理解", concepts: ["队列", "栈"] }] } : outputs.shift() ?? doc);
@@ -28,8 +30,10 @@ createServer(async (req, res) => {
   if (body.stream) {
     res.writeHead(200, { "Content-Type": "text/event-stream" });
     res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: output } }] })}\n\n`);
+    if (streamPause > 0) await new Promise((resolve) => setTimeout(resolve, streamPause));
     res.end("data: [DONE]\n\n");
   } else {
+    if (repairDelay > 0) await new Promise((resolve) => setTimeout(resolve, repairDelay));
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ choices: [{ message: { content: output } }] }));
   }
