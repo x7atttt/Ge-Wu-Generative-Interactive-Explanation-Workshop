@@ -80,6 +80,7 @@ pnpm dev
 
 ## 更多
 
-- 架构与规范：`AGENTS.md`；功能规约与实测：`spec/`（迭代 14-24）
+- 架构与规范：`AGENTS.md`；功能规约与实测：`spec/`
+- 学习闭环打磨与自行验收：[迭代 26 验收指南](docs/iteration26-acceptance.md)（今日任务、自测恢复与报告、资料纠错、难卡暂缓）
 - 算法正确性：`node scripts/fsrs-verify.mjs`（FSRS-6 与 ts-fsrs 逐序列对照）
 - 交接快照：`handoff.md`
