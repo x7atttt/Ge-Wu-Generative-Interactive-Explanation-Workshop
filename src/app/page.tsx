@@ -523,9 +523,9 @@ export default function Home() {
       {/* 右上角标签组：学习统计 + 历史讲解 + 音效开关 */}
       <div className="fixed right-4 top-4 z-40 flex items-center gap-2">
         <SoundToggle />
-        <StatsPanel key={contentRevision} onPractice={startPractice} spaceId={spaceId ?? undefined} />
+        <StatsPanel key={`stats-${contentRevision}`} onPractice={startPractice} spaceId={spaceId ?? undefined} />
         <DocHistoryButton
-          key={contentRevision}
+          key={`history-${contentRevision}`}
           docs={docList}
           currentId={docId}
           disabled={busy !== null || loadingDoc}
