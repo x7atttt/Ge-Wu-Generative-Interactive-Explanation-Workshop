@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { createPortal } from "react-dom";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import {
   deleteSource,
   extractConcepts,
@@ -41,6 +43,7 @@ export function SourcesPanel({
   onAttachChange,
   onPickConcept,
   spaceId,
+  spaceName,
   disabled,
   openSignal = 0,
   onChanged,
@@ -51,6 +54,7 @@ export function SourcesPanel({
   onPickConcept: (concept: string, sourceId: number) => void;
   /** 当前空间（null = 全局模式，显示全部资料） */
   spaceId?: number | null;
+  spaceName?: string;
   disabled?: boolean;
   openSignal?: number;
   onChanged: () => void;
@@ -65,6 +69,7 @@ export function SourcesPanel({
   const [movingId, setMovingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [tab, setTab] = useState<"current" | "ungrouped">("current");
   const [retryAction, setRetryAction] = useState<null | (() => void)>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -90,16 +95,12 @@ export function SourcesPanel({
   useEffect(() => {
     if (!open) return;
     refresh().finally(() => setLoading(false));
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
   }, [open, refresh, setOpen]);
 
   const inSpaceMode = spaceId != null;
   const visible = inSpaceMode ? sources.filter((s) => s.spaceId === spaceId) : sources;
   const ungrouped = inSpaceMode ? sources.filter((s) => s.spaceId == null) : [];
+  const viewingUngrouped = inSpaceMode && tab === "ungrouped";
   const parsing = visible.some((s) => s.status === "parsing");
   useEffect(() => {
     if (!open || !parsing) return;
@@ -114,6 +115,7 @@ export function SourcesPanel({
     try {
       await importSources([...files], spaceId ?? null);
       await refresh();
+      setTab("current");
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "导入失败，请重试");
@@ -187,30 +189,26 @@ export function SourcesPanel({
         onClick={() => setOpen(!open)}
         aria-pressed={attachedIds.length > 0}
         disabled={disabled}
-        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-50 ${
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs transition-colors disabled:opacity-50 ${
           attachedIds.length > 0
-            ? "border-accent-300 bg-accent-50 text-accent-600"
-            : "border-stone-200 text-stone-400 hover:text-stone-600"
+            ? "bg-accent-50 text-accent-700"
+            : "text-stone-600 hover:bg-stone-100"
         }`}
         title="批量导入文档资料，生成讲解时作为事实依据"
       >
-        <span className={`h-1.5 w-1.5 rounded-full ${attachedIds.length > 0 ? "bg-accent-500" : "bg-stone-300"}`} />
+        <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4"><path d="m7 11 6-6a2 2 0 0 1 3 3l-7 7a3.5 3.5 0 0 1-5-5l7-7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
         资料{attachedIds.length > 0 ? ` ${attachedIds.length}` : ""}
       </button>
 
       <AnimatePresence>
         {open && (
-          <>
-            <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.16 }}
-              className="fixed inset-x-4 top-28 z-40 mt-2 rounded-xl border border-stone-200 bg-card p-3 shadow-lg sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:w-[380px] sm:max-w-[calc(100vw-2rem)]"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={() => setOpen(false)} className="min-h-9 shrink-0 text-xs text-stone-600 underline">关闭资料</button>
+          <SourcesDrawer context={inSpaceMode ? spaceName ?? "当前空间" : "全局资料"} onClose={() => setOpen(false)}>
+              <div className="rounded-xl border border-dashed border-stone-300 px-4 py-6 text-center" onDragOver={(event) => { event.preventDefault(); event.stopPropagation(); }} onDrop={(event) => { event.preventDefault(); event.stopPropagation(); if (!importing) void handleImport(event.dataTransfer.files); }}>
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="mx-auto mb-3 h-6 w-6 text-secondary-600"><path d="M12 16V3m-4 4 4-4 4 4M4 14v6h16v-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <p className="text-sm font-medium text-stone-800">添加参考资料</p>
+                <p className="mt-1 text-xs text-stone-500">拖入讲义、笔记或真题</p>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -223,21 +221,31 @@ export function SourcesPanel({
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={importing}
-                  className="rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-accent-500 disabled:opacity-50"
+                  className="mt-4 min-h-9 rounded-lg bg-accent-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-accent-500 disabled:opacity-50"
                 >
                   {importing ? "导入中…" : "导入文件"}
                 </button>
-                <p className="order-last w-full text-xs text-stone-500">txt / md 本地解析 · PDF / Word 走 MinerU</p>
-                <span className="ml-auto text-xs text-stone-300">{loading ? "加载中…" : ""}</span>
+              </div>
+              <p className="mt-2 text-center text-xs text-stone-500">支持 PDF、Word、TXT、Markdown</p>
+              <div className="mt-6 flex items-center gap-4 border-b border-stone-200 text-xs" role="tablist" aria-label="资料归属" onKeyDown={(event) => {
+                if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                event.preventDefault();
+                const tabs = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("[role=tab]")];
+                const index = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (tabs.indexOf(event.target as HTMLButtonElement) + (event.key === "ArrowLeft" ? -1 : 1) + tabs.length) % tabs.length;
+                tabs[index]?.focus(); tabs[index]?.click();
+              }}>
+                <button type="button" role="tab" aria-selected={!viewingUngrouped} onClick={() => setTab("current")} className={`min-h-10 border-b-2 px-1 ${!viewingUngrouped ? "border-accent-600 font-medium text-stone-800" : "border-transparent text-stone-500"}`}>{inSpaceMode ? "当前空间" : "全部资料"} {visible.length}</button>
+                {inSpaceMode && <button type="button" role="tab" aria-selected={viewingUngrouped} onClick={() => setTab("ungrouped")} className={`min-h-10 border-b-2 px-1 ${viewingUngrouped ? "border-accent-600 font-medium text-stone-800" : "border-transparent text-stone-500"}`}>未分组 {ungrouped.length}</button>}
+                {loading && <span role="status" className="ml-auto text-stone-500">加载中…</span>}
               </div>
 
               {error && <p role="alert" className="mt-2 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs text-red-600">{error}<button type="button" onClick={() => { setError(null); if (retryAction) retryAction(); else refresh(); }} className="ml-2 underline">重试</button></p>}
 
-              <div className="mt-2 max-h-72 overflow-y-auto">
-                {visible.length === 0 && !loading && (
-                  <p className="py-6 text-center text-xs leading-5 text-stone-400">
+              <div className="mt-3 space-y-3">
+                {!viewingUngrouped && visible.length === 0 && !loading && (
+                  <p className="py-8 text-center text-xs leading-6 text-stone-500">
                     {inSpaceMode ? (
-                      <>本空间还没有资料——点「导入文件」，或把下方未分组资料移入</>
+                      <>当前空间还没有资料<br />导入文件，或从「未分组」移入已有资料。</>
                     ) : (
                       <>
                         还没有资料——导入讲义 / 笔记 / 论文，
@@ -247,7 +255,7 @@ export function SourcesPanel({
                     )}
                   </p>
                 )}
-                {visible.map((source) => {
+                {!viewingUngrouped && visible.map((source) => {
                   const attached = attachedIds.includes(source.id);
                   const ready = source.status === "ready";
                   return (
@@ -256,7 +264,7 @@ export function SourcesPanel({
                         <span className="shrink-0 rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium text-stone-500">
                           {KIND_LABEL[source.kind] ?? source.kind.toUpperCase()}
                         </span>
-                        <span className="truncate text-sm text-stone-800" title={source.title}>
+                        <span className="min-w-0 flex-1 truncate text-sm text-stone-800" title={source.title}>
                           {source.title}
                         </span>
                         <span className="ml-auto shrink-0 text-xs">
@@ -274,7 +282,7 @@ export function SourcesPanel({
                         </span>
                       </div>
 
-                      <div className="mt-1.5 flex items-center gap-3 text-xs">
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                         <button type="button" disabled={!ready} onClick={() => setEditingId(source.id)} className="min-h-9 text-accent-700 underline disabled:opacity-50">查看与纠错</button>
                         <button
                           type="button"
@@ -309,7 +317,7 @@ export function SourcesPanel({
                             <button
                               key={concept}
                               type="button"
-                              onClick={() => onPickConcept(concept, source.id)}
+                              onClick={() => { onPickConcept(concept, source.id); setOpen(false); }}
                               className="rounded-full border border-accent-100 bg-accent-50 px-2 py-0.5 text-xs text-accent-700 transition-colors hover:border-accent-300"
                             >
                               {concept}
@@ -321,17 +329,15 @@ export function SourcesPanel({
                   );
                 })}
 
-                {ungrouped.length > 0 && (
-                  <div className="mt-2 border-t border-stone-100 pt-2">
-                    <p className="px-0.5 pb-1 text-[10px] text-stone-400">
-                      未分组资料（点「移入」加入本空间）
-                    </p>
+                {viewingUngrouped && (
+                  <div>
+                    <p className="mb-2 text-xs leading-6 text-stone-500">{ungrouped.length > 0 ? "移入当前空间后，可作为讲解依据。" : "还没有未分组资料。"}</p>
                     {ungrouped.map((source) => (
                       <div key={source.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5">
                         <span className="shrink-0 rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium text-stone-500">
                           {KIND_LABEL[source.kind] ?? source.kind.toUpperCase()}
                         </span>
-                        <span className="truncate text-sm text-stone-500" title={source.title}>
+                        <span className="min-w-0 flex-1 truncate text-sm text-stone-600" title={source.title}>
                           {source.title}
                         </span>
                         <button
@@ -347,11 +353,28 @@ export function SourcesPanel({
                   </div>
                 )}
               </div>
-            </motion.div>
-          </>
+          </SourcesDrawer>
         )}
       </AnimatePresence>
       {editingId !== null && <SourceEditor id={editingId} onClose={() => setEditingId(null)} onSaved={() => { refresh(); onChanged(); }} />}
     </div>
   );
+}
+
+function SourcesDrawer({ context, onClose, children }: { context: string; onClose: () => void; children: ReactNode }) {
+  const ref = useDialogFocus<HTMLElement>();
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, []);
+  return createPortal(<motion.div className="fixed inset-0 z-[70] flex justify-end bg-stone-900/25" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }} onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>
+    <aside ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label="资料库" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }} className="h-dvh w-full max-w-md overflow-y-auto border-l border-stone-200 bg-card shadow-xl outline-none">
+      <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-stone-100 bg-card px-6 py-5">
+        <div><h2 className="font-display text-xl font-semibold text-stone-900">资料库</h2><p className="mt-1 break-words text-xs text-stone-500">{context} · 参考资料</p></div>
+        <button type="button" onClick={onClose} aria-label="关闭资料" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-stone-600 hover:bg-stone-100"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4"><path d="m5 5 10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
+      </div>
+      <div className="p-6">{children}</div>
+    </aside>
+  </motion.div>, document.body);
 }

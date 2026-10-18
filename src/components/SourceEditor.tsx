@@ -41,7 +41,7 @@ export function SourceEditor({ id, onClose, onSaved }: { id: number; onClose: ()
     if (!dirty || await confirm({ title: "放弃未保存的修改", description: "关闭后将丢弃当前草稿，已保存的资料不受影响。", confirmLabel: "放弃并关闭", danger: true })) onClose();
   }
 
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/30 p-3" onClick={close}>
+  return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-stone-900/30 p-3" onClick={close}>
     {confirmation}
     <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="查看与纠正资料" onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); if (!busy) close(); } }} onClick={(e) => e.stopPropagation()} className="max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-stone-200 bg-card p-5 shadow-xl">
       <div className="flex items-center gap-3"><h3 className="font-display text-lg font-semibold">查看与纠正资料</h3><button type="button" disabled={busy} className="ml-auto min-h-11 px-3 text-sm" onClick={close}>关闭</button></div>
