@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { BuildProgressPanel } from "@/components/BuildProgressPanel";
 import { DocHistoryButton } from "@/components/DocHistoryButton";
@@ -26,6 +26,7 @@ import {
 } from "@/lib/persona";
 import {
   listSpaces,
+  type DeletedSpace,
   type SpaceInfo,
 } from "@/lib/api/spaces";
 import { usePartialDoc } from "@/hooks/usePartialDoc";
@@ -56,6 +57,7 @@ export default function Home() {
   const [dropNote, setDropNote] = useState<string | null>(null);
   const [spaces, setSpaces] = useState<SpaceInfo[]>([]);
   const [spaceId, setSpaceId] = useState<number | null>(null);
+  const [contentRevision, setContentRevision] = useState(0);
   /** 出身概念：从资料提炼点/概念地图进入生成时记录，地图据此对齐讲解 */
   const [originConcept, setOriginConcept] = useState<string | null>(null);
   /** 空间地图刷新信号：生成完成/切换文档后自增 */
@@ -82,10 +84,15 @@ export default function Home() {
   const [loadingDoc, setLoadingDoc] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
+  const spacesRequestRef = useRef(0);
+  const docListRequestRef = useRef(0);
+  const docLoadRequestRef = useRef(0);
 
   const refreshSpaces = () => {
-    listSpaces()
+    const request = ++spacesRequestRef.current;
+    return listSpaces()
       .then((list) => {
+        if (request !== spacesRequestRef.current) return;
         setSpaces(list);
         // 已删/不存在的空间回落全局
         setSpaceId((current) => (current !== null && !list.some((s) => s.id === current) ? null : current));
@@ -94,7 +101,6 @@ export default function Home() {
   };
 
   useEffect(() => {
-    listDocs().then(setDocList).catch(() => {});
     refreshSpaces();
     // 恢复上次所在空间（不存在则回落全局）
     try {
@@ -126,7 +132,12 @@ export default function Home() {
     try {
       localStorage.setItem("gewu-space", spaceId === null ? "" : String(spaceId));
     } catch {}
-    listDocs(spaceId ?? undefined).then(setDocList).catch(() => {});
+    const request = ++docListRequestRef.current;
+    let active = true;
+    listDocs(spaceId ?? undefined).then((list) => {
+      if (active && request === docListRequestRef.current) setDocList(list);
+    }).catch(() => {});
+    return () => { active = false; };
   }, [spaceId]);
 
   // 切换讲解后刷新地图（练习与讲解状态可能变化）
@@ -159,7 +170,10 @@ export default function Home() {
   const personaHint = resolvePersonaHint(persona);
 
   function refreshDocList() {
-    listDocs().then(setDocList).catch(() => {});
+    const request = ++docListRequestRef.current;
+    listDocs(spaceId ?? undefined).then((list) => {
+      if (request === docListRequestRef.current) setDocList(list);
+    }).catch(() => {});
   }
 
   function cancel() {
@@ -167,12 +181,34 @@ export default function Home() {
   }
 
   /** 附加资料的唯一变更入口：改状态同时写 localStorage（不落 effect，避开挂载期写回竞态） */
-  function updateAttached(ids: number[]) {
+  const updateAttached = useCallback((ids: number[]) => {
     setAttachedSourceIds(ids);
     try {
       localStorage.setItem("gewu-attached", JSON.stringify(ids));
     } catch {}
-  }
+  }, []);
+
+  const handleSpaceDeleted = useCallback((id: number, deleted: DeletedSpace = { docIds: [], sourceIds: [] }) => {
+    // 删除成功是确定事实；先失效旧请求，再直接清理，不能等待另一次列表请求。
+    spacesRequestRef.current++;
+    docListRequestRef.current++;
+    docLoadRequestRef.current++;
+    setLoadingDoc(false);
+    setSpaces((current) => current.filter((space) => space.id !== id));
+    setSpaceId((current) => current === id ? null : current);
+    setDocList((current) => spaceId === id ? [] : current.filter((item) => !deleted.docIds.includes(item.id)));
+    if (docSpaceId === id || (docId !== null && deleted.docIds.includes(docId))) {
+      setDoc(null); setDocId(null); setDocSpaceId(null); setVersions([]); setRestoredAsks([]);
+      setCardsNote(null); setRefineInput(""); setRefineError(null); setBuildText("");
+    }
+    updateAttached(attachedSourceIds.filter((sourceId) => !deleted.sourceIds.includes(sourceId)));
+    if (spaceId === id) {
+      setOriginConcept(null); setError(null); setSearchNote(null); setDropNote(null);
+      try { localStorage.setItem("gewu-space", ""); } catch {}
+    }
+    setSourcesOpenSignal(0);
+    setContentRevision((value) => value + 1);
+  }, [spaceId, docSpaceId, docId, attachedSourceIds, updateAttached]);
 
   // 流式上屏：生成期从累计原始文本派生部分文档（真块渐次上屏 + 尾部骨架）
   const partial = usePartialDoc(busy === "generate" ? buildText : null);
@@ -446,10 +482,12 @@ export default function Home() {
 
   async function loadDoc(id: number) {
     if (!Number.isInteger(id) || id <= 0 || loadingDoc) return;
+    const request = ++docLoadRequestRef.current;
     setLoadingDoc(true);
     setError(null);
     try {
       const { doc: loaded, asks, versions: chain, spaceId } = await loadDocById(id);
+      if (request !== docLoadRequestRef.current) return;
       setDoc(loaded);
       setDocId(id);
       setDocSpaceId(spaceId);
@@ -459,9 +497,9 @@ export default function Home() {
       setRefineError(null);
       scrollToDoc();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "恢复讲解失败");
+      if (request === docLoadRequestRef.current) setError(err instanceof Error ? err.message : "恢复讲解失败");
     } finally {
-      setLoadingDoc(false);
+      if (request === docLoadRequestRef.current) setLoadingDoc(false);
     }
   }
 
@@ -484,8 +522,9 @@ export default function Home() {
       {/* 右上角标签组：学习统计 + 历史讲解 + 音效开关 */}
       <div className="fixed right-4 top-4 z-40 flex items-center gap-2">
         <SoundToggle />
-        <StatsPanel onPractice={startPractice} spaceId={spaceId ?? undefined} />
+        <StatsPanel key={contentRevision} onPractice={startPractice} spaceId={spaceId ?? undefined} />
         <DocHistoryButton
+          key={contentRevision}
           docs={docList}
           currentId={docId}
           disabled={busy !== null || loadingDoc}
@@ -616,10 +655,12 @@ export default function Home() {
                 spaces={spaces}
                 spaceId={spaceId}
                 onSpacesChange={refreshSpaces}
+                onDeleted={handleSpaceDeleted}
                 onChange={setSpaceId}
-                disabled={busy === "generate"}
+                disabled={busy !== null}
               />
               <SourcesPanel
+                key={contentRevision}
                 openSignal={sourcesOpenSignal}
                 onChanged={() => { setMapRefresh((k) => k + 1); refreshSpaces(); }}
                 attachedIds={attachedSourceIds}
@@ -704,6 +745,7 @@ export default function Home() {
             onPick={pickMapConcept}
             onPractice={startPractice}
             onOpenDoc={loadDoc}
+            onMissingSpace={handleSpaceDeleted}
           />
         )}
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { getSpaceMap, generateRoadmap, type SpaceMap } from "@/lib/api/spaces";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getSpaceMap, generateRoadmap, SpaceApiError, type SpaceMap } from "@/lib/api/spaces";
 import { localDay } from "@/lib/fsrs";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import { ExamPanel } from "@/components/ExamPanel";
@@ -139,6 +139,7 @@ export function SpaceMapPanel({
   onPractice,
   onOpenDoc,
   onOpenSources,
+  onMissingSpace,
 }: {
   spaceId: number;
   /** 考试日期（来自空间列表，枢纽改日期后即时生效） */
@@ -158,6 +159,7 @@ export function SpaceMapPanel({
   onPractice: (docId: number, title: string) => void;
   onOpenDoc: (docId: number) => void;
   onOpenSources: () => void;
+  onMissingSpace: (id: number) => void;
 }) {
   const [map, setMap] = useState<SpaceMap | null>(null);
   const [loading, setLoading] = useState(true);
@@ -168,21 +170,30 @@ export function SpaceMapPanel({
   const [roadmapBusy, setRoadmapBusy] = useState(false);
   const [roadmapError, setRoadmapError] = useState<string | null>(null);
   const [reviewIds, setReviewIds] = useState<number[] | undefined>();
+  const requestRef = useRef(0);
 
   function openReview(ids?: number[]) {
     setReviewIds(ids); setReviewOpen(true);
   }
 
-  const refresh = useCallback(() => getSpaceMap(spaceId).then((value) => {
+  const refresh = useCallback(() => {
+    const request = ++requestRef.current;
+    return getSpaceMap(spaceId).then((value) => {
+      if (request !== requestRef.current) return;
       setMap(value);
       setError(null);
     }).catch((err) => {
+      if (request !== requestRef.current) return;
+      if (err instanceof SpaceApiError && err.status === 404) { onMissingSpace(spaceId); return; }
       setError(err instanceof Error ? err.message : "地图加载失败");
-    }).finally(() => setLoading(false)), [spaceId]);
+    }).finally(() => { if (request === requestRef.current) setLoading(false); });
+  }, [spaceId, onMissingSpace]);
 
+  const cancelRefresh = useCallback(() => { requestRef.current++; }, []);
   useEffect(() => {
     refresh();
-  }, [refresh, refreshKey]);
+    return cancelRefresh;
+  }, [refresh, refreshKey, cancelRefresh]);
 
   function handleClick(concept: SpaceMap["concepts"][number]) {
     conceptClick(concept.text);

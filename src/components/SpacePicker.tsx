@@ -9,6 +9,7 @@ import {
   renameSpace,
   setSpaceExamDate,
   setSpaceNote,
+  type DeletedSpace,
   type SpaceInfo,
 } from "@/lib/api/spaces";
 import { listSources, type SourceItem } from "@/lib/api/sources";
@@ -20,23 +21,19 @@ import { useConfirmation, type ConfirmAction } from "./ConfirmDialog";
  * 🗂 枢纽=集中管理：空间一览（资料/讲解计数）、新建/重命名/删除、资料跨空间移动与移出。
  */
 async function confirmDeleteSpace(space: SpaceInfo, confirm: ConfirmAction) {
-  const mode = await confirm({
+  return confirm({
     title: `删除空间「${space.name}」`,
-    description: "选择内容的处理方式。取消会直接退出，不会删除任何内容。",
-    choices: [
-      { value: "plain", label: "仅删除空间", description: "保留资料、讲解、练习记录与复习卡，移回未分组。" },
-      { value: "deep", label: "连内容一起删除", description: `${space.sourceCount} 份资料、${space.docCount} 篇讲解及其练习记录与复习卡将全部删除，不可恢复。`, danger: true },
-    ],
+    description: `空间及其中 ${space.sourceCount} 份资料、${space.docCount} 篇讲解、练习记录、复习卡与自测记录将全部删除，不可恢复。\n取消会直接退出，不会删除任何内容。`,
+    confirmLabel: "彻底删除空间",
+    danger: true,
   });
-  if (!mode) return null;
-  await deleteSpace(space.id, mode === "deep");
-  return mode;
 }
 
 export function SpacePicker({
   spaces,
   spaceId,
   onSpacesChange,
+  onDeleted,
   onChange,
   disabled,
 }: {
@@ -44,6 +41,7 @@ export function SpacePicker({
   spaceId: number | null;
   /** 空间集合变化后由父级重拉列表（并处理当前选择失效） */
   onSpacesChange: () => void;
+  onDeleted: (id: number, deleted: DeletedSpace) => void;
   onChange: (spaceId: number | null) => void;
   disabled?: boolean;
 }) {
@@ -51,6 +49,7 @@ export function SpacePicker({
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [hubOpen, setHubOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const { confirm, confirmation } = useConfirmation();
 
   async function handleCreate() {
@@ -67,17 +66,17 @@ export function SpacePicker({
     }
   }
 
-  async function handleDelete() {
-    if (spaceId === null) return;
-    const space = spaces.find((s) => s.id === spaceId);
-    if (!space) return;
+  async function handleDelete(space: SpaceInfo) {
+    if (disabled || deletingId !== null || !await confirmDeleteSpace(space, confirm)) return;
+    setDeletingId(space.id);
+    setError(null);
     try {
-      const mode = await confirmDeleteSpace(space, confirm);
-      if (!mode) return;
-      onSpacesChange();
-      onChange(null);
+      const deleted = await deleteSpace(space.id);
+      onDeleted(space.id, deleted);
     } catch (err) {
       setError(err instanceof Error ? err.message : "删除失败");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -91,7 +90,7 @@ export function SpacePicker({
           if (value === "__new__") setCreating(true);
           else onChange(value === "" ? null : Number(value));
         }}
-        disabled={disabled}
+        disabled={disabled || deletingId !== null}
         title="空间：资料/历史/统计按空间分组，选定后显示概念地图"
         className={`max-w-40 rounded-full border px-2.5 py-1 text-xs outline-none transition-colors disabled:opacity-50 ${
           spaceId !== null
@@ -123,12 +122,12 @@ export function SpacePicker({
       {spaceId !== null && (
         <button
           type="button"
-          onClick={handleDelete}
-          disabled={disabled}
-          title="删除当前空间（资料与讲解移回未分组）"
+          onClick={() => { const current = spaces.find((space) => space.id === spaceId); if (current) void handleDelete(current); }}
+          disabled={disabled || deletingId !== null}
+          title="彻底删除当前空间及其内容"
           className="rounded-full border border-stone-200 px-2 py-1 text-xs text-stone-400 transition-colors hover:border-red-300 hover:text-red-500 disabled:opacity-50"
         >
-          ✕
+          {deletingId === spaceId ? "删除中…" : "✕"}
         </button>
       )}
       <AnimatePresence>
@@ -159,7 +158,7 @@ export function SpacePicker({
           </motion.div>
         )}
       </AnimatePresence>
-      {error && !hubOpen && <span className="text-xs text-red-500">{error}</span>}
+      {error && <span role="alert" className="text-xs text-red-500">{error}</span>}
 
       <AnimatePresence>
         {hubOpen && (
@@ -168,7 +167,11 @@ export function SpacePicker({
             spaceId={spaceId}
             onError={setError}
             onSpacesChange={onSpacesChange}
+            onDelete={handleDelete}
+            deletingId={deletingId}
+            disabled={disabled || deletingId !== null}
             onEnter={(id) => {
+              if (disabled || deletingId !== null) return;
               onChange(id);
               setHubOpen(false);
             }}
@@ -186,6 +189,9 @@ function SpaceHub({
   spaceId,
   onError,
   onSpacesChange,
+  onDelete,
+  deletingId,
+  disabled,
   onEnter,
   onClose,
 }: {
@@ -193,6 +199,9 @@ function SpaceHub({
   spaceId: number | null;
   onError: (message: string | null) => void;
   onSpacesChange: () => void;
+  onDelete: (space: SpaceInfo) => Promise<void>;
+  deletingId: number | null;
+  disabled?: boolean;
   onEnter: (spaceId: number) => void;
   onClose: () => void;
 }) {
@@ -207,7 +216,6 @@ function SpaceHub({
   const [noteText, setNoteText] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [newName, setNewName] = useState("");
-  const { confirm, confirmation } = useConfirmation();
 
   const refreshSources = useCallback(async () => {
     try {
@@ -258,7 +266,6 @@ function SpaceHub({
 
   return (
     <>
-      {confirmation}
       <div className="fixed inset-0 z-30" onClick={onClose} />
       <motion.div
         initial={{ opacity: 0, y: -6 }}
@@ -332,6 +339,7 @@ function SpaceHub({
                       <button
                         type="button"
                         onClick={() => onEnter(space.id)}
+                        disabled={disabled}
                         className={`truncate text-sm hover:underline ${current ? "font-semibold text-secondary-700" : "text-stone-800"}`}
                         title="进入该空间"
                       >
@@ -423,17 +431,11 @@ function SpaceHub({
                       </button>
                       <button
                         type="button"
-                        disabled={busyId === space.id}
-                        onClick={() => {
-                          confirmDeleteSpace(space, confirm)
-                            .then((mode) => (!mode ? null : run(async () => {}, space.id)))
-                            .catch((err) =>
-                              onError(err instanceof Error ? err.message : "删除失败")
-                            );
-                        }}
+                        disabled={disabled || busyId !== null || deletingId !== null}
+                        onClick={() => onDelete(space)}
                         className="shrink-0 text-xs text-stone-400 transition-colors hover:text-red-500 disabled:opacity-50"
                       >
-                        删除
+                        {deletingId === space.id ? "删除中…" : "删除"}
                       </button>
                     </>
                   )}
