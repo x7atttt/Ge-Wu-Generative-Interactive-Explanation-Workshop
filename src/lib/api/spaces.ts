@@ -36,17 +36,24 @@ export interface SpaceMap {
   roadmapAt: string | null;
 }
 
-async function readError(res: Response): Promise<Error> {
+export class SpaceApiError extends Error {
+  constructor(message: string, public status: number) { super(message); }
+}
+
+export interface DeletedSpace { docIds: number[]; sourceIds: number[] }
+
+async function readError(res: Response): Promise<SpaceApiError> {
   const data: unknown = await res.json().catch(() => null);
-  return new Error(
+  return new SpaceApiError(
     data && typeof data === "object" && "error" in data && typeof data.error === "string"
       ? data.error
-      : `请求失败（${res.status}）`
+      : `请求失败（${res.status}）`,
+    res.status
   );
 }
 
 export async function listSpaces(): Promise<SpaceInfo[]> {
-  const res = await fetch("/api/spaces");
+  const res = await fetch("/api/spaces", { cache: "no-store" });
   if (!res.ok) throw await readError(res);
   const data = (await res.json()) as { spaces: SpaceInfo[] };
   return data.spaces;
@@ -63,13 +70,13 @@ export async function createSpace(name: string, note = ""): Promise<number> {
   return data.id;
 }
 
-/** 删除空间。withContent=true 连同其资料/讲解/练习/复习卡深删（不可恢复）；
- *  缺省仅删空间本身，资料与讲解移回未分组 */
-export async function deleteSpace(id: number, withContent = false): Promise<void> {
-  const res = await fetch(`/api/spaces/${id}${withContent ? "?content=1" : ""}`, {
+/** 确认后彻底删除；返回已删除内容，界面无需等列表重拉即可同步清理。 */
+export async function deleteSpace(id: number): Promise<DeletedSpace> {
+  const res = await fetch(`/api/spaces/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) throw await readError(res);
+  return (await res.json()) as DeletedSpace;
 }
 
 export async function renameSpace(id: number, name: string): Promise<void> {

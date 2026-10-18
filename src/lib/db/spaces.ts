@@ -117,34 +117,32 @@ export function setRoadmap(id: number, stages: RoadmapStage[]): void {
     .run(JSON.stringify({ stages }), id);
 }
 
-/** 删除空间：资料与讲解移回未分组（不级联删除学习资产），再删空间本身 */
-export function deleteSpace(id: number): void {
-  const db = getDb();
-  deleteExamSessions(id);
-  db.prepare("UPDATE sources SET space_id = NULL WHERE space_id = ?").run(id);
-  db.prepare("UPDATE docs SET space_id = NULL WHERE space_id = ?").run(id);
-  db.prepare("DELETE FROM spaces WHERE id = ?").run(id);
-}
-
 /** 深删空间：连同其资料、讲解（深化链/追问/练习记录/复习卡）与手写卡一并删除，不可恢复。
  *  顺序遵守外键：先删引用方（asks/attempts/cards/docs）再删被引用方（sources/spaces） */
-export function deleteSpaceDeep(id: number): void {
+export function deleteSpaceDeep(id: number): { docIds: number[]; sourceIds: number[] } {
   const db = getDb();
-  deleteExamSessions(id);
-  db.prepare("DELETE FROM review_events WHERE card_id IN (SELECT id FROM cards WHERE space_id = ?)").run(id);
-  const docIds = (
-    db.prepare("SELECT id FROM docs WHERE space_id = ?").all(id) as unknown as { id: number }[]
-  ).map((r) => r.id);
-  if (docIds.length > 0) {
-    const placeholders = docIds.map(() => "?").join(",");
-    db.prepare(`DELETE FROM asks WHERE doc_id IN (${placeholders})`).run(...docIds);
-    db.prepare(`DELETE FROM attempts WHERE doc_id IN (${placeholders})`).run(...docIds);
-    db.prepare(`DELETE FROM cards WHERE doc_id IN (${placeholders})`).run(...docIds);
-    db.prepare(`DELETE FROM docs WHERE id IN (${placeholders})`).run(...docIds);
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const docIds = (db.prepare("SELECT id FROM docs WHERE space_id = ?").all(id) as { id: number }[]).map((row) => row.id);
+    const sourceIds = (db.prepare("SELECT id FROM sources WHERE space_id = ?").all(id) as { id: number }[]).map((row) => row.id);
+    deleteExamSessions(id);
+    db.prepare("DELETE FROM review_events WHERE card_id IN (SELECT id FROM cards WHERE space_id = ?)").run(id);
+    if (docIds.length > 0) {
+      const placeholders = docIds.map(() => "?").join(",");
+      db.prepare(`DELETE FROM asks WHERE doc_id IN (${placeholders})`).run(...docIds);
+      db.prepare(`DELETE FROM attempts WHERE doc_id IN (${placeholders})`).run(...docIds);
+      db.prepare(`DELETE FROM cards WHERE doc_id IN (${placeholders})`).run(...docIds);
+      db.prepare(`DELETE FROM docs WHERE id IN (${placeholders})`).run(...docIds);
+    }
+    db.prepare("DELETE FROM cards WHERE space_id = ?").run(id);
+    db.prepare("DELETE FROM sources WHERE space_id = ?").run(id);
+    db.prepare("DELETE FROM spaces WHERE id = ?").run(id);
+    db.exec("COMMIT");
+    return { docIds, sourceIds };
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
   }
-  db.prepare("DELETE FROM cards WHERE space_id = ?").run(id); // 手写卡（doc_id 为 NULL）
-  db.prepare("DELETE FROM sources WHERE space_id = ?").run(id);
-  db.prepare("DELETE FROM spaces WHERE id = ?").run(id);
 }
 
 function deleteExamSessions(spaceId: number): void {
