@@ -83,11 +83,10 @@ with sync_playwright() as p:
     expect(editor).to_have_count(0)
     page.get_by_role('button', name='关闭资料', exact=True).click()
     # Cancel/Escape/backdrop never issue a delete or open another confirmation.
-    delete_current = page.get_by_title('删除当前空间（资料与讲解移回未分组）')
+    delete_current = page.get_by_title('彻底删除当前空间及其内容')
     for mode in ['cancel', 'escape', 'backdrop']:
         delete_current.click()
         expect(confirm).to_be_visible()
-        confirm.get_by_role('radio', name='连内容一起删除', exact=False).check()
         if mode == 'cancel':
             confirm.get_by_role('button', name='取消', exact=True).click()
         elif mode == 'escape':
@@ -109,27 +108,25 @@ with sync_playwright() as p:
     page.set_viewport_size({'width': 1280, 'height': 900})
     # Deep delete failure is visible and can be retried, then sends exactly one request.
     picker.select_option(str(f['deepSpace']))
-    page.route(f'**/api/spaces/{f["deepSpace"]}?content=1', lambda route: route.fulfill(status=503, json={'error': '验收删除失败'}))
+    page.route(f'**/api/spaces/{f["deepSpace"]}', lambda route: route.fulfill(status=503, json={'error': '验收删除失败'}))
     delete_current.click()
-    confirm.get_by_role('radio', name='连内容一起删除', exact=False).check()
-    confirm.get_by_role('button', name='连内容一起删除', exact=True).click()
+    confirm.get_by_role('button', name='彻底删除空间', exact=True).click()
     expect(page.get_by_text('验收删除失败', exact=False)).to_be_visible()
-    page.unroute(f'**/api/spaces/{f["deepSpace"]}?content=1')
+    page.unroute(f'**/api/spaces/{f["deepSpace"]}')
     before = len(deletions)
     delete_current.click()
-    confirm.get_by_role('radio', name='连内容一起删除', exact=False).check()
-    confirm.get_by_role('button', name='连内容一起删除', exact=True).click()
+    confirm.get_by_role('button', name='彻底删除空间', exact=True).click()
     expect(picker).to_have_value('')
-    assert len(deletions) == before + 1 and deletions[-1].endswith('?content=1')
+    assert len(deletions) == before + 1 and deletions[-1].endswith(f'/api/spaces/{f["deepSpace"]}')
     assert page.request.get(f'{BASE}/api/docs/{f["deepDoc"]}').status == 404
     picker.select_option(str(f['plainSpace']))
     before = len(deletions)
     delete_current.click()
-    expect(confirm.get_by_role('radio', name='仅删除空间', exact=False)).to_be_checked()
-    confirm.get_by_role('button', name='仅删除空间', exact=True).click()
+    expect(confirm.get_by_role('radio')).to_have_count(0)
+    confirm.get_by_role('button', name='彻底删除空间', exact=True).click()
     expect(picker).to_have_value('')
-    assert len(deletions) == before + 1 and '?content=1' not in deletions[-1]
-    assert page.request.get(f'{BASE}/api/docs/{f["keepDoc"]}').json()['spaceId'] is None
+    assert len(deletions) == before + 1 and deletions[-1].endswith(f'/api/spaces/{f["plainSpace"]}')
+    assert page.request.get(f'{BASE}/api/docs/{f["keepDoc"]}').status == 404
     # An invalid legacy question is explicitly skipped without a grade.
     picker.select_option(str(f['badSpace']))
     page.get_by_role('button', name='📝 测验', exact=True).click()
@@ -145,5 +142,5 @@ with sync_playwright() as p:
     page.screenshot(path='data/iteration27-content-mobile.png', full_page=True)
     assert not native, native
     assert not errors, errors
-    print('PASS: browser delete modes/cancellation/retry, draft preservation, Markdown/code layout, chart changes, status colors, resumed choices, invalid-card skip, mobile overflow')
+    print('PASS: browser deep deletion/cancellation/retry, draft preservation, Markdown/code layout, chart changes, status colors, resumed choices, invalid-card skip, mobile overflow')
     browser.close()

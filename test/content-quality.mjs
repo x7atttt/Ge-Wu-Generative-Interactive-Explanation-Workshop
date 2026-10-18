@@ -47,7 +47,7 @@ try {
   ];
   const { id: spaceId } = await api("/api/spaces", { name: `内容验收-${Date.now()}` }); created.push(spaceId);
   const { id: badSpace } = await api("/api/spaces", { name: `残缺题验收-${Date.now()}` }); created.push(badSpace);
-  const { id: plainSpace } = await api("/api/spaces", { name: `保留内容验收-${Date.now()}` }); created.push(plainSpace);
+  const { id: plainSpace } = await api("/api/spaces", { name: `空间删除验收-${Date.now()}` }); created.push(plainSpace);
   const { id: deepSpace } = await api("/api/spaces", { name: `连内容删除验收-${Date.now()}` }); created.push(deepSpace);
   // 每种缺陷都走真实生成管线：首次失败后修复，连续失败不得入库。
   for (const invalid of badDocs) {

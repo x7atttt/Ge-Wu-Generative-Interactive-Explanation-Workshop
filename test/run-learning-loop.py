@@ -31,11 +31,15 @@ try:
             if time.monotonic() > deadline:
                 raise RuntimeError(f'验收服务启动超时：{port}')
             time.sleep(0.2)
-    if '--content-only' not in sys.argv:
+    if '--content-only' not in sys.argv and '--deletion-only' not in sys.argv:
         result = subprocess.run(['node', 'test/learning-loop.mjs', '--browser'], cwd=ROOT)
         if result.returncode:
             sys.exit(result.returncode)
-    sys.exit(subprocess.run(['node', 'test/content-quality.mjs'], cwd=ROOT).returncode)
+    if '--deletion-only' not in sys.argv:
+        result = subprocess.run(['node', 'test/content-quality.mjs'], cwd=ROOT)
+        if result.returncode:
+            sys.exit(result.returncode)
+    sys.exit(subprocess.run(['node', 'test/space-deletion.mjs'], cwd=ROOT).returncode)
 finally:
     for proc in reversed(servers):
         if proc.poll() is None:
