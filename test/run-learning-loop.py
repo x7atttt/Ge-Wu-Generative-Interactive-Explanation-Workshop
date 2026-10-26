@@ -36,8 +36,8 @@ try:
             time.sleep(0.2)
     if '--keys-only' in sys.argv:
         sys.exit(subprocess.run(['python', 'test/header-keys-ui.py'], cwd=ROOT).returncode)
-    choices = {'--layout-only': ['light-toolbar.mjs'], '--hover-only': ['hover-select.mjs'], '--deletion-only': ['space-deletion.mjs'], '--content-only': ['content-quality.mjs']}
-    scripts = next((scripts for flag, scripts in choices.items() if flag in sys.argv), ['learning-loop.mjs', 'content-quality.mjs', 'space-deletion.mjs', 'hover-select.mjs', 'light-toolbar.mjs'])
+    choices = {'--repair-only': ['generation-repair.mjs'], '--layout-only': ['light-toolbar.mjs'], '--hover-only': ['hover-select.mjs'], '--deletion-only': ['space-deletion.mjs'], '--content-only': ['content-quality.mjs']}
+    scripts = next((scripts for flag, scripts in choices.items() if flag in sys.argv), ['learning-loop.mjs', 'content-quality.mjs', 'generation-repair.mjs', 'space-deletion.mjs', 'hover-select.mjs', 'light-toolbar.mjs'])
     for script in scripts:
         result = subprocess.run(['node', f'test/{script}', *(['--browser'] if script == 'learning-loop.mjs' else [])], cwd=ROOT)
         if result.returncode:

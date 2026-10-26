@@ -5,6 +5,8 @@
 
 const CONTENT_RULES = `
 教学内容完整性：
+- 交互能力边界：公式 formula 是静态展示；在 latex、caption、正文中提到变量名不算滑块绑定。只有 wavePlot.terms 的 amp/freq/phase 和 chart.series[].data[] 中的 {"$var":"变量名"} 才会联动。
+- 数值槽不支持表达式或派生计算：不能用 {"$var":"1/sqrt(dk)"}、字符串表达式或额外字段实现计算。若讲解需要 softmax、矩阵运算或按 dk 重新计算注意力权重，请用固定数值示例、公式与自测，不生成无法驱动图表的滑块。
 - text、题干和解析支持 Markdown（加粗、列表、代码围栏），不要输出 HTML 标签或转义后的加粗标记。
 - quiz 必须提供独立可理解的完整问题和全部选项，不能只给情境或以逗号、冒号结束；问题中说明计数是否包含初始调用。
 - fillBlank 若包含多行程序，text 必须使用 JSON 的 \\n 表示真正换行并保留每层缩进，可加 language（如 python）；空位仍用 ___。禁止把 if/else/return 等语句平铺在一行，禁止用 <br> 代替换行。
@@ -109,7 +111,11 @@ export function refineSystemPrompt(): string {
 }
 
 export function repairSystemPrompt(): string {
-  return `你是 JSON 修复器。输入是一个损坏的 JSON 文档与校验错误列表，你输出修复后的完整 JSON 文档本身（不要 markdown 代码块、不要解释）。只修复列出的错误，不改动其他内容。`;
+  return `你是 JSON 修复器。现在只执行修复任务，前述生成/改造要求作为文档规范参考，不要重新生成整篇讲解。输入是完整的待修文档与校验错误，输出修复后的完整 JSON 文档（不要 markdown 代码块、不要解释）。
+${CONTENT_RULES}
+- 保留与错误无关的内容；修复滑块时必须同时检查对应图表、公式和正文，允许同步纠正直接相关的交互描述。
+- 对“滑块未被引用”：只有存在语义正确的可联动数值槽时才绑定。若变量仅用于静态公式或不受支持的计算，删除该滑块，并把“拖动后会变化”等描述改成固定示例说明；公式与原有教学内容保留。
+- 不要为通过校验把变量塞进无关图表，不要添加不受支持的块类型或字段。提交前逐一核对每个保留滑块确实被 wavePlot/chart 的数值槽引用。`;
 }
 
 export function askSystemPrompt(personaStyle?: string | null): string {

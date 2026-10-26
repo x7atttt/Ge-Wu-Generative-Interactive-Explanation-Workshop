@@ -79,9 +79,10 @@ async function withRepair(raw: string, history: ChatMessage[], onStage?: (stage:
     onStage?.("repair");
     const repaired = await chat(
       [
-        { role: "system", content: repairSystemPrompt() },
-        ...history,
-        { role: "assistant", content: raw.slice(0, 8000) },
+        // 一条系统消息保留文档规范，末尾明确当前修复任务；原文必须完整，尾部可能正是错误位置。
+        { role: "system", content: [...history.filter((message) => message.role === "system").map((message) => message.content), repairSystemPrompt()].join("\n\n") },
+        ...history.filter((message) => message.role !== "system"),
+        { role: "assistant", content: raw },
         {
           role: "user",
           content: `上面的输出存在问题：${toMessage(firstError)}\n请输出修复后的完整 JSON 文档。`,
