@@ -41,5 +41,6 @@ export function BlockSkeleton({ type }: { type: string }) {
         <div className={`${base} h-8 w-full`} />
       </div>
     );
+  if (type === "diagram") return <div className="rounded-xl border border-stone-200 p-4"><div className={`${base} mb-6 h-4 w-36`} /><div className="flex h-64 items-center justify-around gap-4"><div className={`${base} h-16 w-1/4`} /><div className={`${base} h-1 w-10`} /><div className={`${base} h-16 w-1/4`} /></div></div>;
   return <div className={`${base} h-40 w-full`} />; // wavePlot / chart
 }

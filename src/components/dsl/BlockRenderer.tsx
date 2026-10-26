@@ -1,6 +1,8 @@
 "use client";
 
 import type { Block } from "@/lib/dsl/schema";
+import dynamic from "next/dynamic";
+import { BlockSkeleton } from "./BlockSkeleton";
 import { ChartView } from "./ChartView";
 import { FillBlankView } from "./FillBlankView";
 import { FormulaBlockView } from "./FormulaBlockView";
@@ -11,6 +13,8 @@ import { SliderControl } from "./SliderControl";
 import { SortView } from "./SortView";
 import { TextBlockView } from "./TextBlockView";
 import { WavePlotView } from "./WavePlotView";
+
+const DiagramView = dynamic(() => import("./DiagramView"), { ssr: false, loading: () => <BlockSkeleton type="diagram" /> });
 
 /**
  * 块分发器（扩展点）：新增块类型 = schema 加联合分支 + 此处加 case + 实现组件，
@@ -30,6 +34,8 @@ export function BlockRenderer({ block }: { block: Block }) {
       return <WavePlotView block={block} />;
     case "chart":
       return <ChartView block={block} />;
+    case "diagram":
+      return <DiagramView block={block} />;
     case "quiz":
       return <QuizView block={block} />;
     case "fillBlank":

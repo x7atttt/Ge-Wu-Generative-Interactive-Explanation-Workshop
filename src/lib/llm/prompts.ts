@@ -3,6 +3,16 @@
  * 修改 schema 时同步更新此处（校验层 zod 会兜底拦截不一致的输出）。
  */
 
+const DIAGRAM_RULES = `
+架构图 diagram 契约（不生成 image）：
+{"type":"diagram","title":"架构总览","caption":"可选说明","direction":"LR","groups":[{"id":"encoder","label":"编码器"}],"nodes":[{"id":"attention","label":"自注意力","description":"点击模块显示的具体说明","group":"encoder"},{"id":"ffn","label":"前馈网络","description":"解释该模块的职责","group":"encoder"}],"edges":[{"id":"attention_ffn","source":"attention","target":"ffn","label":"表示","kind":"data"}],"steps":[{"title":"理解表示","description":"说明此步的数据流与模块职责","nodeIds":["attention","ffn"],"edgeIds":["attention_ffn"]}]}
+- 上例仅演示字段，不是完整架构；按用户主题生成实际模块与关系。架构/组成/流程主题优先 diagram + 文字 + 自测，不用 chart 冒充架构图。
+- direction 只能 LR 或 TB，可省略；分组架构优先 LR，组内由程序纵向排布，输入处理模块也归入对应分组，避免把组间流程拉成长链。groups、steps、caption、节点 group、边 label/kind、步骤 edgeIds 均可省略。nodes 的 id/label/description 和 edges 的 id/source/target 必填。
+- ID 以字母或下划线开头，只含字母/数字/下划线/连字符；各数组内部 ID 唯一。节点 group 必须存在，分组不能空；边两端必须是节点 ID，步骤 nodeIds/edgeIds 必须实际存在。
+- 最多 40 个节点、80 条边、8 个分组、20 个步骤；节点说明不超过 1500 字，标签不超过 120 字。大架构分成总览与局部 diagram，不堆叠全部细节。
+- kind=data 表示实线数据流，kind=residual 表示虚线残差或跳连。steps 按教学顺序组织，每步给完整说明并至少高亮一个节点。
+- 不输出坐标、CSS、HTML、SVG 或脚本。文字、图中节点、箭头方向须一致；保留架构版本差异，不能混用不同变体。diagram 不消费滑块变量，数值实验仍用真正绑定的 chart/wavePlot。`;
+
 const CONTENT_RULES = `
 教学内容完整性：
 - 交互能力边界：公式 formula 是静态展示；在 latex、caption、正文中提到变量名不算滑块绑定。只有 wavePlot.terms 的 amp/freq/phase 和 chart.series[].data[] 中的 {"$var":"变量名"} 才会联动。
@@ -11,6 +21,7 @@ const CONTENT_RULES = `
 - quiz 必须提供独立可理解的完整问题和全部选项，不能只给情境或以逗号、冒号结束；问题中说明计数是否包含初始调用。
 - fillBlank 若包含多行程序，text 必须使用 JSON 的 \\n 表示真正换行并保留每层缩进，可加 language（如 python）；空位仍用 ___。禁止把 if/else/return 等语句平铺在一行，禁止用 <br> 代替换行。
 - chart 的联动必须和正文一致；固定数字不会随滑块变化。若比较当前递归深度 n 的递与归，用一个“当前 n”类目，两组 data 都为 [{"$var":"depth"}]。若只让一个点变化，必须用 interactionHint 明说哪一组、哪一个类目会变，其他数据为固定参考值。
+${DIAGRAM_RULES}
 `;
 
 export interface GeneratePromptOpts {
@@ -39,7 +50,7 @@ export function generateSystemPrompt(opts: GeneratePromptOpts = {}): string {
 
 结构：{"version":1,"title":标题,"blocks":[块数组]}
 
-十种块（按讲解顺序排列）：
+十一种块（按讲解顺序排列）：
 1. {"type":"heading","text":"小节标题","level":2或3（默认3，可省略）} —— 文档超过 8 块时分节使用
 2. {"type":"text","content":"讲解文字"}
 3. {"type":"formula","latex":"KaTeX 公式（转义反斜杠）","caption":"符号说明（可选）"}
@@ -60,11 +71,13 @@ export function generateSystemPrompt(opts: GeneratePromptOpts = {}): string {
 8. {"type":"match","prompt":"任务说明","pairs":[{"left":"词","right":"对应项"}]} —— 2~5 对，left 与 right 各自不重复；用于术语↔含义等配对记忆
 9. {"type":"sort","prompt":"任务说明","categories":["类A","类B"],"items":[{"label":"条目","category":"所属类别"}]} —— category 必须取自 categories；用于分类判断练习
 10. {"type":"quiz","question":"问题","options":["A","B","C","D"],"answer":正确项下标,"explanation":"解析"}
+11. diagram 架构图，字段与约束见后面的“架构图 diagram 契约”
 
 ${selection}${opts.practice ? "" : `
 - 量化规律（数学/物理/信号/统计）：formula + slider(1~3 个) + wavePlot 或 chart
 - 语法/词汇/代码语法/配置规则：fillBlank(1~2) + quiz，不要造数值参数
 - 术语与概念的对应关系：match(1 组) + quiz
+- 架构、模块组成、数据流：diagram + text + quiz；例如 Transformer 结构应先用 diagram 展示模块连接，再用公式解释局部机制
 - 分类体系/判断标准：sort(1 组) + quiz
 - 叙述、流程、历史类知识：text + heading 分节 + quiz，允许没有任何参数交互
 - 图表不是必需品：只有当离散数据对比/规律可视化真正比文字更直观时才生成 chart，并按数据形态选 chartType；纯概念、语言、流程类主题不要硬造图表
@@ -103,7 +116,8 @@ export function refineSystemPrompt(): string {
 - 新增内容以 heading 块开头，标题概括本次深化主题；heading 文本**不要以「深化：」开头**（界面已用分组卡表达深化语义），直接写主题，如 {"type":"heading","text":"自测题——检验你的理解"}
 - 尽量把新增块追加在文档末尾
 - 指令通常是内容级操作：深入某主题、增加对比演示/现实例子、补充公式、出自测题、改用图表呈现等
-- 可用块类型与生成时相同：heading / text / formula / slider / wavePlot / chart / fillBlank / match / sort / quiz
+- 可用块类型与生成时相同：heading / text / formula / slider / wavePlot / chart / diagram / fillBlank / match / sort / quiz
+- 修改 diagram 时保留未改模块的 ID，新增/删除节点须同步修正 edges、groups、steps，不重新编号整张图
 - 新增练习时按主题选块：语法/词汇用 fillBlank，术语对应用 match，分类判断用 sort（结构与生成规范一致）
 - 结构约束：滑块 var 唯一；{"$var":...} 只能引用已定义滑块变量；每个滑块必须至少被一个 {"$var":...} 引用（否则删除该滑块）；min < max 且 step > 0；quiz 的 answer 必须小于 options 数量；chart 每系列 data 个数与 categories 一致且逐点核对数值；chart 可用可选 yLabels（{"数值":"标签"}）把数值纵轴映射为语义标签（如复杂度数量级→O(n²)），data 保持数字；chart 数据全为正且跨数量级时用 "yType":"log"
 - wavePlot 的多 terms 叠加为**一条**曲线（y=Σ）；对比两条曲线用两个 wavePlot 块上下排列；文字描述必须与实际渲染一致，不要提及不存在的曲线颜色或"两条线"

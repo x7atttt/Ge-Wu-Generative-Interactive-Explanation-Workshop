@@ -5,6 +5,8 @@
  * （迭代 2 扩展见 iteration2 spec，练习块见 iteration8 spec）。
  */
 import { z } from "zod";
+import { diagramBlockSchema } from "./diagram-schema";
+export type { DiagramBlock } from "./diagram-schema";
 
 export const varRefSchema = z.object({ $var: z.string() });
 export type VarRef = z.infer<typeof varRefSchema>;
@@ -143,6 +145,7 @@ export const blockSchema = z.discriminatedUnion("type", [
   fillBlankBlockSchema,
   matchBlockSchema,
   sortBlockSchema,
+  diagramBlockSchema,
 ]);
 
 export const explainDocSchema = z

@@ -33,7 +33,7 @@ export function BuildProgressPanel({ raw, phase, stage, note, onCancel }: {
 
   const index = stage === "repair" ? 2 : STAGES.findIndex((item) => item.key === stage);
   const title = raw.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/)?.[1];
-  const count = [...raw.matchAll(/"type"\s*:\s*"(heading|text|formula|slider|wavePlot|chart|fillBlank|match|sort|quiz)"/g)].length;
+  const count = [...raw.matchAll(/"type"\s*:\s*"(heading|text|formula|slider|wavePlot|chart|diagram|fillBlank|match|sort|quiz)"/g)].length;
   const helper = stage === "prepare" ? "整理参考资料后开始生成。"
     : stage === "verify" ? "检查公式、交互和练习，完成后即可使用。"
     : stage === "repair" ? "正在调整内容与练习，请稍候。"
