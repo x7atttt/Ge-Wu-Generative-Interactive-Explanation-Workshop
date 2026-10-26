@@ -84,7 +84,11 @@ export async function POST(req: Request) {
         personaStyle,
         images,
         effort,
-        { signal, onRetry: (attempt) => send({ type: "retry", attempt, message: `连接暂时异常，正在重新连接（${attempt}/2）` }) }
+        {
+          signal,
+          onThinking: () => send({ type: "info", message: "模型正在思考，尚未返回正文" }),
+          onRetry: (attempt) => send({ type: "retry", attempt, message: `连接暂时异常，正在重新连接（${attempt}/2）` }),
+        }
       );
       // 成功的问答才成对入库，失败轮次不污染后续上下文
       signal.throwIfAborted();

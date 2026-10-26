@@ -37,7 +37,7 @@ export function BuildProgressPanel({ raw, phase, stage, note, onCancel }: {
   const helper = stage === "prepare" ? "整理参考资料后开始生成。"
     : stage === "verify" ? "检查公式、交互和练习，完成后即可使用。"
     : stage === "repair" ? "正在调整内容与练习，请稍候。"
-    : raw.length > 0 ? "已接收的讲解会在下方逐段显示。" : elapsed >= 15 ? "模型仍在准备内容；若连接超时，将自动重试，最多两次。" : "正在等待第一段内容，收到后会逐步展开。";
+    : raw.trim() ? "已接收的讲解会在下方逐段显示。" : elapsed >= 15 ? "仍未收到正文；达到等待时限后会自动重试，最多两次。" : "正在等待第一段内容，收到后会逐步展开。";
 
   return <section aria-label={phase === "generate" ? "讲解生成进度" : "讲解改造进度"} className="mt-4 border-t border-stone-200 pt-4">
     <div className="flex items-center justify-between gap-3">
@@ -56,11 +56,14 @@ export function BuildProgressPanel({ raw, phase, stage, note, onCancel }: {
     <div role="progressbar" aria-label="正在处理讲解，完成时间暂不确定" data-stage={stage} className="relative my-3 h-1 overflow-hidden rounded-full bg-stone-200">
       <span className="generation-activity absolute h-full w-1/4 rounded-full bg-accent-500" />
     </div>
-    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500"><p>{note || helper}</p><p className="tabular-nums">已用时 {elapsed}s</p></div>
+    <div className="flex flex-wrap items-start justify-between gap-2 text-xs text-stone-500">
+      <div className="min-w-0 flex-1 space-y-1"><p>{helper}</p>{note && !raw.trim() && <p className="text-secondary-600">{note}</p>}</div>
+      <p className="shrink-0 tabular-nums">已用时 {elapsed}s</p>
+    </div>
     <details className="mt-3 text-xs text-stone-500">
       <summary className="w-fit cursor-pointer rounded py-1 hover:text-stone-700">{phase === "generate" ? "生成详情" : "改造详情"}</summary>
       <p className="my-2 break-words">{title && `《${title}》 · `}已接收 {count} 个内容片段 · {raw.length.toLocaleString()} 字符</p>
-      <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-all rounded-lg bg-stone-100 p-3 font-mono text-xs leading-5 text-stone-600">{raw || "等待内容返回…"}</pre>
+      <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-all rounded-lg bg-stone-100 p-3 font-mono text-xs leading-5 text-stone-600">{raw.trim() ? raw : "尚未收到正文，超时后会自动重试。"}</pre>
     </details>
   </section>;
 }

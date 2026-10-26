@@ -24,8 +24,25 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify({ choices: [{ message: { content: "完整结果" } }] })); return;
   }
   res.setHeader("Content-Type", "text/event-stream");
+  if (mode === "slow-content") {
+    for (const text of ["完", "整", "结", "果"]) {
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`);
+      await pause(200);
+    }
+    res.end("data: [DONE]\n\n");
+    return;
+  }
+  if (["heartbeat-only", "reasoning-only", "whitespace-only", "content-stall"].includes(mode)) {
+    if (mode === "content-stall") res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: "废弃片段" } }] })}\n\n`);
+    while (!closed.signal.aborted) {
+      const delta = mode === "reasoning-only" ? { reasoning_content: "private test reasoning" } : { content: " \n" };
+      res.write(mode === "heartbeat-only" || mode === "content-stall" ? ": keepalive\n\n" : `data: ${JSON.stringify({ choices: [{ delta }] })}\n\n`);
+      await pause(20);
+    }
+    return;
+  }
   if (mode === "thinking") {
-    for (let i = 0; i < 5; i++) { res.write(": keepalive\n\n"); await pause(20); }
+    for (let i = 0; i < 5; i++) { res.write(": keepalive\n\n"); await pause(150); }
   }
   const text = mode === "partial" ? "废弃片段" : "完整结果";
   if (mode !== "empty") res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\r\n\r\n`);
@@ -46,7 +63,7 @@ try {
   for (const faults of [[503, 502], ["drop", "drop"], ["empty", "empty"], ["stall", "stall"]]) {
     configure([...faults, "ok"]);
     const retries = [];
-    assert.equal(await streamChat(messages, { idleTimeoutMs: 100, onRetry: n => retries.push(n) }, () => {}), "完整结果");
+    assert.equal(await streamChat(messages, { idleTimeoutMs: 500, onRetry: n => retries.push(n) }, () => {}), "完整结果");
     assert.equal(calls, 3);
     assert.deepEqual(retries, [1, 2]);
   }
@@ -64,10 +81,32 @@ try {
   await assert.rejects(streamChat(messages, {}, () => {}), /尚未完成/);
   assert.equal(calls, 1, "没有重置回调时不能拼接部分响应");
   configure(["thinking"]);
-  assert.equal(await streamChat(messages, { idleTimeoutMs: 75 }, () => {}), "完整结果");
+  assert.equal(await streamChat(messages, { idleTimeoutMs: 500 }, () => {}), "完整结果");
   assert.equal(calls, 1, "正常返回心跳的高强度思考不重启");
 
-  for (const [stream, mode] of [[true, "stall"], [false, "body-stall"]]) {
+  for (const mode of ["heartbeat-only", "reasoning-only", "whitespace-only", "content-stall"]) {
+    configure([mode, "ok"]);
+    let result = "", thinking = 0;
+    const retries = [], before = disconnected;
+    assert.equal(await streamChat(messages, {
+      signal: AbortSignal.timeout(5000), firstContentTimeoutMs: 500, idleTimeoutMs: 1000,
+      onThinking: () => thinking++, onRetry: n => { retries.push(n); result = ""; },
+    }, t => { result += t; }), "完整结果");
+    assert.equal(result, "完整结果");
+    assert.deepEqual(retries, [1], `${mode} 不能用心跳无限续期`);
+    assert.equal(thinking, mode === "reasoning-only" ? 1 : 0, "只通知思考状态，不泄露思考正文或重复刷屏");
+    await waitFor(() => disconnected > before);
+  }
+  configure(["heartbeat-only", "reasoning-only", "heartbeat-only", "ok"]);
+  await assert.rejects(streamChat(messages, {
+    signal: AbortSignal.timeout(5000), firstContentTimeoutMs: 300, onRetry: () => {},
+  }, () => {}), /未返回正文/);
+  assert.equal(calls, 3, "正文超时最多重试两次，随后明确失败");
+  configure(["slow-content"]);
+  assert.equal(await streamChat(messages, { firstContentTimeoutMs: 400, idleTimeoutMs: 500 }, () => {}), "完整结果");
+  assert.equal(calls, 1, "正常流式正文可持续续期，不按总生成时长误杀");
+
+  for (const [stream, mode] of [[true, "stall"], [true, "reasoning-only"], [false, "body-stall"]]) {
     configure([mode]);
     const controller = new AbortController();
     const before = disconnected;

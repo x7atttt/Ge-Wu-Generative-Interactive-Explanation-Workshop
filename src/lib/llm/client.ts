@@ -30,6 +30,8 @@ export interface RequestControl {
   signal?: AbortSignal;
   /** 每次重试前清空本次预览，避免把两次响应拼在一起。 */
   onRetry?: (attempt: number) => void;
+  /** 仅通知观察到思考状态，不向调用方传递思考正文。 */
+  onThinking?: () => void;
 }
 
 export interface ChatOptions extends RequestControl {
@@ -43,6 +45,8 @@ export interface ChatOptions extends RequestControl {
   /** 非流式请求的整体超时；流式请求不用（见空闲计时器） */
   timeoutMs?: number;
   idleTimeoutMs?: number;
+  /** 首段有效正文的等待上限；保活和思考数据不能续期。 */
+  firstContentTimeoutMs?: number;
 }
 
 export class LLMError extends Error {
@@ -145,15 +149,18 @@ export async function streamChat(
 
 async function streamAttempt(baseUrl: string, apiKey: string, model: string, messages: ChatMessage[], options: ChatOptions, onDelta: (text: string) => void): Promise<string> {
   const controller = new AbortController();
-  // 持续收到网络数据时不重启模型，避免把正常的高强度思考误判成断线。
   const IDLE_MS = options.idleTimeoutMs ?? 60_000;
-  let idleTimer = setTimeout(() => controller.abort(), IDLE_MS);
+  const abortIdle = () => controller.abort(new LLMError("LLM 连接长时间未返回数据，请重试", undefined, true));
+  let idleTimer = setTimeout(abortIdle, IDLE_MS);
   const resetIdle = () => {
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => controller.abort(), IDLE_MS);
+    idleTimer = setTimeout(abortIdle, IDLE_MS);
   };
+  // 网络仍活跃不代表正文在推进：单独限制首字等待，之后只由有效正文续期。
+  let contentTimer = setTimeout(() => controller.abort(new LLMError("模型等待超时，未返回正文。可降低思考强度或稍后重试", undefined, true)), options.firstContentTimeoutMs ?? 90_000);
   const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
   let full = "";
+  let thinkingNotified = false;
 
   try {
     const res = await fetch(`${baseUrl}/chat/completions`, {
@@ -190,7 +197,7 @@ async function streamAttempt(baseUrl: string, apiKey: string, model: string, mes
           const payload = line.slice(5).trim();
           if (!payload) continue;
           if (payload === "[DONE]") { finished = true; break stream; }
-          let parsed: { choices?: { delta?: { content?: string }; finish_reason?: string | null }[]; error?: { message?: string; code?: number } };
+          let parsed: { choices?: { delta?: { content?: string; reasoning_content?: string; reasoning?: string }; finish_reason?: string | null }[]; error?: { message?: string; code?: number } };
           try {
             parsed = JSON.parse(payload);
           } catch {
@@ -200,8 +207,18 @@ async function streamAttempt(baseUrl: string, apiKey: string, model: string, mes
           if (parsed.error) throw new LLMError(parsed.error.message ?? "LLM 流式响应失败", parsed.error.code);
           const choice = parsed.choices?.[0];
           if (choice?.finish_reason) finished = true;
+          const thinking = choice?.delta?.reasoning_content || choice?.delta?.reasoning;
+          if (typeof thinking === "string" && thinking.trim() && !full.trim() && !thinkingNotified) {
+            thinkingNotified = true;
+            try { options.onThinking?.(); }
+            catch (error) { throw new LLMError(error instanceof Error ? error.message : String(error)); }
+          }
           const delta = choice?.delta?.content;
           if (typeof delta === "string" && delta) {
+            if (delta.trim()) {
+              clearTimeout(contentTimer);
+              contentTimer = setTimeout(() => controller.abort(new LLMError("讲解正文长时间未继续返回，请稍后重试", undefined, true)), IDLE_MS);
+            }
             full += delta;
             // 只捕获 JSON 解析异常，调用方的取消/发送异常必须向外传播。
             try { onDelta(delta); }
@@ -215,12 +232,13 @@ async function streamAttempt(baseUrl: string, apiKey: string, model: string, mes
     return full;
   } catch (err) {
     options.signal?.throwIfAborted();
-    const error = controller.signal.aborted ? new LLMError("LLM 连接长时间未返回数据，请重试", undefined, true) : normalizeFetchError(err);
+    const error = controller.signal.aborted ? controller.signal.reason as LLMError : normalizeFetchError(err);
     // 无重置回调的调用方只能在尚未输出时重试。
     if (full && !options.onRetry && error instanceof LLMError) error.retryable = false;
     throw error;
   } finally {
     clearTimeout(idleTimer);
+    clearTimeout(contentTimer);
     controller.abort();
   }
 }

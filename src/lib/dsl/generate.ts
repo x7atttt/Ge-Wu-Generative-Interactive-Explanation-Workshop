@@ -183,7 +183,7 @@ export async function generateDoc(
     { role: "user", content: withImages(sections.join("\n\n"), images) },
   ];
   const raw = onDelta
-    ? await streamChat(history, { jsonMode: true, temperature: 0.4, effort: extras.effort, signal: extras.signal, onRetry: extras.onRetry }, onDelta)
+    ? await streamChat(history, { jsonMode: true, temperature: 0.4, effort: extras.effort, signal: extras.signal, onRetry: extras.onRetry, onThinking: extras.onThinking }, onDelta)
     : await chat(history, { jsonMode: true, temperature: 0.4, effort: extras.effort, signal: extras.signal, onRetry: extras.onRetry });
   return withRepair(raw, history, onStage, extras.effort, { signal: extras.signal, onRetry: extras.onRetry });
 }

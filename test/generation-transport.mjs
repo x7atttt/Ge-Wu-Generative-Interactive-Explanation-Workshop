@@ -43,14 +43,22 @@ try {
   const parent = recovered.find(e => e.type === "done");
   assert.deepEqual(parent.doc, valid);
   assert.deepEqual((await state()).requests.map(r => r.effort), ["max", "max", "max"]);
-  const before = (await docs()).length;
+  for (const path of ["/api/generate", "/api/refine", "/api/ask"]) {
+    await configure({ faults: [{ mode: "reasoning", delay: 300 }], outputs: [path === "/api/ask" ? "完整回答" : valid] });
+    const body = path === "/api/ask" ? { docId: parent.docId, question: "解释等待过程" } : path === "/api/refine" ? { doc: valid, docId: parent.docId, instruction: "补充说明" } : generate;
+    const events = await (await request(path, body)).completed;
+    assert.equal(events.filter(e => e.type === "info" && e.message === "模型正在思考，尚未返回正文").length, 1);
+    assert(!JSON.stringify(events).includes("private test reasoning"), "思考正文不通过 SSE 下发");
+    assert(events.some(e => e.type === "done"));
+  }
+  const afterThinking = (await docs()).length;
   for (const [faults, expected] of [[[{ status: 503 }, { status: 503 }, { status: 503 }], 3], [[{ status: 401 }], 1]]) {
     await configure({ faults, outputs: [valid] });
     const events = await (await request("/api/generate", generate)).completed;
     assert(events.some(e => e.type === "error"));
     assert(!events.some(e => e.type === "done"));
     assert.equal((await state()).requests.length, expected);
-    assert.equal((await docs()).length, before, "失败请求不落库");
+    assert.equal((await docs()).length, afterThinking, "失败请求不落库");
   }
   await configure({ faults: [{ mode: "partial" }], outputs: [valid] });
   const restarted = await (await request("/api/generate", generate)).completed;

@@ -61,6 +61,14 @@ createServer(async (req, res) => {
   if (stopped.signal.aborted) return;
   if (body.stream) {
     res.writeHead(200, { "Content-Type": "text/event-stream" });
+    if (fault?.mode === "reasoning") {
+      const until = Date.now() + (fault.delay ?? 1500);
+      while (!stopped.signal.aborted && Date.now() < until) {
+        res.write(`data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: "private test reasoning" } }] })}\n\n`);
+        await wait(100);
+      }
+      if (stopped.signal.aborted) return;
+    }
     res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: output } }] })}\n\n`);
     if (pause > 0) await wait(pause);
     if (stopped.signal.aborted) return;

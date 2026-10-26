@@ -116,6 +116,7 @@ export async function streamAsk(
   let full = "";
   await consumeSSE(reader, (event) => {
     if (event.type === "retry") { full = ""; onReset?.(); onInfo?.(event.message); }
+    if (event.type === "info" && event.message) onInfo?.(event.message);
     if (event.type === "delta" && event.text) {
       full += event.text;
       onDelta(event.text);

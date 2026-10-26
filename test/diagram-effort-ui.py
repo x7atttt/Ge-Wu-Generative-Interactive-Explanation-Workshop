@@ -72,7 +72,7 @@ with sync_playwright() as p:
     steps = figure.get_by_role('group', name='架构图讲解步骤', exact=True)
     steps.get_by_role('button', name='2. 读取上下文', exact=True).click()
     expect(figure.get_by_text('解码器同时利用已有输出和编码器表示，连接两侧的信息。', exact=True)).to_be_visible()
-    assert figure.locator('path.react-flow__edge-path[style*="stroke-width: 2.5"]').count() == 2
+    expect(figure.locator('path.react-flow__edge-path[style*="stroke-width: 2.5"]')).to_have_count(2)
     figure.screenshot(path='data/diagram-step-desktop.png')
     transform = figure.locator('.react-flow__viewport').get_attribute('style')
     figure.get_by_role('button', name='放大架构图', exact=True).click()

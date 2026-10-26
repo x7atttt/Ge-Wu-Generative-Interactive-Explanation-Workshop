@@ -52,7 +52,11 @@ export async function POST(req: Request) {
       }, (stage) => {
         if (signal.aborted) throw new DOMException("客户端已取消", "AbortError");
         send({ type: "stage", stage });
-      }, effort, { signal, onRetry: (attempt) => send({ type: "retry", attempt, message: `连接暂时异常，正在重新连接（${attempt}/2）` }) });
+      }, effort, {
+        signal,
+        onThinking: () => send({ type: "info", message: "模型正在思考，尚未返回正文" }),
+        onRetry: (attempt) => send({ type: "retry", attempt, message: `连接暂时异常，正在重新连接（${attempt}/2）` }),
+      });
       if (signal.aborted) return;
       // refine 子版本继承父版本的空间归属与出身概念（概念地图状态不被深化打散）
       const parent = parentDocId !== null ? getDoc(parentDocId) : null;

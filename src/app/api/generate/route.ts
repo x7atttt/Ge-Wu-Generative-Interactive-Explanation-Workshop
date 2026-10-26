@@ -148,7 +148,11 @@ export async function POST(req: Request) {
         send({ type: "info", message: `已忽略 ${droppedSources} 份已删除或未解析的资料` });
       }
       if (refs.length > 0) send({ type: "info", message: `已检索 ${refs.length} 条网络资料` });
-      const extras: GenerateExtras = { refs, personaStyle, effort, signal, onRetry: (attempt) => send({ type: "retry", attempt, message: `连接暂时异常，正在重新连接（${attempt}/2）` }) };
+      const extras: GenerateExtras = {
+        refs, personaStyle, effort, signal,
+        onThinking: () => send({ type: "info", message: "模型正在思考，尚未返回正文" }),
+        onRetry: (attempt) => send({ type: "retry", attempt, message: `连接暂时异常，正在重新连接（${attempt}/2）` }),
+      };
       if (sources.length > 0) extras.sources = sources;
       if (statLines) extras.practiceLines = statLines;
       if (images.length > 0) extras.images = images;
