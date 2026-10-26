@@ -2,6 +2,7 @@
 import type { AskItem } from "@/components/dsl/AskPanel";
 import type { Block, ExplainDoc } from "@/lib/dsl/schema";
 import type { GenerationStage } from "@/lib/generation-progress";
+import type { ReasoningEffort } from "@/lib/effort";
 
 interface StreamHandlers {
   onDelta: (text: string) => void;
@@ -96,9 +97,10 @@ export async function streamAsk(
     signal,
     personaStyle,
     images,
-  }: StreamHandlers & { personaStyle?: PersonaStyle; images?: string[] }
+    effort,
+  }: StreamHandlers & { personaStyle?: PersonaStyle; images?: string[]; effort?: ReasoningEffort }
 ): Promise<string> {
-  const reader = await openSSE("/api/ask", { docId, question, personaStyle, images }, signal);
+  const reader = await openSSE("/api/ask", { docId, question, personaStyle, images, effort }, signal);
   let full = "";
   await consumeSSE(reader, (event) => {
     if (event.type === "delta" && event.text) {

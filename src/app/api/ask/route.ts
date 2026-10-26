@@ -3,6 +3,7 @@ import { sseResponse } from "@/lib/api/sse";
 import { appendAsks, listAsks } from "@/lib/db/asks";
 import { getDoc } from "@/lib/db/docs";
 import { askQuestion } from "@/lib/dsl/generate";
+import { isReasoningEffort } from "@/lib/effort";
 
 const IMAGE_DATA_URL = /^data:image\/(jpeg|png|webp|gif);base64,/;
 const MAX_IMAGES = 2;
@@ -27,13 +28,17 @@ function parseImages(raw: unknown): string[] | null {
 }
 
 export async function POST(req: Request) {
-  let body: { docId?: unknown; question?: unknown; personaStyle?: unknown; images?: unknown };
+  let body: { docId?: unknown; question?: unknown; personaStyle?: unknown; images?: unknown; effort?: unknown };
   try {
     body = (await req.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: "请求体必须是 JSON" }, { status: 400 });
   }
 
+  if (body.effort !== undefined && !isReasoningEffort(body.effort)) {
+    return NextResponse.json({ error: "思考强度须为 low、high 或 max" }, { status: 400 });
+  }
+  const effort = body.effort;
   const docId = body.docId;
   if (typeof docId !== "number" || !Number.isInteger(docId) || docId <= 0) {
     return NextResponse.json({ error: "docId 非法" }, { status: 400 });
@@ -77,7 +82,8 @@ export async function POST(req: Request) {
         question.trim(),
         (text) => send({ type: "delta", text }),
         personaStyle,
-        images
+        images,
+        effort
       );
       // 成功的问答才成对入库，失败轮次不污染后续上下文
       appendAsks(docId, [

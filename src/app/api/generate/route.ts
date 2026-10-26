@@ -6,6 +6,7 @@ import { getReadySources } from "@/lib/db/sources";
 import { getDocAttemptStats, type AttemptType } from "@/lib/db/attempts";
 import { formatSources, generateDoc, type GenerateExtras } from "@/lib/dsl/generate";
 import { webSearch } from "@/lib/search/bocha";
+import { isReasoningEffort } from "@/lib/effort";
 
 const TYPE_LABELS: Record<AttemptType, string> = {
   quiz: "自测题",
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
     spaceId?: unknown;
     originConcept?: unknown;
     images?: unknown;
+    effort?: unknown;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -42,6 +44,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "请求体必须是 JSON" }, { status: 400 });
   }
 
+  if (body.effort !== undefined && !isReasoningEffort(body.effort)) {
+    return NextResponse.json({ error: "思考强度须为 low、high 或 max" }, { status: 400 });
+  }
+  const effort = body.effort;
   const useWebSearch = body.webSearch !== false; // 前端「联网检索」开关，仅显式 false 关闭
   const personaStyle =
     typeof body.personaStyle === "string" && body.personaStyle.trim()
@@ -142,7 +148,7 @@ export async function POST(req: Request) {
         send({ type: "info", message: `已忽略 ${droppedSources} 份已删除或未解析的资料` });
       }
       if (refs.length > 0) send({ type: "info", message: `已检索 ${refs.length} 条网络资料` });
-      const extras: GenerateExtras = { refs, personaStyle };
+      const extras: GenerateExtras = { refs, personaStyle, effort };
       if (sources.length > 0) extras.sources = sources;
       if (statLines) extras.practiceLines = statLines;
       if (images.length > 0) extras.images = images;

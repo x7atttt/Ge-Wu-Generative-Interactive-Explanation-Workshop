@@ -4,6 +4,7 @@
  * 任何兼容厂商（GLM / DeepSeek / OpenAI / 本地推理服务等）可直接切换。
  * 配置全部来自环境变量（见 .env.example），密钥不进代码库。
  */
+import type { ReasoningEffort } from "@/lib/effort";
 
 /** 多模态内容片：文本或图片（data URL 或可访问 URL）——OpenAI 兼容协议 */
 export type ChatContentPart =
@@ -26,6 +27,7 @@ export function withImages(text: string, images: string[]): ChatMessage["content
 }
 
 export interface ChatOptions {
+  effort?: ReasoningEffort;
   temperature?: number;
   maxTokens?: number;
   /** 请求 json_object 输出模式（要求模型输出合法 JSON） */
@@ -75,7 +77,7 @@ export function llmConfigFromEnv(): LLMConfig {
 /** 可选：思考强度（GLM/OpenAI 兼容参数 reasoning_effort），未配置或非法值时不发送 */
 function reasoningEffort(): string | null {
   const value = process.env.LLM_REASONING_EFFORT?.trim().toLowerCase();
-  return value === "low" || value === "medium" || value === "high" ? value : null;
+  return value === "low" || value === "medium" || value === "high" || value === "max" ? value : null;
 }
 
 function buildBody(
@@ -84,7 +86,7 @@ function buildBody(
   options: ChatOptions,
   stream: boolean
 ): Record<string, unknown> {
-  const effort = reasoningEffort();
+  const effort = options.effort ?? reasoningEffort();
   return {
     model,
     messages,

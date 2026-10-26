@@ -14,6 +14,7 @@ import type { SearchRef } from "@/lib/search/bocha";
 import { validateDoc, type ExplainDoc } from "./schema";
 import { teachingContentIssue } from "@/lib/study-content";
 import type { GenerationStage } from "@/lib/generation-progress";
+import type { ReasoningEffort } from "@/lib/effort";
 
 export class DslError extends Error {
   constructor(message: string) {
@@ -70,7 +71,7 @@ function strictChartChecks(doc: ExplainDoc): string | null {
 }
 
 /** 校验失败时携带错误让 LLM 自修复一次（非流式，罕见路径不值得流式复杂度） */
-async function withRepair(raw: string, history: ChatMessage[], onStage?: (stage: GenerationStage) => void): Promise<ExplainDoc> {
+async function withRepair(raw: string, history: ChatMessage[], onStage?: (stage: GenerationStage) => void, effort?: ReasoningEffort): Promise<ExplainDoc> {
   const toMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
   onStage?.("verify");
   try {
@@ -88,7 +89,7 @@ async function withRepair(raw: string, history: ChatMessage[], onStage?: (stage:
           content: `上面的输出存在问题：${toMessage(firstError)}\n请输出修复后的完整 JSON 文档。`,
         },
       ],
-      { jsonMode: true, temperature: 0.1 }
+      { jsonMode: true, temperature: 0.1, effort }
     );
     onStage?.("verify");
     try {
@@ -138,6 +139,7 @@ export function formatSources(sources: { title: string; content: string }[]): st
 
 /** generateDoc 的可选输入：源文档资料 / 网络资料 / 语气人设 / 补练统计 / 拍摄图片 */
 export interface GenerateExtras {
+  effort?: ReasoningEffort;
   /** 用户导入并选用的资料（已解析为 Markdown，服务端已加载） */
   sources?: { title: string; content: string }[];
   refs?: SearchRef[];
@@ -180,9 +182,9 @@ export async function generateDoc(
     { role: "user", content: withImages(sections.join("\n\n"), images) },
   ];
   const raw = onDelta
-    ? await streamChat(history, { jsonMode: true, temperature: 0.4 }, onDelta)
-    : await chat(history, { jsonMode: true, temperature: 0.4 });
-  return withRepair(raw, history, onStage);
+    ? await streamChat(history, { jsonMode: true, temperature: 0.4, effort: extras.effort }, onDelta)
+    : await chat(history, { jsonMode: true, temperature: 0.4, effort: extras.effort });
+  return withRepair(raw, history, onStage, extras.effort);
 }
 
 /** 改造走 fast 模型（未配置回落主模型） */
@@ -190,7 +192,8 @@ export async function refineDoc(
   doc: ExplainDoc,
   instruction: string,
   onDelta?: (text: string) => void,
-  onStage?: (stage: GenerationStage) => void
+  onStage?: (stage: GenerationStage) => void,
+  effort?: ReasoningEffort
 ): Promise<ExplainDoc> {
   const { fastModel } = llmConfigFromEnv();
   const history: ChatMessage[] = [
@@ -200,11 +203,11 @@ export async function refineDoc(
       content: `当前文档：\n${JSON.stringify(doc, null, 2)}\n\n改造指令：${instruction}`,
     },
   ];
-  const options = { jsonMode: true, temperature: 0.3, model: fastModel };
+  const options = { jsonMode: true, temperature: 0.3, model: fastModel, effort };
   const raw = onDelta
     ? await streamChat(history, options, onDelta)
     : await chat(history, options);
-  return withRepair(raw, history, onStage);
+  return withRepair(raw, history, onStage, effort);
 }
 
 /** 追问的既有对话轮次（user/assistant 交替），由路由层从库中组装 */
@@ -224,7 +227,8 @@ export async function askQuestion(
   question: string,
   onDelta: (text: string) => void,
   personaStyle?: string | null,
-  images: string[] = []
+  images: string[] = [],
+  effort?: ReasoningEffort
 ): Promise<string> {
   const { fastModel } = llmConfigFromEnv();
   const trimmed = history.slice(-ASK_CONTEXT_TURNS * 2);
@@ -239,7 +243,7 @@ export async function askQuestion(
       ...trimmed.map((message) => ({ role: message.role, content: message.content })),
       { role: "user", content: withImages(askText, images) },
     ],
-    { temperature: 0.3, model: fastModel },
+    { temperature: 0.3, model: fastModel, effort },
     onDelta
   );
 }

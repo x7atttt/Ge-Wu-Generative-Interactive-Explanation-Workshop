@@ -4,15 +4,20 @@ import { tryAcquireAction, releaseAction } from "@/lib/actionGuard";
 import { getDoc, insertDoc, type DocOrigin } from "@/lib/db/docs";
 import { refineDoc } from "@/lib/dsl/generate";
 import { explainDocSchema } from "@/lib/dsl/schema";
+import { isReasoningEffort } from "@/lib/effort";
 
 export async function POST(req: Request) {
-  let body: { doc?: unknown; instruction?: unknown; docId?: unknown };
+  let body: { doc?: unknown; instruction?: unknown; docId?: unknown; effort?: unknown };
   try {
-    body = (await req.json()) as { doc?: unknown; instruction?: unknown; docId?: unknown };
+    body = (await req.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: "请求体必须是 JSON" }, { status: 400 });
   }
 
+  if (body.effort !== undefined && !isReasoningEffort(body.effort)) {
+    return NextResponse.json({ error: "思考强度须为 low、high 或 max" }, { status: 400 });
+  }
+  const effort = body.effort;
   const instruction = body.instruction;
   if (typeof instruction !== "string" || !instruction.trim()) {
     return NextResponse.json({ error: "请输入改造指令" }, { status: 400 });
@@ -48,7 +53,7 @@ export async function POST(req: Request) {
       }, (stage) => {
         if (signal.aborted) throw new DOMException("客户端已取消", "AbortError");
         send({ type: "stage", stage });
-      });
+      }, effort);
       if (signal.aborted) return;
       // refine 子版本继承父版本的空间归属与出身概念（概念地图状态不被深化打散）
       const parent = parentDocId !== null ? getDoc(parentDocId) : null;

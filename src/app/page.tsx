@@ -36,6 +36,7 @@ import { importSources } from "@/lib/api/sources";
 import { computeDeepens } from "@/lib/dsl/deepen";
 import type { ExplainDoc } from "@/lib/dsl/schema";
 import type { GenerationStage } from "@/lib/generation-progress";
+import { EFFORT_STORAGE_KEY, EFFORTS, isReasoningEffort, type ReasoningEffort } from "@/lib/effort";
 
 // 示例概念覆盖四类交互形态：波形滑块（数学/信号）、填空配对（语言）、分类自测（计算机）、图表（经济）
 const EXAMPLE_CONCEPTS = ["正弦波的频率", "英语名词复数", "快速排序", "供需与价格"];
@@ -49,6 +50,7 @@ const REFINE_EXAMPLES = [
 export default function Home() {
   const [concept, setConcept] = useState("");
   const [webSearchOn, setWebSearchOn] = useState(true);
+  const [effort, setEffort] = useState<ReasoningEffort>("high");
   const [attachedSourceIds, setAttachedSourceIds] = useState<number[]>([]);
   // 拍题图片（压缩后 data URL，仅当次生成消费，不持久化）
   const [genImages, setGenImages] = useState<string[]>([]);
@@ -170,6 +172,19 @@ export default function Home() {
       localStorage.setItem(PERSONA_STORAGE_KEY, JSON.stringify(next));
     } catch {}
   }
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(EFFORT_STORAGE_KEY);
+      // SSR 与首次水合使用同一默认值，挂载后才读取本机偏好。
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (isReasoningEffort(saved)) setEffort(saved);
+    } catch {}
+  }, []);
+  function updateEffort(value: string) {
+    if (!isReasoningEffort(value)) return;
+    setEffort(value);
+    try { localStorage.setItem(EFFORT_STORAGE_KEY, value); } catch {}
+  }
   const personaHint = resolvePersonaHint(persona);
 
   function refreshDocList() {
@@ -290,6 +305,7 @@ export default function Home() {
           concept: conceptText,
           webSearch: webSearchOn,
           personaStyle: personaHint,
+          effort,
           sourceIds: extra.sourceIdsOverride ?? attachedSourceIds,
           spaceId,
           originConcept: extra.originConceptOverride ?? originConcept,
@@ -448,7 +464,7 @@ export default function Home() {
     try {
       const { doc: next, docId: id } = await streamExplanation(
         "refine",
-        { doc: parentDoc, instruction, docId },
+        { doc: parentDoc, instruction, docId, effort },
         {
           onStage: setGenerationStage,
           onDelta: (t) => setBuildText((prev) => prev + t),
@@ -679,6 +695,16 @@ export default function Home() {
                   { value: CUSTOM_PERSONA_ID, label: "自定义", description: "用一句话设定表达方式", action: true },
                 ]}
               />
+              <HoverSelect
+                label="思考强度"
+                description="用于讲解生成、深化和追问；更高档位可能需要更久"
+                prefix="思考"
+                value={effort}
+                onChange={updateEffort}
+                disabled={busy !== null}
+                tone="secondary"
+                options={EFFORTS.map(value => ({ value, label: value, description: value === "low" ? "较轻量的思考" : value === "high" ? "更充分地组织讲解" : "当前模型的最高思考档位" }))}
+              />
               {persona.id === CUSTOM_PERSONA_ID && (
                 <input
                   value={persona.custom}
@@ -867,7 +893,7 @@ export default function Home() {
               </div>
 
               <div className={bottomTab === "ask" ? "" : "hidden"}>
-                <AskPanel docId={docId} initialAsks={restoredAsks} personaStyle={personaHint} />
+                <AskPanel docId={docId} initialAsks={restoredAsks} personaStyle={personaHint} effort={effort} />
               </div>
             </div>
             </AttemptContext.Provider>

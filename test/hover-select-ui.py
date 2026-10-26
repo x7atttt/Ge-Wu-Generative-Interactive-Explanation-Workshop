@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 from ui_controls import open_current_space_delete, space_picker, select_space
@@ -70,9 +71,11 @@ with sync_playwright() as p:
     space.press('Enter')
     expect(space).to_have_attribute('data-value', '')
     space.press('End')
+    expect(space).to_have_attribute('aria-activedescendant', re.compile('.+'))
     expect(page.locator('[id="' + space.get_attribute('aria-activedescendant') + '"]')).to_have_attribute('data-value', '__new__')
     space.press('Escape')
     space.press('a')
+    expect(space).to_have_attribute('aria-activedescendant', re.compile('.+'))
     expect(page.locator('[id="' + space.get_attribute('aria-activedescendant') + '"]')).to_have_attribute('data-value', str(f['alpha']['id']))
     space.press(' ')
     expect(space).to_have_attribute('data-value', str(f['alpha']['id']))
@@ -112,6 +115,7 @@ with sync_playwright() as p:
 
     # A short viewport must flip the popup above its trigger and retain viewport bounds.
     page.set_viewport_size({'width': 763, 'height': 420})
+    persona.evaluate('(el) => window.scrollBy(0, el.getBoundingClientRect().bottom - innerHeight + 20)')
     persona.hover()
     expect(personas).to_be_visible()
     bounds = personas.locator('..').bounding_box()

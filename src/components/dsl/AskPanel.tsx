@@ -65,11 +65,13 @@ export function AskPanel({
   docId,
   initialAsks,
   personaStyle,
+  effort,
 }: {
   docId: number;
   initialAsks: AskItem[];
   /** 语气人设（服务端注入回答提示词）；null/省略 = 默认 */
   personaStyle?: string | null;
+  effort?: import("@/lib/effort").ReasoningEffort;
 }) {
   const [asks, setAsks] = useState<AskItem[]>(initialAsks);
   const [input, setInput] = useState("");
@@ -133,6 +135,7 @@ export function AskPanel({
     try {
       await streamAsk(docId, askText, {
         personaStyle,
+        effort,
         images: sentImages,
         onDelta: (text) =>
           setAsks((prev) =>
