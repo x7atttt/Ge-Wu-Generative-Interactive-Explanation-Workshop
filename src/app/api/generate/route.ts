@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { tryAcquireAction, releaseAction } from "@/lib/actionGuard";
+import { tryAcquireAction } from "@/lib/actionGuard";
 import { sseResponse } from "@/lib/api/sse";
 import { getDoc, insertDoc } from "@/lib/db/docs";
 import { getReadySources } from "@/lib/db/sources";
@@ -124,17 +124,17 @@ export async function POST(req: Request) {
   }
 
   // 单飞门：同一进程只允许一个在途生成/改造（连击与双标签并发都是误触）
-  if (!tryAcquireAction("generate")) {
+  const release = tryAcquireAction("generate");
+  if (!release) {
     return NextResponse.json({ error: "已有生成/改造进行中，请等它完成" }, { status: 409 });
   }
   // 客户端断开感知：取消/关页后中止上游生成，不再落库
-  const signal = req.signal;
-
-  return sseResponse(async (send) => {
+  return sseResponse(async (send, signal) => {
     try {
       // 补练的用户消息已携带练习统计，资料槽不再放网络检索结果；
       // 纯拍题（概念为默认占位）也不检索——占位词搜不出有效资料
-      const refs = useWebSearch && statLines === null && conceptProvided ? await webSearch(concept) : [];
+      signal.throwIfAborted();
+      const refs = useWebSearch && statLines === null && conceptProvided ? await webSearch(concept, signal) : [];
       if (droppedImages > 0) {
         send({ type: "info", message: `已忽略 ${droppedImages} 张不支持的图片` });
       }
@@ -148,7 +148,7 @@ export async function POST(req: Request) {
         send({ type: "info", message: `已忽略 ${droppedSources} 份已删除或未解析的资料` });
       }
       if (refs.length > 0) send({ type: "info", message: `已检索 ${refs.length} 条网络资料` });
-      const extras: GenerateExtras = { refs, personaStyle, effort };
+      const extras: GenerateExtras = { refs, personaStyle, effort, signal, onRetry: (attempt) => send({ type: "retry", attempt, message: `连接暂时异常，正在重新连接（${attempt}/2）` }) };
       if (sources.length > 0) extras.sources = sources;
       if (statLines) extras.practiceLines = statLines;
       if (images.length > 0) extras.images = images;
@@ -170,14 +170,14 @@ export async function POST(req: Request) {
       });
       send({ type: "done", doc, docId });
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return; // 客户端主动取消，静默
+      if (signal.aborted) return;
       console.error("[api/generate]", err);
       send({
         type: "error",
         message: err instanceof Error ? err.message : "生成失败，请稍后重试",
       });
     } finally {
-      releaseAction();
+      release();
     }
-  });
+  }, req.signal, release);
 }

@@ -37,7 +37,7 @@ export function BuildProgressPanel({ raw, phase, stage, note, onCancel }: {
   const helper = stage === "prepare" ? "整理参考资料后开始生成。"
     : stage === "verify" ? "检查公式、交互和练习，完成后即可使用。"
     : stage === "repair" ? "正在调整内容与练习，请稍候。"
-    : raw.length > 0 ? "已接收的讲解会在下方逐段显示。" : "正在等待第一段内容，收到后会逐步展开。";
+    : raw.length > 0 ? "已接收的讲解会在下方逐段显示。" : elapsed >= 15 ? "模型仍在准备内容；若连接超时，将自动重试，最多两次。" : "正在等待第一段内容，收到后会逐步展开。";
 
   return <section aria-label={phase === "generate" ? "讲解生成进度" : "讲解改造进度"} className="mt-4 border-t border-stone-200 pt-4">
     <div className="flex items-center justify-between gap-3">

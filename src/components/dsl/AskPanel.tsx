@@ -79,6 +79,7 @@ export function AskPanel({
   const [images, setImages] = useState<string[]>([]);
   const [imgBusy, setImgBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryNote, setRetryNote] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const lastAnswer = asks[asks.length - 1]?.answer ?? "";
@@ -125,6 +126,7 @@ export function AskPanel({
     if ((!question && images.length === 0) || asking) return;
     setAsking(true);
     setError(null);
+    setRetryNote(null);
     const imageCount = images.length;
     const askText = question || "（看图回答）";
     setAsks((prev) => [...prev, { question: askText, answer: "", done: false, imageCount }]);
@@ -137,10 +139,14 @@ export function AskPanel({
         personaStyle,
         effort,
         images: sentImages,
-        onDelta: (text) =>
+        onInfo: setRetryNote,
+        onReset: () => setAsks(prev => prev.map((item, i) => i === index ? { ...item, answer: "" } : item)),
+        onDelta: (text) => {
+          setRetryNote(null);
           setAsks((prev) =>
             prev.map((item, i) => (i === index ? { ...item, answer: item.answer + text } : item))
-          ),
+          );
+        },
       });
       setAsks((prev) => prev.map((item, i) => (i === index ? { ...item, done: true } : item)));
     } catch (err) {
@@ -148,6 +154,7 @@ export function AskPanel({
       setError(err instanceof Error ? err.message : "回答失败，请稍后重试");
     } finally {
       setAsking(false);
+      setRetryNote(null);
     }
   }
 
@@ -173,6 +180,7 @@ export function AskPanel({
         ))}
       </div>
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
+      {retryNote && <p role="status" className="mb-2 text-xs text-stone-600">{retryNote}</p>}
 
       {/* 待发送图片缩略图（压缩后 data URL，随问题单次消费不落库） */}
       {images.length > 0 && (

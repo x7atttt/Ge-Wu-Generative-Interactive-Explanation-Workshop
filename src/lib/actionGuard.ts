@@ -4,22 +4,18 @@
  * 10 分钟看门狗：进程崩溃/流泄漏不会永久卡死（超过即视为陈旧可抢占）。
  */
 
-let holder: string | null = null;
-let since = 0;
+let holder: { kind: string; since: number } | null = null;
 const STALE_MS = 10 * 60_000;
 
-export function tryAcquireAction(kind: string): boolean {
-  if (holder !== null && Date.now() - since < STALE_MS) return false;
-  holder = kind;
-  since = Date.now();
-  return true;
-}
-
-export function releaseAction(): void {
-  holder = null;
+export function tryAcquireAction(kind: string): (() => void) | null {
+  if (holder !== null && Date.now() - holder.since < STALE_MS) return null;
+  const owner = { kind, since: Date.now() };
+  holder = owner;
+  // 旧请求取消后的 finally 不能释放后来请求的占用。
+  return () => { if (holder === owner) holder = null; };
 }
 
 /** 当前占用者（诊断用） */
 export function currentAction(): string | null {
-  return holder !== null && Date.now() - since < STALE_MS ? holder : null;
+  return holder !== null && Date.now() - holder.since < STALE_MS ? holder.kind : null;
 }

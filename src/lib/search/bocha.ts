@@ -90,7 +90,8 @@ function capRefs(refs: SearchRef[]): SearchRef[] {
 }
 
 /** 检索网络资料；未配置密钥或任何失败时返回空数组 */
-export async function webSearch(query: string): Promise<SearchRef[]> {
+export async function webSearch(query: string, signal?: AbortSignal): Promise<SearchRef[]> {
+  signal?.throwIfAborted();
   const apiKey = process.env.BOCHA_API_KEY?.trim();
   if (!apiKey) return [];
   const controller = new AbortController();
@@ -100,7 +101,7 @@ export async function webSearch(query: string): Promise<SearchRef[]> {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({ query, summary: true, freshness: "noLimit", count: REQUEST_COUNT }),
-      signal: controller.signal,
+      signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
     });
     if (!res.ok) {
       console.warn(`[bocha] 检索返回 ${res.status}，跳过网络资料`);
@@ -108,6 +109,7 @@ export async function webSearch(query: string): Promise<SearchRef[]> {
     }
     return toRefs(await res.json());
   } catch (err) {
+    signal?.throwIfAborted();
     if (err instanceof Error && err.name === "AbortError") {
       console.warn("[bocha] 检索超时，跳过网络资料");
     } else {

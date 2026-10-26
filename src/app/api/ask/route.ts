@@ -74,7 +74,7 @@ export async function POST(req: Request) {
   // 入库占位：历史上下文可见有图，但不存 base64（DB 膨胀 + 历史轮不重发图）
   const storedQuestion = images.length > 0 ? `${question.trim()}\n[图片]` : question.trim();
 
-  return sseResponse(async (send) => {
+  return sseResponse(async (send, signal) => {
     try {
       const answer = await askQuestion(
         row.doc,
@@ -83,20 +83,23 @@ export async function POST(req: Request) {
         (text) => send({ type: "delta", text }),
         personaStyle,
         images,
-        effort
+        effort,
+        { signal, onRetry: (attempt) => send({ type: "retry", attempt, message: `连接暂时异常，正在重新连接（${attempt}/2）` }) }
       );
       // 成功的问答才成对入库，失败轮次不污染后续上下文
+      signal.throwIfAborted();
       appendAsks(docId, [
         { role: "user", content: storedQuestion },
         { role: "assistant", content: answer },
       ]);
       send({ type: "done" });
     } catch (err) {
+      if (signal.aborted) return;
       console.error("[api/ask]", err);
       send({
         type: "error",
         message: err instanceof Error ? err.message : "回答失败，请稍后重试",
       });
     }
-  });
+  }, req.signal);
 }

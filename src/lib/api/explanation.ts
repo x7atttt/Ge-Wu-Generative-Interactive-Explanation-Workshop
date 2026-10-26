@@ -9,6 +9,7 @@ interface StreamHandlers {
   /** 生成过程中的阶段提示（如网络检索完成）；可选 */
   onInfo?: (message: string) => void;
   onStage?: (stage: GenerationStage) => void;
+  onReset?: () => void;
   signal?: AbortSignal;
 }
 
@@ -19,6 +20,7 @@ type SSEEvent =
   | { type: "delta"; text: string }
   | { type: "info"; message: string }
   | { type: "stage"; stage: GenerationStage }
+  | { type: "retry"; attempt: number; message: string }
   | { type: "done"; doc?: ExplainDoc; docId?: number }
   | { type: "error"; message: string };
 
@@ -52,33 +54,41 @@ async function consumeSSE<T>(
 ): Promise<T> {
   const decoder = new TextDecoder();
   let buffer = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) throw new Error("连接中断，请重试");
-    buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split("\n\n");
-    buffer = events.pop() ?? "";
-    for (const event of events) {
-      for (const line of event.split("\n")) {
-        if (!line.startsWith("data:")) continue;
-        const payload = line.slice(5).trim();
-        if (!payload) continue;
-        const parsed = JSON.parse(payload) as SSEEvent;
-        if (parsed.type === "error") throw new Error(parsed.message ?? "服务错误");
-        const early = onEvent(parsed);
-        if (early !== null) return early;
+  let completed = false;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) throw new Error("连接中断，请重试");
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split("\n\n");
+      buffer = events.pop() ?? "";
+      for (const event of events) {
+        for (const line of event.split("\n")) {
+          if (!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (!payload) continue;
+          const parsed = JSON.parse(payload) as SSEEvent;
+          if (parsed.type === "error") throw new Error(parsed.message ?? "服务错误");
+          const early = onEvent(parsed);
+          if (early !== null) { completed = true; return early; }
+        }
       }
     }
+  } finally {
+    // done 后由服务端正常收尾，避免把已成功的响应在浏览器中标成取消。
+    if (!completed) await reader.cancel().catch(() => {});
+    reader.releaseLock();
   }
 }
 
 export async function streamExplanation(
   kind: "generate" | "refine",
   body: unknown,
-  { onDelta, onInfo, onStage, signal }: StreamHandlers
+  { onDelta, onInfo, onStage, onReset, signal }: StreamHandlers
 ): Promise<DocResult> {
   const reader = await openSSE(`/api/${kind}`, body, signal);
   return consumeSSE(reader, (event) => {
+    if (event.type === "retry") { onReset?.(); onInfo?.(event.message); }
     if (event.type === "delta" && event.text) onDelta(event.text);
     if (event.type === "info" && event.message) onInfo?.(event.message);
     if (event.type === "stage") onStage?.(event.stage);
@@ -94,6 +104,8 @@ export async function streamAsk(
   question: string,
   {
     onDelta,
+    onReset,
+    onInfo,
     signal,
     personaStyle,
     images,
@@ -103,6 +115,7 @@ export async function streamAsk(
   const reader = await openSSE("/api/ask", { docId, question, personaStyle, images, effort }, signal);
   let full = "";
   await consumeSSE(reader, (event) => {
+    if (event.type === "retry") { full = ""; onReset?.(); onInfo?.(event.message); }
     if (event.type === "delta" && event.text) {
       full += event.text;
       onDelta(event.text);

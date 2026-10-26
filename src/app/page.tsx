@@ -312,7 +312,8 @@ export default function Home() {
           ...extra,
         },
         {
-          onDelta: (t) => setBuildText((prev) => prev + t),
+          onDelta: (t) => { setBuildText((prev) => prev + t); setSearchNote(note => note?.startsWith("连接暂时异常") ? null : note); },
+          onReset: () => setBuildText(""),
           onInfo: (m) => setSearchNote(m),
           onStage: setGenerationStage,
           signal: controller.signal,
@@ -461,13 +462,16 @@ export default function Home() {
     setGenerationStage("prepare");
     setRefineError(null);
     setBuildText("");
+    setSearchNote(null);
     try {
       const { doc: next, docId: id } = await streamExplanation(
         "refine",
         { doc: parentDoc, instruction, docId, effort },
         {
           onStage: setGenerationStage,
-          onDelta: (t) => setBuildText((prev) => prev + t),
+          onDelta: (t) => { setBuildText((prev) => prev + t); setSearchNote(note => note?.startsWith("连接暂时异常") ? null : note); },
+          onReset: () => setBuildText(""),
+          onInfo: setSearchNote,
           signal: controller.signal,
         }
       );
@@ -588,6 +592,7 @@ export default function Home() {
               value={concept}
               onChange={(e) => {
                 setConcept(e.target.value);
+                setError(null);
                 setOriginConcept(null); // 手动改写概念后出身对齐失效（地图按精确概念名匹配）
               }}
               onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
@@ -758,9 +763,11 @@ export default function Home() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs leading-5 text-red-600"
+                role="alert"
+                className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-xs leading-5 text-red-600"
               >
-                {error}
+                <span>{error}</span>
+                <button type="button" aria-label="关闭错误提示" onClick={() => setError(null)} className="min-h-9 min-w-9 shrink-0 rounded-lg hover:bg-red-100">×</button>
               </motion.p>
             )}
           </AnimatePresence>
@@ -867,7 +874,7 @@ export default function Home() {
                 <div className="mt-2 flex gap-2">
                   <input
                     value={refineInput}
-                    onChange={(e) => setRefineInput(e.target.value)}
+                    onChange={(e) => { setRefineInput(e.target.value); setRefineError(null); }}
                     onKeyDown={(e) => e.key === "Enter" && handleRefine()}
                     placeholder="或直接输入你想要的深化方向"
                     maxLength={300}
@@ -883,11 +890,12 @@ export default function Home() {
                   </button>
                 </div>
                 {busy === "refine" && (
-                  <BuildProgressPanel raw={buildText} stage={generationStage} phase="refine" onCancel={cancel} />
+                  <BuildProgressPanel raw={buildText} stage={generationStage} phase="refine" note={searchNote} onCancel={cancel} />
                 )}
                 {refineError && (
-                  <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-                    {refineError}
+                  <p role="alert" className="mt-2 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                    <span>{refineError}</span>
+                    <button type="button" aria-label="关闭改造错误提示" onClick={() => setRefineError(null)} className="min-h-9 min-w-9 shrink-0 rounded-lg hover:bg-red-100">×</button>
                   </p>
                 )}
               </div>

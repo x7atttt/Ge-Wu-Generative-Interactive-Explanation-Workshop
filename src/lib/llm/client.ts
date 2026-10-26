@@ -26,7 +26,13 @@ export function withImages(text: string, images: string[]): ChatMessage["content
   ];
 }
 
-export interface ChatOptions {
+export interface RequestControl {
+  signal?: AbortSignal;
+  /** 每次重试前清空本次预览，避免把两次响应拼在一起。 */
+  onRetry?: (attempt: number) => void;
+}
+
+export interface ChatOptions extends RequestControl {
   effort?: ReasoningEffort;
   temperature?: number;
   maxTokens?: number;
@@ -36,14 +42,17 @@ export interface ChatOptions {
   model?: string;
   /** 非流式请求的整体超时；流式请求不用（见空闲计时器） */
   timeoutMs?: number;
+  idleTimeoutMs?: number;
 }
 
 export class LLMError extends Error {
   status?: number;
-  constructor(message: string, status?: number) {
+  retryable: boolean;
+  constructor(message: string, status?: number, retryable = false) {
     super(message);
     this.name = "LLMError";
     this.status = status;
+    this.retryable = retryable;
   }
 }
 
@@ -101,21 +110,27 @@ function buildBody(
 /** 非流式调用：自修复等后台路径使用 */
 export async function chat(messages: ChatMessage[], options: ChatOptions = {}): Promise<string> {
   const { baseUrl, apiKey, model } = llmConfigFromEnv();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 120_000);
-  try {
-    const res = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify(buildBody(options.model ?? model, messages, options, false)),
-      signal: controller.signal,
-    });
-    return await readFullResponse(res);
-  } catch (err) {
-    throw normalizeFetchError(err);
-  } finally {
-    clearTimeout(timer);
-  }
+  return withRetries(async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 120_000);
+    const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
+    try {
+      const res = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify(buildBody(options.model ?? model, messages, options, false)),
+        signal,
+      });
+      return await readFullResponse(res);
+    } catch (err) {
+      options.signal?.throwIfAborted();
+      if (controller.signal.aborted) throw new LLMError("LLM 请求超时，请重试", undefined, true);
+      throw err;
+    } finally {
+      clearTimeout(timer);
+      controller.abort();
+    }
+  }, options);
 }
 
 /** 流式调用：增量通过 onDelta 透出，返回完整文本 */
@@ -125,38 +140,47 @@ export async function streamChat(
   onDelta: (text: string) => void
 ): Promise<string> {
   const { baseUrl, apiKey, model } = llmConfigFromEnv();
+  return withRetries(() => streamAttempt(baseUrl, apiKey, model, messages, options, onDelta), options);
+}
+
+async function streamAttempt(baseUrl: string, apiKey: string, model: string, messages: ChatMessage[], options: ChatOptions, onDelta: (text: string) => void): Promise<string> {
   const controller = new AbortController();
-  // 流式不设整体超时：60 秒无输出视为挂死
-  const IDLE_MS = 60_000;
+  // 持续收到网络数据时不重启模型，避免把正常的高强度思考误判成断线。
+  const IDLE_MS = options.idleTimeoutMs ?? 60_000;
   let idleTimer = setTimeout(() => controller.abort(), IDLE_MS);
   const resetIdle = () => {
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => controller.abort(), IDLE_MS);
   };
+  const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
+  let full = "";
 
   try {
     const res = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify(buildBody(options.model ?? model, messages, options, true)),
-      signal: controller.signal,
+      signal,
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      throw new LLMError(`LLM 服务返回 ${res.status}：${body.slice(0, 300)}`, res.status);
+      throw responseError(res.status, body);
     }
-    if (!res.body) throw new LLMError("LLM 服务未返回流式响应体");
+    if (!res.body) throw new LLMError("LLM 服务未返回流式响应体", undefined, true);
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-    let full = "";
+    let finished = false;
 
-    for (;;) {
+    stream: for (;;) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        if (!finished) throw new LLMError("LLM 连接中断，响应尚未完成", undefined, true);
+        break;
+      }
       resetIdle();
-      buffer += decoder.decode(value, { stream: true });
+      buffer = (buffer + decoder.decode(value, { stream: true })).replace(/\r\n/g, "\n");
       // SSE 事件以空行分隔；逐事件消费，余量留缓冲
       const events = buffer.split("\n\n");
       buffer = events.pop() ?? "";
@@ -164,48 +188,81 @@ export async function streamChat(
         for (const line of event.split("\n")) {
           if (!line.startsWith("data:")) continue;
           const payload = line.slice(5).trim();
-          if (!payload || payload === "[DONE]") continue;
+          if (!payload) continue;
+          if (payload === "[DONE]") { finished = true; break stream; }
+          let parsed: { choices?: { delta?: { content?: string }; finish_reason?: string | null }[]; error?: { message?: string; code?: number } };
           try {
-            const delta = (JSON.parse(payload) as {
-              choices?: { delta?: { content?: string } }[];
-            }).choices?.[0]?.delta?.content;
-            if (typeof delta === "string" && delta) {
-              full += delta;
-              onDelta(delta);
-            }
+            parsed = JSON.parse(payload);
           } catch {
-            // 单个事件解析失败不中断整体流
+            continue;
+          }
+          if (!parsed || typeof parsed !== "object") continue;
+          if (parsed.error) throw new LLMError(parsed.error.message ?? "LLM 流式响应失败", parsed.error.code);
+          const choice = parsed.choices?.[0];
+          if (choice?.finish_reason) finished = true;
+          const delta = choice?.delta?.content;
+          if (typeof delta === "string" && delta) {
+            full += delta;
+            // 只捕获 JSON 解析异常，调用方的取消/发送异常必须向外传播。
+            try { onDelta(delta); }
+            catch (error) { throw new LLMError(error instanceof Error ? error.message : String(error)); }
           }
         }
       }
     }
 
-    if (!full.trim()) throw new LLMError("LLM 返回内容为空");
+    if (!full.trim()) throw new LLMError("LLM 返回内容为空", undefined, true);
     return full;
   } catch (err) {
-    throw normalizeFetchError(err);
+    options.signal?.throwIfAborted();
+    const error = controller.signal.aborted ? new LLMError("LLM 连接长时间未返回数据，请重试", undefined, true) : normalizeFetchError(err);
+    // 无重置回调的调用方只能在尚未输出时重试。
+    if (full && !options.onRetry && error instanceof LLMError) error.retryable = false;
+    throw error;
   } finally {
     clearTimeout(idleTimer);
+    controller.abort();
   }
 }
 
 async function readFullResponse(res: Response): Promise<string> {
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new LLMError(`LLM 服务返回 ${res.status}：${body.slice(0, 300)}`, res.status);
+    throw responseError(res.status, body);
   }
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const content = data.choices?.[0]?.message?.content;
   if (typeof content !== "string" || !content.trim()) {
-    throw new LLMError("LLM 返回内容为空");
+    throw new LLMError("LLM 返回内容为空", undefined, true);
   }
   return content;
 }
 
+function responseError(status: number, body: string): LLMError {
+  return new LLMError(`LLM 服务返回 ${status}：${body.slice(0, 300)}`, status, status === 408 || status === 429 || status >= 500);
+}
+
+async function withRetries<T>(run: () => Promise<T>, options: RequestControl): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    options.signal?.throwIfAborted();
+    try { return await run(); }
+    catch (err) {
+      options.signal?.throwIfAborted();
+      const error = normalizeFetchError(err);
+      if (!(error instanceof LLMError) || !error.retryable || attempt >= 2) throw error;
+      options.onRetry?.(attempt + 1);
+      await new Promise<void>((resolve, reject) => {
+        const cleanup = () => options.signal?.removeEventListener("abort", abort);
+        const timer = setTimeout(() => { cleanup(); resolve(); }, 400 * (attempt + 1));
+        const abort = () => { clearTimeout(timer); cleanup(); reject(options.signal!.reason); };
+        options.signal?.addEventListener("abort", abort, { once: true });
+        if (options.signal?.aborted) abort();
+      });
+    }
+  }
+}
+
 function normalizeFetchError(err: unknown): Error {
   if (err instanceof LLMError) return err;
-  if (err instanceof Error && err.name === "AbortError") {
-    return new LLMError("LLM 请求超时或被取消，请重试");
-  }
-  return new LLMError(`LLM 请求失败：${err instanceof Error ? err.message : String(err)}`);
+  return new LLMError(`LLM 请求失败：${err instanceof Error ? err.message : String(err)}`, undefined, err instanceof TypeError);
 }
