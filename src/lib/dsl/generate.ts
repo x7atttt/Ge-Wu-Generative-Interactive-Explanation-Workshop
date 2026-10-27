@@ -1,5 +1,5 @@
 /**
- * 生成管线：LLM 流式输出 → JSON 提取 → zod 校验 → 一次自修复重试。
+ * 生成管线：LLM 输出 → 结构/算例校验 → 内容复核；共享一次修复机会。
  * 服务端专用（依赖环境变量中的 API Key）。
  */
 import { chat, streamChat, withImages, type ChatMessage, type RequestControl } from "@/lib/llm/client";
@@ -15,6 +15,7 @@ import { validateDoc, type ExplainDoc } from "./schema";
 import { teachingContentIssue } from "@/lib/study-content";
 import type { GenerationStage } from "@/lib/generation-progress";
 import type { ReasoningEffort } from "@/lib/effort";
+import { factorialFacts, factorialFormulaIssue, factorialPremiseIssue, partitionFacts, reviewContent } from "./content-review";
 
 export class DslError extends Error {
   constructor(message: string) {
@@ -48,8 +49,6 @@ function parseAndValidate(raw: string): ExplainDoc {
   if (issues) throw new DslError(`文档结构校验失败：${issues}`);
   const chartIssue = strictChartChecks(parsed as ExplainDoc);
   if (chartIssue) throw new DslError(`文档结构校验失败：${chartIssue}`);
-  const contentIssue = teachingContentIssue(parsed as ExplainDoc);
-  if (contentIssue) throw new DslError(`教学内容校验失败：${contentIssue}`);
   return parsed as ExplainDoc;
 }
 
@@ -70,14 +69,31 @@ function strictChartChecks(doc: ExplainDoc): string | null {
   return null;
 }
 
-/** 校验失败时携带错误让 LLM 自修复一次（非流式，罕见路径不值得流式复杂度） */
+/** 结构和内容共享一次修复；复核服务异常直接停止，不用改写文档掩盖检查失败。 */
 async function withRepair(raw: string, history: ChatMessage[], onStage?: (stage: GenerationStage) => void, effort?: ReasoningEffort, control: RequestControl = {}): Promise<ExplainDoc> {
   control.signal?.throwIfAborted();
   const toMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
-  onStage?.("verify");
+  let original: ExplainDoc | undefined;
+  const verify = async (text: string) => {
+    onStage?.("verify");
+    const doc = parseAndValidate(text);
+    if (original && ["quiz", "fillBlank", "match", "sort"].some((type) => doc.blocks.filter((block) => block.type === type).length < original!.blocks.filter((block) => block.type === type).length)) {
+      throw new DslError("内容修复不得删减原有练习，请纠正题面、答案与解析后重新提交");
+    }
+    original ??= doc;
+    const contentIssue = teachingContentIssue(doc);
+    if (contentIssue) throw new DslError(`教学内容校验失败：${contentIssue}`);
+    const arithmeticIssue = factorialFormulaIssue(doc) ?? factorialPremiseIssue(doc);
+    if (arithmeticIssue) throw new DslError(`算例校验失败：${arithmeticIssue}`);
+    onStage?.("review");
+    const issue = await reviewContent(doc, history, effort, control);
+    if (issue) throw new DslError(`内容一致性复核未通过：${issue}`);
+    return doc;
+  };
   try {
-    return parseAndValidate(raw);
+    return await verify(raw);
   } catch (firstError) {
+    if (!(firstError instanceof DslError)) throw firstError;
     onStage?.("repair");
     const repaired = await chat(
       [
@@ -87,16 +103,16 @@ async function withRepair(raw: string, history: ChatMessage[], onStage?: (stage:
         { role: "assistant", content: raw },
         {
           role: "user",
-          content: `上面的输出存在问题：${toMessage(firstError)}\n请输出修复后的完整 JSON 文档。`,
+          content: `上面的输出存在问题：${toMessage(firstError)}\n${original ? `程序复算参考（仅适用注明的标准约定）：${JSON.stringify({ factorials: factorialFacts(original), partitions: partitionFacts(original) })}\n` : ""}请输出修复后的完整 JSON 文档。`,
         },
       ],
       { jsonMode: true, temperature: 0.1, effort, ...control }
     );
-    onStage?.("verify");
     try {
-      return parseAndValidate(repaired);
+      return await verify(repaired);
     } catch (secondError) {
-      throw new DslError(`生成的内容未通过结构校验（已自动修复一次）：${toMessage(secondError)}`);
+      if (!(secondError instanceof DslError)) throw secondError;
+      throw new DslError(`生成的内容未通过校验（已自动修复一次）：${toMessage(secondError)}`);
     }
   }
 }

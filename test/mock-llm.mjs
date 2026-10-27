@@ -7,6 +7,9 @@ let calls = 0;
 let streamPause = 0;
 let repairDelay = 0;
 let repairRequests = [];
+let reviewRequests = [];
+let reviews = [];
+let reviewDelay = 0;
 let requests = [];
 let faults = [];
 let cancellations = 0;
@@ -20,16 +23,18 @@ const doc = { version: 1, title: "验收讲解", blocks: [
 
 createServer(async (req, res) => {
   if (req.url === "/health") { res.end("local-test-model"); return; }
-  if (req.url === "/state") { res.end(JSON.stringify({ pending, calls, remaining: outputs.length, repairRequests, requests, cancellations })); return; }
+  if (req.url === "/state") { res.end(JSON.stringify({ pending, calls, remaining: outputs.length, repairRequests, reviewRequests, requests, cancellations })); return; }
   let raw = "";
   req.setEncoding("utf8");
   for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw);
-  if (req.url === "/control") { epoch++; cancellations = 0; faults = body.faults ?? []; nextDelay = body.delay ?? 0; streamPause = body.streamPause ?? 0; repairDelay = body.repairDelay ?? 0; repairRequests = []; requests = []; if (body.outputs) outputs = body.outputs; res.end("ok"); return; }
+  if (req.url === "/control") { epoch++; cancellations = 0; faults = body.faults ?? []; nextDelay = body.delay ?? 0; streamPause = body.streamPause ?? 0; repairDelay = body.repairDelay ?? 0; reviewDelay = body.reviewDelay ?? 0; reviews = body.reviews ?? []; reviewRequests = []; repairRequests = []; requests = []; if (body.outputs) outputs = body.outputs; res.end("ok"); return; }
   const system = body.messages?.[0]?.content ?? "";
+  const isReview = system.startsWith("你是教学内容复核员");
+  if (isReview) reviewRequests.push(body.messages);
   if (!body.stream && system.includes("JSON 修复器")) repairRequests.push(body.messages);
   calls++;
-  requests.push({ effort: body.reasoning_effort ?? null, stream: !!body.stream });
+  requests.push({ effort: body.reasoning_effort ?? null, stream: !!body.stream, review: isReview });
   const requestEpoch = epoch;
   const stopped = new AbortController();
   res.once("close", () => { if (!res.writableFinished) { if (epoch === requestEpoch) cancellations++; stopped.abort(); } });
@@ -50,9 +55,12 @@ createServer(async (req, res) => {
     return;
   }
   active++; pending = true;
-  const pause = streamPause, repairPause = repairDelay;
+  const pause = streamPause, repairPause = isReview ? reviewDelay : repairDelay;
   try {
-  const value = system.includes("资料分析助手") ? { concepts: ["队列", "栈"] } : system.includes("学习规划师") ? { stages: [{ title: "线性结构", goal: "按顺序理解", concepts: ["队列", "栈"] }] } : outputs.shift() ?? doc;
+  const reviewInput = isReview ? JSON.parse(body.messages.at(-1).content) : null;
+  const reviewValue = isReview ? reviews.shift() ?? { checks: reviewInput.requiredBlockIndices.map(blockIndex => ({ blockIndex, verdict: "pass", reason: "本地替身只验证流程，不判断事实正确性。" })) } : null;
+  if (reviewValue?.status) { res.writeHead(reviewValue.status); res.end("review unavailable"); return; }
+  const value = isReview ? reviewValue : system.includes("资料分析助手") ? { concepts: ["队列", "栈"] } : system.includes("学习规划师") ? { stages: [{ title: "线性结构", goal: "按顺序理解", concepts: ["队列", "栈"] }] } : outputs.shift() ?? doc;
   const output = typeof value === "string" ? value : JSON.stringify(value);
   if (nextDelay > 0) {
     const delay = nextDelay; nextDelay = 0;

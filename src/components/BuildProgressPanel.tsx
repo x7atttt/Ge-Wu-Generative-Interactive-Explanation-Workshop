@@ -13,6 +13,7 @@ const STATUS: Record<GenerationStage, string> = {
   prepare: "正在准备讲解依据",
   build: "正在构建讲解",
   verify: "正在检查讲解内容",
+  review: "正在核对题目与解析",
   repair: "正在调整讲解内容",
 };
 
@@ -31,11 +32,12 @@ export function BuildProgressPanel({ raw, phase, stage, note, onCancel }: {
     return () => clearInterval(timer);
   }, []);
 
-  const index = stage === "repair" ? 2 : STAGES.findIndex((item) => item.key === stage);
+  const index = stage === "repair" || stage === "review" ? 2 : STAGES.findIndex((item) => item.key === stage);
   const title = raw.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/)?.[1];
   const count = [...raw.matchAll(/"type"\s*:\s*"(heading|text|formula|slider|wavePlot|chart|diagram|fillBlank|match|sort|quiz)"/g)].length;
   const helper = stage === "prepare" ? "整理参考资料后开始生成。"
-    : stage === "verify" ? "检查公式、交互和练习，完成后即可使用。"
+    : stage === "verify" ? "检查文档结构、公式和交互引用。"
+    : stage === "review" ? "正在单独复核算例、答案与解析，这一步也需要模型返回结果。"
     : stage === "repair" ? "正在调整内容与练习，请稍候。"
     : raw.trim() ? "已接收的讲解会在下方逐段显示。" : elapsed >= 15 ? "仍未收到正文；达到等待时限后会自动重试，最多两次。" : "正在等待第一段内容，收到后会逐步展开。";
 

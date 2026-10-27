@@ -40,7 +40,7 @@ try {
     assert.match(messages[0].content, /公式.*静态/);
     assert.match(messages[0].content, /表达式/);
     assert.match(messages.at(-1).content, /dk/);
-    assert.deepEqual(events.filter(event => event.type === "stage").map(event => event.stage), ["build", "verify", "repair", "verify"]);
+    assert.deepEqual(events.filter(event => event.type === "stage").map(event => event.stage), ["build", "verify", "repair", "verify", "review"]);
     assert.deepEqual(events.find(event => event.type === "done")?.doc, fixed);
     assert.equal(state.remaining, 0);
   }

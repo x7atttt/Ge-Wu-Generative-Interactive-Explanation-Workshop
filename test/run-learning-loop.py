@@ -38,10 +38,11 @@ try:
         sys.exit(subprocess.run(['python', 'test/header-keys-ui.py'], cwd=ROOT).returncode)
     if '--teaching-only' in sys.argv:
         sys.exit(subprocess.run(['node', 'test/teaching-flow.mjs', *[arg for arg in sys.argv if arg.startswith('--eval-run=')]], cwd=ROOT).returncode)
-    choices = {'--transport-only': ['generation-transport.mjs'], '--diagram-only': ['diagram-effort.mjs'], '--repair-only': ['generation-repair.mjs'], '--layout-only': ['light-toolbar.mjs'], '--hover-only': ['hover-select.mjs'], '--deletion-only': ['space-deletion.mjs'], '--content-only': ['content-quality.mjs']}
+    choices = {'--review-only': ['content-review.mjs'], '--transport-only': ['generation-transport.mjs'], '--diagram-only': ['diagram-effort.mjs'], '--repair-only': ['generation-repair.mjs'], '--layout-only': ['light-toolbar.mjs'], '--hover-only': ['hover-select.mjs'], '--deletion-only': ['space-deletion.mjs'], '--content-only': ['content-quality.mjs']}
     scripts = next((scripts for flag, scripts in choices.items() if flag in sys.argv), ['learning-loop.mjs', 'content-quality.mjs', 'generation-repair.mjs', 'space-deletion.mjs', 'hover-select.mjs', 'light-toolbar.mjs', 'diagram-effort.mjs', 'generation-transport.mjs'])
     if not any(flag in sys.argv for flag in choices):
         scripts.append('teaching-flow.mjs')
+        scripts.append('content-review.mjs')
     for script in scripts:
         result = subprocess.run(['node', f'test/{script}', *(['--browser'] if script == 'learning-loop.mjs' else [])], cwd=ROOT)
         if result.returncode:

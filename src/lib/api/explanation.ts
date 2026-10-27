@@ -87,11 +87,12 @@ export async function streamExplanation(
   { onDelta, onInfo, onStage, onReset, signal }: StreamHandlers
 ): Promise<DocResult> {
   const reader = await openSSE(`/api/${kind}`, body, signal);
+  let stage: GenerationStage = "build";
   return consumeSSE(reader, (event) => {
-    if (event.type === "retry") { onReset?.(); onInfo?.(event.message); }
+    if (event.type === "retry") { if (stage === "build") onReset?.(); onInfo?.(event.message); }
     if (event.type === "delta" && event.text) onDelta(event.text);
     if (event.type === "info" && event.message) onInfo?.(event.message);
-    if (event.type === "stage") onStage?.(event.stage);
+    if (event.type === "stage") { stage = event.stage; onStage?.(event.stage); }
     if (event.type === "done" && event.doc && typeof event.docId === "number") {
       return { doc: event.doc, docId: event.docId };
     }

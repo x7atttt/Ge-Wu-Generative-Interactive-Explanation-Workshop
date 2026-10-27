@@ -25,7 +25,7 @@ with sync_playwright() as p:
     page.screenshot(path='data/generation-retry-desktop.png', full_page=True)
     expect(page.get_by_text('这是重试后完整的讲解。', exact=True)).to_be_visible(timeout=10000)
     expect(generate).to_be_enabled()
-    assert len(page.request.get(MODEL + '/state').json()['requests']) == 3
+    assert len(page.request.get(MODEL + '/state').json()['requests']) == 4
 
     abandoned = {**f['valid'], 'blocks': [{'type': 'text', 'content': '这段旧预览必须被清空。'}]}
     page.request.post(MODEL + '/control', data=json.dumps({'faults': [{'mode': 'partial', 'text': json.dumps(abandoned, ensure_ascii=False), 'delay': 800}], 'outputs': [f['valid']]}))

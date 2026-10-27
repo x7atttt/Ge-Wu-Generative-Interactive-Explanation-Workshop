@@ -191,7 +191,7 @@ with sync_playwright() as p:
     expect(progress).to_have_count(0, timeout=10000)
     expect(page.get_by_role('button', name='生成讲解', exact=True)).to_be_enabled()
     events = [json.loads(line[6:]) for line in generated.value.text().splitlines() if line.startswith('data: ')]
-    assert [event['stage'] for event in events if event['type'] == 'stage'] == ['build', 'verify', 'repair', 'verify']
+    assert [event['stage'] for event in events if event['type'] == 'stage'] == ['build', 'verify', 'repair', 'verify', 'review']
 
     # reduced motion 与取消均走实际生成路径，取消不得落库。
     before = len(page.request.get(f'{BASE}/api/docs?spaceId={f["spaceId"]}').json()['docs'])

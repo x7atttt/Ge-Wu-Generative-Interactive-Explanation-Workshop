@@ -68,6 +68,8 @@ export function completeStudyCard<T extends { front: string; back: string }>(car
 export function teachingContentIssue(doc: ExplainDoc): string | null {
   for (const [i, block] of doc.blocks.entries()) {
     if (block.type === "quiz" && questionIssue(block.question)) return `blocks[${i}].question 题干残缺，必须补全问题，不能以逗号结束`;
+    const optionLists = block.type === "quiz" ? [block.options] : block.type === "fillBlank" ? block.blanks.map((blank) => blank.options) : [];
+    if (optionLists.some((options) => new Set(options.map((option) => option.trim())).size !== options.length)) return `blocks[${i}] 存在重复选项，无法唯一作答，请改写为互不重复的选项`;
     if (block.type === "fillBlank" && isCodeBlank(block)) {
       if (blankIssue(block) || /<br\b/i.test(block.text)) return `blocks[${i}].text 代码填空必须使用 JSON 换行符并保留缩进，不能单行平铺或使用 HTML br`;
     }

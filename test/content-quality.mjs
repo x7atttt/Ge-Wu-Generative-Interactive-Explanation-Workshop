@@ -53,7 +53,7 @@ try {
   for (const invalid of badDocs) {
     const events = await generate(spaceId, [invalid, doc]);
     assert(events.some((event) => event.type === "done"), JSON.stringify(events));
-    assert.deepEqual(events.filter((event) => event.type === "stage").map((event) => event.stage), ["build", "verify", "repair", "verify"]);
+    assert.deepEqual(events.filter((event) => event.type === "stage").map((event) => event.stage), ["build", "verify", "repair", "verify", "review"]);
     assert.equal((await (await fetch("http://127.0.0.1:3101/state")).json()).remaining, 0, "修复请求必须实际消费第二次响应");
     const failed = await generate(spaceId, [invalid, invalid]);
     assert(failed.some((event) => event.type === "error"), JSON.stringify(failed));

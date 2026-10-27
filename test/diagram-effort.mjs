@@ -26,7 +26,7 @@ try {
   for (const effort of ["low", "high", "max"]) {
     const { done, state } = await run("/api/generate", { ...generate, effort }, [diagramDoc]);
     assert.deepEqual(done?.doc, diagramDoc);
-    assert.deepEqual(state.requests.map(request => request.effort), [effort]);
+    assert.deepEqual(state.requests.map(request => request.effort), [effort, effort]);
     docId = done.docId;
     const saved = await (await fetch(`${base}/api/docs/${docId}`)).json();
     assert.deepEqual(saved.doc, diagramDoc, "架构图应可从历史读取");
@@ -43,7 +43,7 @@ try {
     const fixed = await run("/api/generate", { ...generate, effort: "max" }, [invalid, diagramDoc]);
     assert.deepEqual(fixed.done?.doc, diagramDoc);
     assert.equal(fixed.state.repairRequests.length, 1);
-    assert.deepEqual(fixed.state.requests.map(request => request.effort), ["max", "max"], "修复沿用本轮 effort");
+    assert.deepEqual(fixed.state.requests.map(request => request.effort), ["max", "max", "max"], "修复与复核沿用本轮 effort");
   }
   const invalid = structuredClone(diagramDoc);
   invalid.blocks[2].steps[0].nodeIds = ["missing"];
@@ -59,7 +59,7 @@ try {
   refined.blocks[2].title = "Transformer 纵向数据流";
   const deeper = await run("/api/refine", { doc: diagramDoc, docId, instruction: "改为纵向架构图", effort: "high" }, [invalid, refined]);
   assert.deepEqual(deeper.done?.doc, refined);
-  assert.deepEqual(deeper.state.requests.map(request => request.effort), ["high", "high"]);
+  assert.deepEqual(deeper.state.requests.map(request => request.effort), ["high", "high", "high"]);
   const asked = await run("/api/ask", { docId, question: "交叉注意力的键和值来自哪里？", effort: "low" }, ["来自编码器的输出表示。"]);
   assert(asked.done);
   assert.deepEqual(asked.state.requests.map(request => request.effort), ["low"]);
