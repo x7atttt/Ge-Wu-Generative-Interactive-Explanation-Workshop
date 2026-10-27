@@ -44,7 +44,7 @@ function parseAndValidate(raw: string): ExplainDoc {
   } catch {
     throw new DslError("LLM 输出不是合法 JSON");
   }
-  const issues = validateDoc(parsed);
+  const issues = validateDoc(parsed, { rejectUnknownFields: true });
   if (issues) throw new DslError(`文档结构校验失败：${issues}`);
   const chartIssue = strictChartChecks(parsed as ExplainDoc);
   if (chartIssue) throw new DslError(`文档结构校验失败：${chartIssue}`);

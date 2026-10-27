@@ -13,6 +13,7 @@
 - **批量导入资料**：拖入 txt / md / pdf / doc / docx，PDF/Word 自动经 MinerU 解析为 Markdown；
 - **知识空间**：把一场考试的资料圈进一个空间，概念地图实时显示每个概念的掌握状态（未学 / 已讲解 / 已练习 / 薄弱），考试倒计时常驻；
 - **生成交互讲解**：输入概念或**直接拍题**（多模态识图），流式生成含公式、波形、六类图表、滑块参数台与四类练习（自测/填空/配对/分类）的讲解文档；
+- **先预测，再验证**：普通新讲解按预测、观察、解释和变式自测组织；文字预测不计分，正式练习沿用原有判题与复习流程；
 - **架构图讲解**：diagram 块展示模块、分组和数据流；点击节点看说明，按步骤高亮关键连线，支持缩放与模块导航；
 - **思考强度**：工具栏切换 low / high / max，本机保存；用于讲解生成、深化、追问和自动修复，按原值发送 reasoning_effort，需服务端模型支持；
 - **逐章学习路线**：AI 按依赖与难度把概念编排成攻克路径，当前站标记 + 完成度；
@@ -69,14 +70,14 @@ pnpm dev
 |---|---|
 | `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | 必填；任意 OpenAI 兼容服务 |
 | `LLM_MODEL_FAST` | 可选；改造/追问的快速模型，未配置回落主模型 |
-| `LLM_REASONING_EFFORT` | 可选；`low\|medium\|high`，生成偏慢时设 `low` |
+| `LLM_REASONING_EFFORT` | 可选；`low\|medium\|high\|max`，仅在请求未显式指定 effort 时使用；页面选择优先 |
 | `BOCHA_API_KEY` | 可选；生成前联网检索补充事实 |
 | `MINERU_API_TOKEN` | 可选；PDF/Word 解析为 Markdown |
 
 ## 常见问题
 
 - **PDF 导入提示未配置 token**：填入 `MINERU_API_TOKEN` 后重启 `pnpm dev`；
-- **生成偏慢**：设 `LLM_REASONING_EFFORT=low`，或配置 `LLM_MODEL_FAST`；
+- **生成偏慢**：先在工具栏把思考强度切到 `low`；`LLM_MODEL_FAST` 可单独配置改造/追问所用模型。页面显式选择会覆盖 `LLM_REASONING_EFFORT`；
 - **换模型**：改 `LLM_BASE_URL / LLM_MODEL` 即可，协议层只依赖 `/chat/completions` 一个端点；
 - **重置数据**：删除 `data/gewu.db` 后刷新。
 
@@ -84,5 +85,7 @@ pnpm dev
 
 - 架构与规范：`AGENTS.md`；功能规约与实测：`spec/`
 - 学习闭环打磨与自行验收：[迭代 26 验收指南](docs/iteration26-acceptance.md)（今日任务、自测恢复与报告、资料纠错、难卡暂缓）
+- 讲解质量：[真实模型验收与桌面回归](docs/teaching-quality-acceptance.md)（固定案例、真实调用与模拟回归分开、人工内容核对）
+- 本轮结果：[2026-10-27 讲解验收报告](docs/teaching-quality-2026-10-27.md)（包含未通过的算例、答案矛盾与循环输出，不把结构通过等同于内容正确）
 - 算法正确性：`node scripts/fsrs-verify.mjs`（FSRS-6 与 ts-fsrs 逐序列对照）
 - 交接快照：`handoff.md`

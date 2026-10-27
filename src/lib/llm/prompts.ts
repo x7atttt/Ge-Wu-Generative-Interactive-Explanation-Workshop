@@ -11,6 +11,7 @@ const DIAGRAM_RULES = `
 - ID 以字母或下划线开头，只含字母/数字/下划线/连字符；各数组内部 ID 唯一。节点 group 必须存在，分组不能空；边两端必须是节点 ID，步骤 nodeIds/edgeIds 必须实际存在。
 - 最多 40 个节点、80 条边、8 个分组、20 个步骤；节点说明不超过 1500 字，标签不超过 120 字。大架构分成总览与局部 diagram，不堆叠全部细节。
 - kind=data 表示实线数据流，kind=residual 表示虚线残差或跳连。steps 按教学顺序组织，每步给完整说明并至少高亮一个节点。
+- 不同执行位置的同名模块必须有独立 ID；例如多处 Add & Norm 不能共用一个节点，避免把前向网络误画成回路。省略模块时用 caption 明确说明，不画虚假的数据流。
 - 不输出坐标、CSS、HTML、SVG 或脚本。文字、图中节点、箭头方向须一致；保留架构版本差异，不能混用不同变体。diagram 不消费滑块变量，数值实验仍用真正绑定的 chart/wavePlot。`;
 
 const CONTENT_RULES = `
@@ -18,7 +19,14 @@ const CONTENT_RULES = `
 - 交互能力边界：公式 formula 是静态展示；在 latex、caption、正文中提到变量名不算滑块绑定。只有 wavePlot.terms 的 amp/freq/phase 和 chart.series[].data[] 中的 {"$var":"变量名"} 才会联动。
 - 数值槽不支持表达式或派生计算：不能用 {"$var":"1/sqrt(dk)"}、字符串表达式或额外字段实现计算。若讲解需要 softmax、矩阵运算或按 dk 重新计算注意力权重，请用固定数值示例、公式与自测，不生成无法驱动图表的滑块。
 - text、题干和解析支持 Markdown（加粗、列表、代码围栏），不要输出 HTML 标签或转义后的加粗标记。
+- wavePlot 只能表示正弦/余弦的叠加，不能把 sin(x) 叫作恒等映射 x，也不能拿它冒充 ReLU、阶跃或任意函数。能力不匹配时用 diagram、静态公式或固定数值案例，并说明简化边界；不能声称跳连保证训练不会退化或梯度永不消失。
+- 残差块要说清讨论的是相加节点还是激活后的输出；若相加后有 ReLU，F(x)=0 时输出是 ReLU(x)，并非对所有 x 都等于 x。简化公式与图里的激活位置必须一致，或明确省略激活。
+- 每个块只使用契约字段；正文必须放入 text.content，不能藏在 formula.content 或未定义字段中。图中箭头连接的是实际完成该功能的模块；例如交叉注意力的 K/V 应来自编码器最终输出，而不是中间注意力子层。
+- 算法演示优先用 3~5 个元素，先确定基准位置、比较符号和索引起点，列出每次有效交换的数组状态，再据此填写结果、图表及题目答案。确定实现后不能用“某种变体也可能如此”掩盖不一致，也不能把交换次数当作元素数量。
+- 语言题先逐一代入所有选项，确认上下文约束足够且只有一个答案；避免单复数都通顺的句子、合法拼写变体和意思重复的选项。
+- 语言题使用自然、可信的语境，所有空的答案代回后语法和意思都要成立，不把互不相关的词强塞进同一句。词形分类依据保持一致，后缀变化不能误归为元音替换。
 - quiz 必须提供独立可理解的完整问题和全部选项，不能只给情境或以逗号、冒号结束；问题中说明计数是否包含初始调用。
+- 代码填空若存在多种正确实现，必须在题面限定采用哪一种约定（如阶乘以 0 还是 1 为终止点）；不能把另一种正确实现当作错误选项。递归的调用帧总数、额外递归次数和正在挂起等待的帧数要分别说明，不能混称。
 - fillBlank 若包含多行程序，text 必须使用 JSON 的 \\n 表示真正换行并保留每层缩进，可加 language（如 python）；空位仍用 ___。禁止把 if/else/return 等语句平铺在一行，禁止用 <br> 代替换行。
 - chart 的联动必须和正文一致；固定数字不会随滑块变化。若比较当前递归深度 n 的递与归，用一个“当前 n”类目，两组 data 都为 [{"$var":"depth"}]。若只让一个点变化，必须用 interactionHint 明说哪一组、哪一个类目会变，其他数据为固定参考值。
 ${DIAGRAM_RULES}
@@ -30,6 +38,14 @@ export interface GeneratePromptOpts {
   /** 补练模式：以练习为主的针对性讲解（用户在该概念上正确率偏低） */
   practice?: boolean;
 }
+
+const TEACHING_FLOW = `
+讲解组织（普通新讲解）：用一句直觉问题引入，引入也不能提前泄露后续预测的答案；随后依次使用四个 heading：“先预测”“动手观察”“解释现象”“变式自测”。每段围绕同一个可核对的小案例，不写成长篇百科。
+- 先预测：用 text 提出一个具体、可验证的问题，让学习者在心中判断并记下理由；在这一段保留悬念，不提前给结论，不用 quiz/fillBlank/match/sort 记录预测，避免把学习前的猜测计为练习错误。
+- 动手观察：给出实际可执行的任务与观察目标。数值主题说明固定什么、把哪个真实滑块从哪个值调到哪个值、在哪个区间看什么；取值必须在范围内并符合 step。架构主题让用户点击真实存在的节点或切换真实步骤，沿箭头追踪信息；语言主题用 fillBlank/match/sort 比较例子；没有适合的控件时用固定案例逐步推演，明确它不是动态模拟。不为凑流程添加滑块。
+- 解释现象：操作之后再揭示预测结果，用文字/公式说明原因及适用条件，回应观察目标；明确固定参考与可变部分。涉及时间频率时说清横轴按秒计时，不能把任意空间坐标直接当 Hz；保留模型变体、计数约定、简化图的省略说明。
+- 变式自测：给 1~2 个能独立作答的 quiz（需要时可配其他练习），改变条件或推理方向以检验迁移，不照抄预测问题，也不只换一组数值。选项完整、答案唯一，解析说明理由与常见误区。
+- 四段只使用已有块类型，标题可在约定名称后补主题；正文与 diagram 的步骤/节点标签必须相互对应。用直接服务主题的例子，避免无关的群体概括或无法核对的数字。`;
 
 export function generateSystemPrompt(opts: GeneratePromptOpts = {}): string {
   const persona = CONTENT_RULES + (opts.personaStyle
@@ -84,7 +100,7 @@ ${selection}${opts.practice ? "" : `
 - 禁止为凑交互生造无语义的数值（如给语法主题配"数量滑块"）`}
 
 通用要求：
-${opts.practice ? "- 面向中文大学生；练习统计反映的薄弱题型就是本次补练的重点" : "- 面向中文大学生；开头用直觉引入(text)，结尾给小结(text)与自测(quiz 1~2)"}
+${opts.practice ? "- 面向中文大学生；练习统计反映的薄弱题型就是本次补练的重点" : `- 面向中文大学生。${TEACHING_FLOW}`}
 - 若用户消息附带「源文档资料」（用户导入的文档）：讲解的事实、公式、数值、例题与术语必须优先取自资料原文，资料未覆盖的部分才用自己的可靠知识补充；练习题尽量改编自资料中的例题或要点，不要与资料内容矛盾
 - 若用户消息附带「参考资料」（网络检索结果）：事实与数据优先取自资料；资料与主题无关或相互矛盾时以自己的可靠知识为准，不要编造；讲解文字中不要罗列网址链接
 - 图表关键参数用 {"$var":...} 绑定滑块；滑块 var 唯一且为合法标识符；$var 只能引用已定义滑块；min < max 且 step > 0
@@ -92,20 +108,34 @@ ${opts.practice ? "- 面向中文大学生；练习统计反映的薄弱题型�
 - 每个数值槽取让变化直观可见的范围；波形概念用 wavePlot（多 terms 叠加），非波形数值概念用 chart（categories 用短标签，按形态选 chartType）
 - 布局自适应：滑块集中在参数台显示，文字中不要出现"下方/上方/右边"等位置指代，直接说"拖动 XX 滑块"${persona}
 ${opts.practice ? "" : `
-示例A（量化主题：正弦波的频率，节选）：
+示例A（量化主题：正弦波的频率）：
 {"version":1,"title":"正弦波的频率","blocks":[
- {"type":"text","content":"频率 f 决定波形在单位区间内重复多少次：f 越大，波越密。拖动滑块观察变化。"},
- {"type":"formula","latex":"y = A\\\\sin(2\\\\pi f x + \\\\varphi)","caption":"A 振幅，f 频率"},
+ {"type":"text","content":"同一秒里，波形能完成多少次完整振动？用一次小实验来判断。"},
+ {"type":"heading","text":"先预测"},
+ {"type":"text","content":"先在心中判断：振幅固定为 1，把频率 f 从 1 调到 2，1 秒内的完整周期数会怎样变化？波峰高度也会改变吗？先记下你的理由。"},
+ {"type":"heading","text":"动手观察"},
  {"type":"slider","var":"f","label":"频率 f","min":0.5,"max":5,"step":0.1,"initial":1},
- {"type":"slider","var":"A","label":"振幅 A","min":0.2,"max":2,"step":0.1,"initial":1},
- {"type":"wavePlot","terms":[{"fn":"sin","amp":{"$var":"A"},"freq":{"$var":"f"},"phase":0}]},
- {"type":"quiz","question":"把频率 f 从 1 增大到 2，波形会？","options":["波峰数量翻倍","振幅翻倍","整体上移","不变"],"answer":0,"explanation":"频率控制疏密，振幅才控制高低。"}]}
+ {"type":"text","content":"横轴按秒计时。把「频率 f」从 1 调到 2，数一数时间 0 到 1 秒内的完整周期，再比较两次的波峰高度；振幅与初相位固定不变。"},
+ {"type":"wavePlot","title":"固定振幅，观察频率变化","xLabel":"时间（秒）","terms":[{"fn":"sin","amp":1,"freq":{"$var":"f"},"phase":0}]},
+ {"type":"heading","text":"解释现象"},
+ {"type":"formula","latex":"y = \\\\sin(2\\\\pi f t)","caption":"本例振幅为 1、初相位为 0；t 按秒计时，f 的单位是 Hz"},
+ {"type":"text","content":"频率 f 表示每秒的完整振动次数。从 1 调到 2，周期数从 1 变为 2，周期 T=1/f 从 1 秒缩短到 0.5 秒；振幅固定，所以波峰高度不变。"},
+ {"type":"heading","text":"变式自测"},
+ {"type":"quiz","question":"某正弦波在 3 秒内完成 6 次完整振动，它的频率和周期分别是多少？","options":["2 Hz，0.5 秒","0.5 Hz，2 秒","6 Hz，3 秒","3 Hz，6 秒"],"answer":0,"explanation":"频率是每秒的振动次数：6÷3=2 Hz；周期是每次振动的时间：3÷6=0.5 秒。总次数不能直接当作频率。"}]}
 
-示例B（语言主题：英语名词复数，节选）：
+示例B（语言主题：英语名词复数）：
 {"version":1,"title":"英语名词复数","blocks":[
- {"type":"text","content":"英语中多于一个的事物，名词要变复数：一般加 -s（book→books）；辅音字母 + y 结尾变 y 为 ies（baby→babies）；还有不规则变化（child→children）。"},
+ {"type":"text","content":"想说不止一个事物时，每个英语名词都能直接加 s 吗？"},
+ {"type":"heading","text":"先预测"},
+ {"type":"text","content":"先在心中写出 baby、toy、child 的复数，想想它们会不会遵循同一条规则。这里不评分，等做完例子再核对理由。"},
+ {"type":"heading","text":"动手观察"},
+ {"type":"text","content":"完成两组填空，比较普通加 s、辅音字母加 y 的变化和不规则变化。选择后查看反馈，再核对刚才的预测。"},
+ {"type":"fillBlank","prompt":"选词完成句子","text":"There are two ___ and three ___ in the room.","blanks":[{"options":["babys","babies","baby"],"answer":1,"explanation":"baby 以辅音字母加 y 结尾，复数为 babies。"},{"options":["toys","toies","toy"],"answer":0,"explanation":"toy 的 y 前是元音字母 o，直接加 s。"}]},
  {"type":"fillBlank","prompt":"选词完成句子","text":"Look! Two ___ are playing in the park.","blanks":[{"options":["child","children","childs"],"answer":1,"explanation":"child 是不规则复数，变 children。"}]},
- {"type":"quiz","question":"「三个孩子」的正确表达是？","options":["three childs","three children","three childrens","three child"],"answer":1,"explanation":"child→children 为不规则变化，复数后不再加 s。"}]}`}`;
+ {"type":"heading","text":"解释现象"},
+ {"type":"text","content":"一般名词加 -s；辅音字母加 y 结尾时变 y 为 ies，元音字母加 y 时直接加 s；child 的复数是 children，需要单独记忆。先看结尾条件，再判断是否属于不规则变化。"},
+ {"type":"heading","text":"变式自测"},
+ {"type":"quiz","question":"key 和 city 都以 y 结尾，为什么复数分别是 keys 和 cities？","options":["y 前的字母不同：key 是元音加 y，city 是辅音加 y","所有 y 结尾都直接加 s","key 是不规则名词","city 是不可数名词"],"answer":0,"explanation":"要看 y 前的字母：元音加 y 直接加 s；辅音加 y 变 y 为 ies。不能只看最后一个字母 y。"}]}`}`;
 }
 
 export function refineSystemPrompt(): string {
@@ -128,6 +158,7 @@ export function repairSystemPrompt(): string {
   return `你是 JSON 修复器。现在只执行修复任务，前述生成/改造要求作为文档规范参考，不要重新生成整篇讲解。输入是完整的待修文档与校验错误，输出修复后的完整 JSON 文档（不要 markdown 代码块、不要解释）。
 ${CONTENT_RULES}
 - 保留与错误无关的内容；修复滑块时必须同时检查对应图表、公式和正文，允许同步纠正直接相关的交互描述。
+- 对未识别字段：把其中有教学意义的正文移入独立 text 块，再删除非法字段；不要为通过校验而直接丢失解释。
 - 对“滑块未被引用”：只有存在语义正确的可联动数值槽时才绑定。若变量仅用于静态公式或不受支持的计算，删除该滑块，并把“拖动后会变化”等描述改成固定示例说明；公式与原有教学内容保留。
 - 不要为通过校验把变量塞进无关图表，不要添加不受支持的块类型或字段。提交前逐一核对每个保留滑块确实被 wavePlot/chart 的数值槽引用。`;
 }

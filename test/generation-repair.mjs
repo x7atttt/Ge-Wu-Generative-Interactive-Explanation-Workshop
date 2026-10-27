@@ -44,7 +44,20 @@ try {
     assert.deepEqual(events.find(event => event.type === "done")?.doc, fixed);
     assert.equal(state.remaining, 0);
   }
+  const lostText = { ...valid, blocks: [{ type: "formula", latex: "n!", content: "这段解释必须保留并显示。" }, ...valid.blocks] };
+  const recoveredText = { ...valid, blocks: [{ type: "text", content: "这段解释必须保留并显示。" }, { type: "formula", latex: "n!" }, ...valid.blocks] };
+  for (const path of ["/api/generate", "/api/refine"]) {
+    const body = path === "/api/generate" ? generate : { doc: valid, instruction: "补充公式说明" };
+    const result = await run(path, body, [lostText, recoveredText]);
+    assert.equal(result.state.repairRequests.length, 1, "未渲染字段必须触发修复");
+    assert.match(result.state.repairRequests[0].at(-1).content, /blocks\.0\.content/);
+    assert.deepEqual(result.events.find(event => event.type === "done")?.doc, recoveredText, "修复应迁移解释而非静默丢弃");
+  }
   const before = (await (await fetch(`${base}/api/docs?spaceId=${spaceId}`)).json()).docs.length;
+  const rejectedText = await run("/api/generate", generate, [lostText, lostText]);
+  assert(rejectedText.events.some(event => event.type === "error" && event.message.includes("blocks.0.content")));
+  assert(!rejectedText.events.some(event => event.type === "done"));
+  assert.equal((await (await fetch(`${base}/api/docs?spaceId=${spaceId}`)).json()).docs.length, before);
   const failed = await run("/api/generate", generate, [invalid, invalid]);
   assert(failed.events.some(event => event.type === "error" && event.message.includes("滑块 dk")));
   assert(!failed.events.some(event => event.type === "done"));

@@ -293,11 +293,26 @@ export type MatchBlock = z.output<typeof matchBlockSchema>;
 export type SortBlock = z.output<typeof sortBlockSchema>;
 
 /** 校验并返回友好错误摘要；合法时返回 null */
-export function validateDoc(doc: unknown): string | null {
+export function validateDoc(doc: unknown, options: { rejectUnknownFields?: boolean } = {}): string | null {
   const result = explainDocSchema.safeParse(doc);
-  if (result.success) return null;
+  if (result.success) {
+    const field = options.rejectUnknownFields ? droppedField(doc, result.data, "") : null;
+    return field ? `${field} 不是支持的字段；正文请放入独立 text 块，不能放入公式等块的未定义字段` : null;
+  }
   return result.error.issues
     .slice(0, 8)
     .map((issue) => `${issue.path.join(".") || "(文档)"}: ${issue.message}`)
     .join("；");
+}
+
+/** 生成期不能静默吞掉模型放错位置的正文；历史读取仍沿用原来的宽松契约。 */
+function droppedField(raw: unknown, parsed: unknown, path: string): string | null {
+  if (!raw || typeof raw !== "object" || !parsed || typeof parsed !== "object") return null;
+  for (const key of Object.keys(raw)) {
+    const next = path ? `${path}.${key}` : key;
+    if (!Object.hasOwn(parsed, key)) return next;
+    const nested = droppedField((raw as Record<string, unknown>)[key], (parsed as Record<string, unknown>)[key], next);
+    if (nested) return nested;
+  }
+  return null;
 }
