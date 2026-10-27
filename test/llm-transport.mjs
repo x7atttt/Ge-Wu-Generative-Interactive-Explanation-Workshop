@@ -32,10 +32,10 @@ const server = createServer(async (req, res) => {
     res.end("data: [DONE]\n\n");
     return;
   }
-  if (["heartbeat-only", "reasoning-only", "whitespace-only", "content-stall"].includes(mode)) {
+  if (["heartbeat-only", "reasoning-only", "whitespace-only", "content-stall", "endless-content"].includes(mode)) {
     if (mode === "content-stall") res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: "废弃片段" } }] })}\n\n`);
     while (!closed.signal.aborted) {
-      const delta = mode === "reasoning-only" ? { reasoning_content: "private test reasoning" } : { content: " \n" };
+      const delta = mode === "reasoning-only" ? { reasoning_content: "private test reasoning" } : { content: mode === "endless-content" ? "持续返回但不结束的正文。" : " \n" };
       res.write(mode === "heartbeat-only" || mode === "content-stall" ? ": keepalive\n\n" : `data: ${JSON.stringify({ choices: [{ delta }] })}\n\n`);
       await pause(20);
     }
@@ -105,6 +105,13 @@ try {
   configure(["slow-content"]);
   assert.equal(await streamChat(messages, { firstContentTimeoutMs: 400, idleTimeoutMs: 500 }, () => {}), "完整结果");
   assert.equal(calls, 1, "正常流式正文可持续续期，不按总生成时长误杀");
+  configure(["endless-content", "ok"]);
+  const beforeEndless = disconnected;
+  let endlessRetries = 0;
+  await assert.rejects(streamChat(messages, { streamTimeoutMs: 500, idleTimeoutMs: 1000, onRetry: () => endlessRetries++ }, () => {}), /超过总时限/);
+  assert.equal(calls, 1, "持续循环输出到总时限后直接结束，不自动重跑循环");
+  assert.equal(endlessRetries, 0);
+  await waitFor(() => disconnected > beforeEndless);
 
   for (const [stream, mode] of [[true, "stall"], [true, "reasoning-only"], [false, "body-stall"]]) {
     configure([mode]);

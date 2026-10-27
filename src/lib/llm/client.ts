@@ -47,6 +47,8 @@ export interface ChatOptions extends RequestControl {
   idleTimeoutMs?: number;
   /** 首段有效正文的等待上限；保活和思考数据不能续期。 */
   firstContentTimeoutMs?: number;
+  /** 即使正文不断到达，单次流式响应也必须有结束上限。 */
+  streamTimeoutMs?: number;
 }
 
 export class LLMError extends Error {
@@ -158,6 +160,8 @@ async function streamAttempt(baseUrl: string, apiKey: string, model: string, mes
   };
   // 网络仍活跃不代表正文在推进：单独限制首字等待，之后只由有效正文续期。
   let contentTimer = setTimeout(() => controller.abort(new LLMError("模型等待超时，未返回正文。可降低思考强度或稍后重试", undefined, true)), options.firstContentTimeoutMs ?? 90_000);
+  // 重复生成也会不断刷新空闲计时；总时限到达后直接结束，不当作网络故障反复重跑。
+  const totalTimer = setTimeout(() => controller.abort(new LLMError("本次响应超过总时限，请缩小问题范围或降低思考强度后重试")), options.streamTimeoutMs ?? 180_000);
   const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
   let full = "";
   let thinkingNotified = false;
@@ -239,6 +243,7 @@ async function streamAttempt(baseUrl: string, apiKey: string, model: string, mes
   } finally {
     clearTimeout(idleTimer);
     clearTimeout(contentTimer);
+    clearTimeout(totalTimer);
     controller.abort();
   }
 }
