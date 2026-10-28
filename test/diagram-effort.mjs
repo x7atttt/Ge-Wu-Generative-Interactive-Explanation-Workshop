@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { diagramDoc } from "./diagram-fixture.mjs";
+import { branchDiagram } from "./diagram-branch-fixture.mjs";
 
 const base = "http://127.0.0.1:3100";
 const model = "http://127.0.0.1:3101";
@@ -72,8 +73,11 @@ try {
   }
   const legacy = await run("/api/generate", generate, [diagramDoc]);
   assert(legacy.done, "旧客户端不传 effort 仍可使用服务端配置");
-  writeFileSync("data/diagram-effort-fixture.json", JSON.stringify({ spaceId, docId, doc: diagramDoc, refined }));
+  const branchDoc = { ...diagramDoc, title: "分叉汇合布线验收", blocks: [diagramDoc.blocks[0], diagramDoc.blocks[1], branchDiagram, diagramDoc.blocks[3]] };
+  assert((await run("/api/generate", { ...generate, concept: "分叉汇合布线验收" }, [branchDoc])).done);
+  writeFileSync("data/diagram-effort-fixture.json", JSON.stringify({ spaceId, docId, doc: diagramDoc, refined, branchDoc }));
   assert.equal(spawnSync("python", ["test/diagram-effort-ui.py"], { stdio: "inherit" }).status, 0);
+  assert.equal(spawnSync("python", ["test/diagram-routing-ui.py"], { stdio: "inherit" }).status, 0);
   console.log("PASS: diagram persistence, reference validation, bounded repair, low/high/max in generate/refine/ask/repair and browser interactions");
 } finally {
   for (const id of ids) await fetch(`${base}/api/docs/${id}`, { method: "DELETE" });
