@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
 const base = "http://127.0.0.1:3100", model = "http://127.0.0.1:3101";
@@ -97,6 +97,10 @@ try {
   assert.equal((await state()).requests.length, 1, "重试等待中取消不得再发上游请求");
   writeFileSync("data/generation-transport-fixture.json", JSON.stringify({ spaceId, valid }));
   assert.equal(spawnSync("python", ["test/generation-transport-ui.py"], { stdio: "inherit" }).status, 0);
+  const timing = readFileSync("data/test-server-3100.log", "utf8").split("\n").filter(line => line.startsWith("[llm/timing] ")).map(line => JSON.parse(line.slice(13)));
+  for (const phase of ["generate", "refine", "ask", "repair", "review"]) assert(timing.some(item => item.phase === phase), `真实接口应记录 ${phase} 阶段耗时`);
+  assert(timing.some(item => item.outcome === "cancelled"));
+  assert(timing.some(item => item.attempts === 3 && item.outcome === "success"));
   console.log("PASS: real routes retry twice, preserve effort, cancel before headers/during stream/repair/refine/backoff, immediately restart, no duplicate or cancelled docs");
 } finally {
   if (spaceId) await fetch(`${base}/api/spaces/${spaceId}`, { method: "DELETE" });

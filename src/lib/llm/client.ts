@@ -35,6 +35,8 @@ export interface RequestControl {
 }
 
 export interface ChatOptions extends RequestControl {
+  /** 仅用于服务端耗时日志，不发送给模型。 */
+  purpose?: "generate" | "refine" | "ask" | "repair" | "review";
   effort?: ReasoningEffort;
   temperature?: number;
   maxTokens?: number;
@@ -44,6 +46,7 @@ export interface ChatOptions extends RequestControl {
   model?: string;
   /** 非流式请求的整体超时；流式请求不用（见空闲计时器） */
   timeoutMs?: number;
+  /** 正文开始后的有效内容空闲上限；思考和保活数据不能续期。 */
   idleTimeoutMs?: number;
   /** 首段有效正文的等待上限；保活和思考数据不能续期。 */
   firstContentTimeoutMs?: number;
@@ -54,11 +57,13 @@ export interface ChatOptions extends RequestControl {
 export class LLMError extends Error {
   status?: number;
   retryable: boolean;
-  constructor(message: string, status?: number, retryable = false) {
+  code: string;
+  constructor(message: string, status?: number, retryable = false, code = "request-failure") {
     super(message);
     this.name = "LLMError";
     this.status = status;
     this.retryable = retryable;
+    this.code = code;
   }
 }
 
@@ -95,6 +100,18 @@ function reasoningEffort(): string | null {
   return value === "low" || value === "medium" || value === "high" || value === "max" ? value : null;
 }
 
+const TIMEOUTS = {
+  low: { firstContentMs: 90_000, contentIdleMs: 60_000, streamMs: 180_000, responseMs: 120_000, reviewMs: 90_000 },
+  high: { firstContentMs: 180_000, contentIdleMs: 90_000, streamMs: 360_000, responseMs: 240_000, reviewMs: 180_000 },
+  max: { firstContentMs: 300_000, contentIdleMs: 120_000, streamMs: 600_000, responseMs: 360_000, reviewMs: 300_000 },
+} as const;
+
+/** 预算和请求参数使用相同的显式选择/环境回退；未知档位按 high 留出等待空间。 */
+export function requestTimeouts(effort?: ReasoningEffort) {
+  const selected = effort ?? reasoningEffort();
+  return TIMEOUTS[selected === "low" || selected === "max" ? selected : "high"];
+}
+
 function buildBody(
   model: string,
   messages: ChatMessage[],
@@ -116,9 +133,9 @@ function buildBody(
 /** 非流式调用：自修复等后台路径使用 */
 export async function chat(messages: ChatMessage[], options: ChatOptions = {}): Promise<string> {
   const { baseUrl, apiKey, model } = llmConfigFromEnv();
-  return withRetries(async () => {
+  return timedRequest(options, (stats) => withRetries(async () => {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 120_000);
+    const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? requestTimeouts(options.effort).responseMs);
     const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
     try {
       const res = await fetch(`${baseUrl}/chat/completions`, {
@@ -130,13 +147,13 @@ export async function chat(messages: ChatMessage[], options: ChatOptions = {}): 
       return await readFullResponse(res);
     } catch (err) {
       options.signal?.throwIfAborted();
-      if (controller.signal.aborted) throw new LLMError("LLM 请求超时，请重试", undefined, true);
+      if (controller.signal.aborted) throw new LLMError("LLM 响应等待超时，本次请求已结束，请稍后重试", undefined, false, "response-timeout");
       throw err;
     } finally {
       clearTimeout(timer);
       controller.abort();
     }
-  }, options);
+  }, options, stats));
 }
 
 /** 流式调用：增量通过 onDelta 透出，返回完整文本 */
@@ -146,22 +163,17 @@ export async function streamChat(
   onDelta: (text: string) => void
 ): Promise<string> {
   const { baseUrl, apiKey, model } = llmConfigFromEnv();
-  return withRetries(() => streamAttempt(baseUrl, apiKey, model, messages, options, onDelta), options);
+  return timedRequest(options, (stats) => withRetries(() => streamAttempt(baseUrl, apiKey, model, messages, options, onDelta), options, stats));
 }
 
 async function streamAttempt(baseUrl: string, apiKey: string, model: string, messages: ChatMessage[], options: ChatOptions, onDelta: (text: string) => void): Promise<string> {
   const controller = new AbortController();
-  const IDLE_MS = options.idleTimeoutMs ?? 60_000;
-  const abortIdle = () => controller.abort(new LLMError("LLM 连接长时间未返回数据，请重试", undefined, true));
-  let idleTimer = setTimeout(abortIdle, IDLE_MS);
-  const resetIdle = () => {
-    clearTimeout(idleTimer);
-    idleTimer = setTimeout(abortIdle, IDLE_MS);
-  };
-  // 网络仍活跃不代表正文在推进：单独限制首字等待，之后只由有效正文续期。
-  let contentTimer = setTimeout(() => controller.abort(new LLMError("模型等待超时，未返回正文。可降低思考强度或稍后重试", undefined, true)), options.firstContentTimeoutMs ?? 90_000);
+  const budget = requestTimeouts(options.effort);
+  const IDLE_MS = options.idleTimeoutMs ?? budget.contentIdleMs;
+  // 首字前的静默无法证明断网；等待由 effort 预算控制，不提前以网络空闲重启思考。
+  let contentTimer = setTimeout(() => controller.abort(new LLMError("模型等待超时，未返回正文。本次请求已结束，可降低思考强度或稍后重试", undefined, false, "first-content-timeout")), options.firstContentTimeoutMs ?? budget.firstContentMs);
   // 重复生成也会不断刷新空闲计时；总时限到达后直接结束，不当作网络故障反复重跑。
-  const totalTimer = setTimeout(() => controller.abort(new LLMError("本次响应超过总时限，请缩小问题范围或降低思考强度后重试")), options.streamTimeoutMs ?? 180_000);
+  const totalTimer = setTimeout(() => controller.abort(new LLMError("本次响应超过总时限，请缩小问题范围或降低思考强度后重试", undefined, false, "stream-total-timeout")), options.streamTimeoutMs ?? budget.streamMs);
   const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
   let full = "";
   let thinkingNotified = false;
@@ -190,7 +202,6 @@ async function streamAttempt(baseUrl: string, apiKey: string, model: string, mes
         if (!finished) throw new LLMError("LLM 连接中断，响应尚未完成", undefined, true);
         break;
       }
-      resetIdle();
       buffer = (buffer + decoder.decode(value, { stream: true })).replace(/\r\n/g, "\n");
       // SSE 事件以空行分隔；逐事件消费，余量留缓冲
       const events = buffer.split("\n\n");
@@ -221,7 +232,7 @@ async function streamAttempt(baseUrl: string, apiKey: string, model: string, mes
           if (typeof delta === "string" && delta) {
             if (delta.trim()) {
               clearTimeout(contentTimer);
-              contentTimer = setTimeout(() => controller.abort(new LLMError("讲解正文长时间未继续返回，请稍后重试", undefined, true)), IDLE_MS);
+              contentTimer = setTimeout(() => controller.abort(new LLMError("讲解正文长时间未继续返回，本次请求已结束，请稍后重试", undefined, false, "content-idle-timeout")), IDLE_MS);
             }
             full += delta;
             // 只捕获 JSON 解析异常，调用方的取消/发送异常必须向外传播。
@@ -241,7 +252,6 @@ async function streamAttempt(baseUrl: string, apiKey: string, model: string, mes
     if (full && !options.onRetry && error instanceof LLMError) error.retryable = false;
     throw error;
   } finally {
-    clearTimeout(idleTimer);
     clearTimeout(contentTimer);
     clearTimeout(totalTimer);
     controller.abort();
@@ -262,13 +272,27 @@ async function readFullResponse(res: Response): Promise<string> {
 }
 
 function responseError(status: number, body: string): LLMError {
-  return new LLMError(`LLM 服务返回 ${status}：${body.slice(0, 300)}`, status, status === 408 || status === 429 || status >= 500);
+  return new LLMError(`LLM 服务返回 ${status}：${body.slice(0, 300)}`, status, status === 408 || status === 429 || status >= 500, `http-${status}`);
 }
 
-async function withRetries<T>(run: () => Promise<T>, options: RequestControl): Promise<T> {
+async function timedRequest(options: ChatOptions, run: (stats: { attempts: number }) => Promise<string>): Promise<string> {
+  const start = performance.now();
+  const stats = { attempts: 0 };
+  let outcome = "success";
+  try { return await run(stats); }
+  catch (error) {
+    outcome = options.signal?.aborted ? options.signal.reason?.name === "TimeoutError" ? "deadline" : "cancelled" : error instanceof LLMError ? error.code : "error";
+    throw error;
+  } finally {
+    // 只记录阶段与传输元数据，不记录请求地址、模型名、正文或思考内容。
+    console.info("[llm/timing]", JSON.stringify({ phase: options.purpose ?? "other", effort: options.effort ?? reasoningEffort() ?? "unspecified", durationMs: Math.round(performance.now() - start), attempts: stats.attempts, outcome }));
+  }
+}
+
+async function withRetries<T>(run: () => Promise<T>, options: RequestControl, stats: { attempts: number }): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     options.signal?.throwIfAborted();
-    try { return await run(); }
+    try { stats.attempts++; return await run(); }
     catch (err) {
       options.signal?.throwIfAborted();
       const error = normalizeFetchError(err);

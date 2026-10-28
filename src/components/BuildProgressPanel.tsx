@@ -39,7 +39,7 @@ export function BuildProgressPanel({ raw, phase, stage, note, onCancel }: {
     : stage === "verify" ? "检查文档结构、公式和交互引用。"
     : stage === "review" ? "正在单独复核算例、答案与解析，这一步也需要模型返回结果。"
     : stage === "repair" ? "正在调整内容与练习，请稍候。"
-    : raw.trim() ? "已接收的讲解会在下方逐段显示。" : elapsed >= 15 ? "仍未收到正文；达到等待时限后会自动重试，最多两次。" : "正在等待第一段内容，收到后会逐步展开。";
+    : raw.trim() ? "已接收的讲解会在下方逐段显示。" : elapsed >= 15 ? "仍在等待正文；等待上限随思考强度调整，网络故障最多重试两次。" : "正在等待第一段内容，收到后会逐步展开。";
 
   return <section aria-label={phase === "generate" ? "讲解生成进度" : "讲解改造进度"} className="mt-4 border-t border-stone-200 pt-4">
     <div className="flex items-center justify-between gap-3">
@@ -65,7 +65,7 @@ export function BuildProgressPanel({ raw, phase, stage, note, onCancel }: {
     <details className="mt-3 text-xs text-stone-500">
       <summary className="w-fit cursor-pointer rounded py-1 hover:text-stone-700">{phase === "generate" ? "生成详情" : "改造详情"}</summary>
       <p className="my-2 break-words">{title && `《${title}》 · `}已接收 {count} 个内容片段 · {raw.length.toLocaleString()} 字符</p>
-      <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-all rounded-lg bg-stone-100 p-3 font-mono text-xs leading-5 text-stone-600">{raw.trim() ? raw : "尚未收到正文，超时后会自动重试。"}</pre>
+      <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-all rounded-lg bg-stone-100 p-3 font-mono text-xs leading-5 text-stone-600">{raw.trim() ? raw : "尚未收到正文；等待超时会结束请求，不会从头重跑思考。"}</pre>
     </details>
   </section>;
 }

@@ -79,6 +79,7 @@ pnpm dev
 
 - **PDF 导入提示未配置 token**：填入 `MINERU_API_TOKEN` 后重启 `pnpm dev`；
 - **生成偏慢**：先在工具栏把思考强度切到 `low`；`LLM_MODEL_FAST` 可单独配置改造/追问所用模型。页面显式选择会覆盖 `LLM_REASONING_EFFORT`；
+- **high 等待与超时**：首段正文最多等待 180 秒，单次流式最多 360 秒，保存前复核最多 180 秒；达到处理时限后结束请求，网络故障仍最多重试两次。各档上限与阶段日志见[超时策略](docs/teaching-quality-acceptance.md#超时与重试2026-10-28-修正)；
 - **换模型**：改 `LLM_BASE_URL / LLM_MODEL` 即可，协议层只依赖 `/chat/completions` 一个端点；
 - **重置数据**：删除 `data/gewu.db` 后刷新。
 

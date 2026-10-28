@@ -40,12 +40,14 @@ const nativeFetch = globalThis.fetch, nativeTimeout = AbortSignal.timeout;
 process.env.LLM_BASE_URL = "http://127.0.0.1:3101";
 process.env.LLM_API_KEY = "local-test-only";
 process.env.LLM_MODEL = "local-test";
-let budgetCalls = 0;
 try {
-  AbortSignal.timeout = ms => { assert.equal(ms, 90000); return nativeTimeout(200); };
-  globalThis.fetch = async () => { budgetCalls++; return new Response("temporary", { status: 503 }); };
-  await assert.rejects(reviewContent(valid, []), /内容复核超时/);
-  assert.equal(budgetCalls, 1, "复核总预算也约束重试退避，不能每次重试重新续期");
+  for (const [effort, budget] of [["low", 90000], ["high", 180000], ["max", 300000]]) {
+    let budgetCalls = 0;
+    AbortSignal.timeout = ms => { assert.equal(ms, budget); return nativeTimeout(200); };
+    globalThis.fetch = async () => { budgetCalls++; return new Response("temporary", { status: 503 }); };
+    await assert.rejects(reviewContent(valid, [], effort), /内容复核超时/);
+    assert.equal(budgetCalls, 1, "各档复核总预算也约束重试退避，不能每次重试重新续期");
+  }
 } finally { globalThis.fetch = nativeFetch; AbortSignal.timeout = nativeTimeout; }
 const { streamExplanation } = await import("../src/lib/api/explanation.ts");
 for (const phase of ["build", "review", "repair"]) {

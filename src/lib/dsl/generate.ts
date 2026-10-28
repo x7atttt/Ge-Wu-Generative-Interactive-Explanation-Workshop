@@ -106,7 +106,7 @@ async function withRepair(raw: string, history: ChatMessage[], onStage?: (stage:
           content: `上面的输出存在问题：${toMessage(firstError)}\n${original ? `程序复算参考（仅适用注明的标准约定）：${JSON.stringify({ factorials: factorialFacts(original), partitions: partitionFacts(original) })}\n` : ""}请输出修复后的完整 JSON 文档。`,
         },
       ],
-      { jsonMode: true, temperature: 0.1, effort, ...control }
+      { jsonMode: true, temperature: 0.1, purpose: "repair", effort, ...control }
     );
     try {
       return await verify(repaired);
@@ -199,8 +199,8 @@ export async function generateDoc(
     { role: "user", content: withImages(sections.join("\n\n"), images) },
   ];
   const raw = onDelta
-    ? await streamChat(history, { jsonMode: true, temperature: 0.4, effort: extras.effort, signal: extras.signal, onRetry: extras.onRetry, onThinking: extras.onThinking }, onDelta)
-    : await chat(history, { jsonMode: true, temperature: 0.4, effort: extras.effort, signal: extras.signal, onRetry: extras.onRetry });
+    ? await streamChat(history, { jsonMode: true, temperature: 0.4, purpose: "generate", effort: extras.effort, signal: extras.signal, onRetry: extras.onRetry, onThinking: extras.onThinking }, onDelta)
+    : await chat(history, { jsonMode: true, temperature: 0.4, purpose: "generate", effort: extras.effort, signal: extras.signal, onRetry: extras.onRetry });
   return withRepair(raw, history, onStage, extras.effort, { signal: extras.signal, onRetry: extras.onRetry });
 }
 
@@ -221,7 +221,7 @@ export async function refineDoc(
       content: `当前文档：\n${JSON.stringify(doc, null, 2)}\n\n改造指令：${instruction}`,
     },
   ];
-  const options = { jsonMode: true, temperature: 0.3, model: fastModel, effort, ...control };
+  const options = { jsonMode: true, temperature: 0.3, purpose: "refine" as const, model: fastModel, effort, ...control };
   const raw = onDelta
     ? await streamChat(history, options, onDelta)
     : await chat(history, options);
@@ -262,7 +262,7 @@ export async function askQuestion(
       ...trimmed.map((message) => ({ role: message.role, content: message.content })),
       { role: "user", content: withImages(askText, images) },
     ],
-    { temperature: 0.3, model: fastModel, effort, ...control },
+    { temperature: 0.3, purpose: "ask", model: fastModel, effort, ...control },
     onDelta
   );
 }

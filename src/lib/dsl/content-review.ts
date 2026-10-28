@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { chat, type ChatMessage, type RequestControl } from "@/lib/llm/client";
+import { chat, requestTimeouts, type ChatMessage, type RequestControl } from "@/lib/llm/client";
 import type { ReasoningEffort } from "@/lib/effort";
 import type { ExplainDoc } from "./schema";
 
@@ -122,14 +122,14 @@ export function readContentReview(raw: string, doc: ExplainDoc): string | null {
 
 export async function reviewContent(doc: ExplainDoc, context: ChatMessage[], effort?: ReasoningEffort, control: RequestControl = {}): Promise<string | null> {
   // 总预算覆盖客户端重试；服务异常不能交给生成器通过改写文档来“修复”。
-  const timeout = AbortSignal.timeout(90_000);
+  const timeout = AbortSignal.timeout(requestTimeouts(effort).reviewMs);
   const signal = control.signal ? AbortSignal.any([control.signal, timeout]) : timeout;
   try {
     const raw = await chat([
       { role: "system", content: CONTENT_REVIEW_PROMPT },
       ...context.filter((message) => message.role === "user"),
       { role: "user", content: JSON.stringify({ document: doc, requiredBlockIndices: reviewTargets(doc), standardFactorials: factorialFacts(doc), standardPartitions: partitionFacts(doc) }) },
-    ], { jsonMode: true, temperature: 0, effort, ...control, signal });
+    ], { jsonMode: true, temperature: 0, purpose: "review", effort, ...control, signal });
     signal.throwIfAborted();
     return readContentReview(raw, doc);
   } catch (error) {

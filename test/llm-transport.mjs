@@ -1,29 +1,43 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
-import { chat, streamChat } from "../src/lib/llm/client.ts";
+import { chat, streamChat, requestTimeouts } from "../src/lib/llm/client.ts";
 import { sseResponse } from "../src/lib/api/sse.ts";
 import { tryAcquireAction, currentAction } from "../src/lib/actionGuard.ts";
 
 let modes = [], calls = 0, disconnected = 0;
+const nativeInfo = console.info;
+const metrics = [];
+console.info = (label, entry) => label === "[llm/timing]" ? metrics.push(JSON.parse(entry)) : nativeInfo(label, entry);
 const server = createServer(async (req, res) => {
   let raw = "";
   for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw);
+  assert(!("purpose" in body), "诊断阶段不发送给模型");
   calls++;
   const mode = modes.shift() ?? "ok";
   const closed = new AbortController();
   res.once("close", () => { if (!res.writableFinished) { disconnected++; closed.abort(); } });
   const pause = ms => delay(ms, undefined, { signal: closed.signal }).catch(() => {});
+  if (mode === "late-headers") await pause(1150);
   if (typeof mode === "number") { res.writeHead(mode); res.end("test status"); return; }
   if (mode === "drop") { res.destroy(); return; }
   if (mode === "stall") { res.flushHeaders(); await pause(60000); return; }
   if (!body.stream) {
     res.setHeader("Content-Type", "application/json");
     if (mode === "body-stall") { res.write('{"choices":['); await pause(60000); return; }
+    if (mode === "long-response") { await pause(1550); if (closed.signal.aborted) return; }
     res.end(JSON.stringify({ choices: [{ message: { content: "完整结果" } }] })); return;
   }
   res.setHeader("Content-Type", "text/event-stream");
+  if (mode === "long-thinking") {
+    const until = Date.now() + 1150;
+    while (!closed.signal.aborted && Date.now() < until) {
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: "private test reasoning" } }] })}\n\n`);
+      await pause(40);
+    }
+    if (closed.signal.aborted) return;
+  }
   if (mode === "slow-content") {
     for (const text of ["完", "整", "结", "果"]) {
       res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`);
@@ -60,7 +74,23 @@ const waitFor = async predicate => {
   while (!predicate()) { assert(Date.now() < end, "等待超时"); await delay(10); }
 };
 try {
-  for (const faults of [[503, 502], ["drop", "drop"], ["empty", "empty"], ["stall", "stall"]]) {
+  assert.deepEqual(["low", "high", "max"].map(effort => requestTimeouts(effort).firstContentMs), [90000, 180000, 300000]);
+  assert.deepEqual(["low", "high", "max"].map(effort => requestTimeouts(effort).streamMs), [180000, 360000, 600000]);
+  assert.deepEqual(["low", "high", "max"].map(effort => requestTimeouts(effort).responseMs), [120000, 240000, 360000]);
+  const previousEffort = process.env.LLM_REASONING_EFFORT;
+  try {
+    process.env.LLM_REASONING_EFFORT = "max";
+    assert.equal(requestTimeouts().firstContentMs, 300000);
+    assert.equal(requestTimeouts("low").firstContentMs, 90000);
+    process.env.LLM_REASONING_EFFORT = "medium";
+    assert.equal(requestTimeouts().firstContentMs, 180000);
+    delete process.env.LLM_REASONING_EFFORT;
+    assert.equal(requestTimeouts().firstContentMs, 180000);
+  } finally {
+    if (previousEffort === undefined) delete process.env.LLM_REASONING_EFFORT;
+    else process.env.LLM_REASONING_EFFORT = previousEffort;
+  }
+  for (const faults of [[503, 502], ["drop", "drop"], ["empty", "empty"]]) {
     configure([...faults, "ok"]);
     const retries = [];
     assert.equal(await streamChat(messages, { idleTimeoutMs: 500, onRetry: n => retries.push(n) }, () => {}), "完整结果");
@@ -88,12 +118,13 @@ try {
     configure([mode, "ok"]);
     let result = "", thinking = 0;
     const retries = [], before = disconnected;
-    assert.equal(await streamChat(messages, {
+    await assert.rejects(streamChat(messages, {
       signal: AbortSignal.timeout(5000), firstContentTimeoutMs: 500, idleTimeoutMs: 1000,
       onThinking: () => thinking++, onRetry: n => { retries.push(n); result = ""; },
-    }, t => { result += t; }), "完整结果");
-    assert.equal(result, "完整结果");
-    assert.deepEqual(retries, [1], `${mode} 不能用心跳无限续期`);
+    }, t => { result += t; }), error => error.code === (mode === "content-stall" ? "content-idle-timeout" : "first-content-timeout"));
+    assert(!result.includes("private test reasoning"));
+    assert.deepEqual(retries, [], `${mode} 到等待上限明确结束，不自动重跑思考`);
+    assert.equal(calls, 1);
     assert.equal(thinking, mode === "reasoning-only" ? 1 : 0, "只通知思考状态，不泄露思考正文或重复刷屏");
     await waitFor(() => disconnected > before);
   }
@@ -101,7 +132,29 @@ try {
   await assert.rejects(streamChat(messages, {
     signal: AbortSignal.timeout(5000), firstContentTimeoutMs: 300, onRetry: () => {},
   }, () => {}), /未返回正文/);
-  assert.equal(calls, 3, "正文超时最多重试两次，随后明确失败");
+  assert.equal(calls, 1, "正文等待超时不作为网络故障重跑");
+  configure(["body-stall", "ok"]);
+  await assert.rejects(chat(messages, { timeoutMs: 150 }), error => error.code === "response-timeout");
+  assert.equal(calls, 1, "非流式响应超时也不重启一次长思考");
+  const nativeTimer = globalThis.setTimeout;
+  try {
+    // 缩放生产预算验证真实计时行为，服务端的思考间隔保持不变。
+    globalThis.setTimeout = (callback, ms, ...args) => nativeTimer(callback, ms >= 60000 ? ms / 100 : ms, ...args);
+    for (const mode of ["long-thinking", "late-headers"]) {
+      configure([mode]);
+      assert.equal(await streamChat(messages, { effort: "high", purpose: "generate" }, () => {}), "完整结果");
+      assert.equal(calls, 1, "high 思考/延迟响应超过旧上限仍可完成，不重新请求");
+    }
+    configure(["long-thinking", "ok"]);
+    await assert.rejects(streamChat(messages, { effort: "low", purpose: "generate", onRetry: () => assert.fail("不能重跑思考") }, () => {}), error => error.code === "first-content-timeout");
+    assert.equal(calls, 1);
+    configure(["long-response"]);
+    assert.equal(await chat(messages, { effort: "high", purpose: "repair" }), "完整结果");
+    assert.equal(calls, 1, "high 非流式修复超过旧响应预算仍可完成");
+    configure(["long-response", "ok"]);
+    await assert.rejects(chat(messages, { effort: "low", purpose: "repair" }), error => error.code === "response-timeout");
+    assert.equal(calls, 1, "low 到响应上限后也不重启长思考");
+  } finally { globalThis.setTimeout = nativeTimer; }
   configure(["slow-content"]);
   assert.equal(await streamChat(messages, { firstContentTimeoutMs: 400, idleTimeoutMs: 500 }, () => {}), "完整结果");
   assert.equal(calls, 1, "正常流式正文可持续续期，不按总生成时长误杀");
@@ -153,8 +206,15 @@ try {
   await response.body.cancel();
   await waitFor(() => producerStopped);
   assert.equal(currentAction(), null, "响应流取消时立即释放单飞门");
+  assert(metrics.some(item => item.phase === "generate" && item.effort === "high" && item.outcome === "success"));
+  assert(metrics.some(item => item.outcome === "first-content-timeout" && item.attempts === 1));
+  assert(metrics.some(item => item.attempts === 3 && item.outcome === "success"));
+  assert(metrics.some(item => item.outcome === "cancelled"));
+  assert(!JSON.stringify(metrics).includes("private test reasoning"));
+  assert(metrics.every(item => Object.keys(item).sort().join(",") === "attempts,durationMs,effort,outcome,phase"));
   console.log("PASS: bounded retries, status classification, idle/heartbeat, partial reset, user cancellation, non-stream cancellation, callback errors, response cancellation and lock ownership");
 } finally {
+  console.info = nativeInfo;
   server.closeAllConnections();
   await new Promise(resolve => server.close(resolve));
 }
