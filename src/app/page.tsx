@@ -33,7 +33,7 @@ import {
 import { usePartialDoc } from "@/hooks/usePartialDoc";
 import { useDropZone } from "@/hooks/useDropZone";
 import { importSources } from "@/lib/api/sources";
-import { computeDeepens } from "@/lib/dsl/deepen";
+import { computeDeepens, isAppendVersion } from "@/lib/dsl/deepen";
 import type { ExplainDoc } from "@/lib/dsl/schema";
 import type { GenerationStage } from "@/lib/generation-progress";
 import { EFFORT_STORAGE_KEY, EFFORTS, isReasoningEffort, type ReasoningEffort } from "@/lib/effort";
@@ -82,6 +82,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   const [refineInput, setRefineInput] = useState("");
+  const [refineMode, setRefineMode] = useState<"append" | "revise">("append");
   const [refineError, setRefineError] = useState<string | null>(null);
   const [bottomTab, setBottomTab] = useState<"refine" | "ask">("refine");
 
@@ -323,7 +324,7 @@ export default function Home() {
       setDocId(id);
       setDocSpaceId(spaceId);
       setRestoredAsks([]);
-      setVersions([{ blocks: next.blocks, instruction: null }]);
+      setVersions([{ id, blocks: next.blocks, instruction: null }]);
       setRefineInput("");
       setRefineError(null);
       refreshDocList();
@@ -466,7 +467,7 @@ export default function Home() {
     try {
       const { doc: next, docId: id } = await streamExplanation(
         "refine",
-        { doc: parentDoc, instruction, docId, effort },
+        { doc: parentDoc, instruction, docId, effort, mode: refineMode },
         {
           onStage: setGenerationStage,
           onDelta: (t) => { setBuildText((prev) => prev + t); setSearchNote(note => note?.startsWith("连接暂时异常") ? null : note); },
@@ -476,7 +477,7 @@ export default function Home() {
         }
       );
       // 父版本链就在闭包里：追加本轮版本，深化分段由 versions 派生
-      setVersions((prev) => [...prev, { blocks: next.blocks, instruction }]);
+      setVersions((prev) => [...prev, { id, blocks: next.blocks, instruction }]);
       setDoc(next);
       setDocId(id);
       setRestoredAsks([]);
@@ -518,6 +519,7 @@ export default function Home() {
       setDoc(loaded);
       setDocId(id);
       setDocSpaceId(spaceId);
+      setSpaceId(spaceId);
       setCardsNote(null);
       setRestoredAsks(asks);
       setVersions(chain);
@@ -818,6 +820,10 @@ export default function Home() {
             className="mt-6 rounded-2xl border border-stone-200 bg-card p-6 shadow-sm"
           >
             <AttemptContext.Provider value={attemptValue}>
+            {versions.length > 1 && <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 bg-paper/60 px-3 py-2 text-xs text-stone-600" aria-label="当前讲解版本">
+              <span>当前版本 · {isAppendVersion(versions.at(-2)!.blocks, versions.at(-1)!.blocks) ? "已追加补充，原文保留" : "已修订原文，历史版本保留"}</span>
+              {versions[0]?.id && <button type="button" onClick={() => loadDoc(versions[0].id!)} disabled={busy !== null || loadingDoc} className="ml-auto rounded px-2 py-1 font-medium text-secondary-700 hover:bg-secondary-50 disabled:opacity-50">查看原始讲解</button>}
+            </div>}
             <ExplainDocView doc={doc} deepens={deepens} />
             {docId !== null && <SourceContextPanel key={docId} docId={docId} />}
 
@@ -859,6 +865,10 @@ export default function Home() {
               </div>
 
               <div className={bottomTab === "refine" ? "" : "hidden"}>
+                <div role="group" aria-label="深化方式" className="mb-3 flex items-center gap-1 text-xs">
+                  {([['append', '补充讲解'], ['revise', '修订原文']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={refineMode === value} disabled={busy !== null} onClick={() => setRefineMode(value)} className={`rounded-lg border px-3 py-2 ${refineMode === value ? "border-secondary-200 bg-secondary-50 text-secondary-700" : "border-transparent text-stone-500 hover:bg-stone-100"}`}>{label}</button>)}
+                  <p className="ml-2 text-stone-500">{refineMode === "append" ? "保留原文，在末尾补充新内容" : "修改当前内容，原版保存在版本记录"}</p>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {REFINE_EXAMPLES.map((example) => (
                     <button

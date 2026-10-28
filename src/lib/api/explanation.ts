@@ -128,11 +128,7 @@ export async function streamAsk(
   return full;
 }
 
-export interface DocSummary {
-  id: number;
-  title: string;
-  createdAt: string;
-}
+export type DocSummary = import("@/lib/db/docs").DocHistoryEntry;
 
 export async function loadSourceContext(docId: number): Promise<import("@/lib/db/docs").SourceContext | null> {
   const res = await fetch(`/api/docs/${docId}`);
@@ -142,7 +138,7 @@ export async function loadSourceContext(docId: number): Promise<import("@/lib/db
 }
 
 export async function listDocs(spaceId?: number): Promise<DocSummary[]> {
-  const res = await fetch(spaceId !== undefined ? `/api/docs?spaceId=${spaceId}` : "/api/docs");
+  const res = await fetch(spaceId !== undefined ? `/api/docs?grouped=1&spaceId=${spaceId}` : "/api/docs?grouped=1");
   if (!res.ok) throw new Error(`历史加载失败（${res.status}）`);
   const data = (await res.json()) as { docs: DocSummary[] };
   return data.docs;

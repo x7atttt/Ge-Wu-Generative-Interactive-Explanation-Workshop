@@ -16,6 +16,7 @@ import { teachingContentIssue } from "@/lib/study-content";
 import type { GenerationStage } from "@/lib/generation-progress";
 import type { ReasoningEffort } from "@/lib/effort";
 import { factorialFacts, factorialFormulaIssue, factorialPremiseIssue, partitionFacts, reviewContent } from "./content-review";
+import { isAppendVersion } from "./deepen";
 
 export class DslError extends Error {
   constructor(message: string) {
@@ -70,13 +71,16 @@ function strictChartChecks(doc: ExplainDoc): string | null {
 }
 
 /** 结构和内容共享一次修复；复核服务异常直接停止，不用改写文档掩盖检查失败。 */
-async function withRepair(raw: string, history: ChatMessage[], onStage?: (stage: GenerationStage) => void, effort?: ReasoningEffort, control: RequestControl = {}, reviewContext: ChatMessage[] = history): Promise<ExplainDoc> {
+async function withRepair(raw: string, history: ChatMessage[], onStage?: (stage: GenerationStage) => void, effort?: ReasoningEffort, control: RequestControl = {}, reviewContext: ChatMessage[] = history, preserved?: ExplainDoc): Promise<ExplainDoc> {
   control.signal?.throwIfAborted();
   const toMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
   let original: ExplainDoc | undefined;
   const verify = async (text: string) => {
     onStage?.("verify");
     const doc = parseAndValidate(text);
+    if (preserved && (doc.title !== preserved.title || !isAppendVersion(preserved.blocks, doc.blocks))) {
+      throw new DslError("补充讲解必须保留当前标题与全部原有块，逐字不变且顺序一致，仅在末尾追加新块。请从用户提供的当前文档恢复原文；如需改写，用户应使用修订原文。");
+    }
     if (original && ["quiz", "fillBlank", "match", "sort"].some((type) => doc.blocks.filter((block) => block.type === type).length < original!.blocks.filter((block) => block.type === type).length)) {
       throw new DslError("内容修复不得删减原有练习，请纠正题面、答案与解析后重新提交");
     }
@@ -211,11 +215,12 @@ export async function refineDoc(
   onDelta?: (text: string) => void,
   onStage?: (stage: GenerationStage) => void,
   effort?: ReasoningEffort,
-  control: RequestControl = {}
+  control: RequestControl = {},
+  mode: "append" | "revise" = "revise"
 ): Promise<ExplainDoc> {
   const { fastModel } = llmConfigFromEnv();
   const history: ChatMessage[] = [
-    { role: "system", content: refineSystemPrompt() },
+    { role: "system", content: refineSystemPrompt(mode) },
     {
       role: "user",
       content: `当前文档：\n${JSON.stringify(doc, null, 2)}\n\n改造指令：${instruction}`,
@@ -226,7 +231,7 @@ export async function refineDoc(
     ? await streamChat(history, options, onDelta)
     : await chat(history, options);
   // 复核已收到完整新文档；旧文档仅留给改造与必要的修复，避免重复传输。
-  return withRepair(raw, history, onStage, effort, control, [{ role: "user", content: `改造指令：${instruction}` }]);
+  return withRepair(raw, history, onStage, effort, control, [{ role: "user", content: `本次为${mode === "append" ? "追加补充" : "修订原文"}。改造指令：${instruction}` }], mode === "append" ? doc : undefined);
 }
 
 /** 追问的既有对话轮次（user/assistant 交替），由路由层从库中组装 */

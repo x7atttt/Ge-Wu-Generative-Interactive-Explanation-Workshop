@@ -103,7 +103,7 @@ export function DocHistoryButton({
   const q = query.trim().toLowerCase();
   const filtered = q
     ? docs.filter(
-        (d) => d.title.toLowerCase().includes(q) || String(d.id).includes(q)
+        (d) => d.title.toLowerCase().includes(q) || d.versions.some(version => String(version.id).includes(q) || version.title.toLowerCase().includes(q) || version.instruction?.toLowerCase().includes(q))
       )
     : docs;
 
@@ -212,7 +212,8 @@ export function DocHistoryButton({
                 </li>
               ) : (
                 filtered.map((d) => (
-                  <li key={d.id} className="group flex items-center gap-1">
+                  <li key={d.id} className="group rounded-lg" data-history-root={d.id}>
+                    <div className="flex items-center gap-1">
                     <button
                       type="button"
                       onClick={() => {
@@ -221,13 +222,13 @@ export function DocHistoryButton({
                           return;
                         }
                         setOpen(false);
-                        onSelect(d.id);
+                        onSelect(d.latestId);
                       }}
                       className={[
                         "flex min-w-0 flex-1 items-baseline gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
                         batch && picked.has(d.id)
                           ? "bg-red-50 text-red-700"
-                          : d.id === currentId
+                          : d.versions.some(version => version.id === currentId)
                             ? "bg-accent-50 text-accent-700"
                             : "text-stone-700 hover:bg-stone-50",
                       ].join(" ")}
@@ -260,6 +261,16 @@ export function DocHistoryButton({
                         {deletingId === d.id ? "…" : "✕"}
                       </button>
                     )}
+                    </div>
+                    {d.versions.length > 1 && !batch && <details className="mx-3 mb-2 border-l border-stone-200 pl-3 text-xs text-stone-500">
+                      <summary className="w-fit cursor-pointer py-1.5">版本记录 · {d.versions.length} 个版本</summary>
+                      <div className="flex flex-col gap-1 pb-1">
+                        {d.versions.map((version, index) => <button key={version.id} type="button" aria-current={version.id === currentId ? "page" : undefined} onClick={() => { setOpen(false); onSelect(version.id); }} className={`rounded-md px-2 py-2 text-left ${version.id === currentId ? "bg-accent-50 text-accent-700" : "hover:bg-stone-100"}`}>
+                          <span className="block truncate">{index === d.versions.length - 1 ? "原始讲解" : `第 ${d.versions.length - index} 版 · ${version.instruction ?? "深化讲解"}`}{index === 0 ? " · 最新" : ""}</span>
+                          <span className="mt-0.5 block font-mono text-[10px] text-stone-400">#{version.id} · {formatDay(version.createdAt)}</span>
+                        </button>)}
+                      </div>
+                    </details>}
                   </li>
                 ))
               )}

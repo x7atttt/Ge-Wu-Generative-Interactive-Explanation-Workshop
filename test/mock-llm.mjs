@@ -5,6 +5,8 @@ let pending = false;
 let outputs = [];
 let calls = 0;
 let streamPause = 0;
+let streamChunkSize = 0;
+let streamChunkDelay = 0;
 let repairDelay = 0;
 let repairRequests = [];
 let reviewRequests = [];
@@ -28,7 +30,7 @@ createServer(async (req, res) => {
   req.setEncoding("utf8");
   for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw);
-  if (req.url === "/control") { epoch++; cancellations = 0; faults = body.faults ?? []; nextDelay = body.delay ?? 0; streamPause = body.streamPause ?? 0; repairDelay = body.repairDelay ?? 0; reviewDelay = body.reviewDelay ?? 0; reviews = body.reviews ?? []; reviewRequests = []; repairRequests = []; requests = []; if (body.outputs) outputs = body.outputs; res.end("ok"); return; }
+  if (req.url === "/control") { epoch++; cancellations = 0; faults = body.faults ?? []; nextDelay = body.delay ?? 0; streamPause = body.streamPause ?? 0; streamChunkSize = body.streamChunkSize ?? 0; streamChunkDelay = body.streamChunkDelay ?? 0; repairDelay = body.repairDelay ?? 0; reviewDelay = body.reviewDelay ?? 0; reviews = body.reviews ?? []; reviewRequests = []; repairRequests = []; requests = []; if (body.outputs) outputs = body.outputs; res.end("ok"); return; }
   const system = body.messages?.[0]?.content ?? "";
   const isReview = system.startsWith("你是教学内容复核员");
   if (isReview) reviewRequests.push(body.messages);
@@ -55,7 +57,7 @@ createServer(async (req, res) => {
     return;
   }
   active++; pending = true;
-  const pause = streamPause, repairPause = isReview ? reviewDelay : repairDelay;
+  const pause = streamPause, chunkSize = streamChunkSize, chunkDelay = streamChunkDelay, repairPause = isReview ? reviewDelay : repairDelay;
   try {
   const reviewInput = isReview ? JSON.parse(body.messages.at(-1).content) : null;
   const reviewValue = isReview ? reviews.shift() ?? { checks: reviewInput.requiredBlockIndices.map(blockIndex => ({ blockIndex, verdict: "pass", reason: "本地替身只验证流程，不判断事实正确性。" })) } : null;
@@ -77,7 +79,11 @@ createServer(async (req, res) => {
       }
       if (stopped.signal.aborted) return;
     }
-    res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: output } }] })}\n\n`);
+    for (let offset = 0; offset < output.length; offset += chunkSize || output.length) {
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: output.slice(offset, offset + (chunkSize || output.length)) } }] })}\n\n`);
+      if (chunkDelay > 0) await wait(chunkDelay);
+      if (stopped.signal.aborted) return;
+    }
     if (pause > 0) await wait(pause);
     if (stopped.signal.aborted) return;
     res.end("data: [DONE]\n\n");

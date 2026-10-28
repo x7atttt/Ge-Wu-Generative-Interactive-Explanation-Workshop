@@ -1,0 +1,60 @@
+import "./source-hooks.mjs";
+import assert from "node:assert/strict";
+import { writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { diagramDoc } from "./diagram-fixture.mjs";
+import { reactDiagram } from "./diagram-react-fixture.mjs";
+const { computeDeepens } = await import("../src/lib/dsl/deepen.ts");
+const base = { ...diagramDoc, title: "图示持续深化验收" };
+const appended = { ...base, blocks: [...base.blocks, { type: "heading", text: "补充上下文的来源" }, { type: "text", content: "这是新补充的解释，原来的讲解保留。" }] };
+const twice = { ...appended, blocks: [...appended.blocks, { type: "text", content: "这是第二次补充。" }] };
+const rewritten = structuredClone(appended); rewritten.blocks[1].content = "这是修订后的介绍。";
+const info = (doc, instruction = null) => ({ blocks: doc.blocks, instruction });
+const reordered = structuredClone(appended);
+reordered.blocks = reordered.blocks.map(block => Object.fromEntries(Object.entries(block).reverse()));
+assert.deepEqual(computeDeepens([info(base), info(reordered, "补充来源")]).map(x => x.fromIndex), [base.blocks.length], "字段顺序不能被当成改写");
+assert.deepEqual(computeDeepens([info(base), info(appended, "补充来源"), info(twice, "继续补充")]).map(x => x.fromIndex), [base.blocks.length, appended.blocks.length]);
+assert.deepEqual(computeDeepens([info(base), info(rewritten, "改写介绍")]), [], "历史改写不得把整篇原文标成深化");
+assert.deepEqual(computeDeepens([info(base), info(appended, "补充来源"), info(rewritten, "改写介绍")]), [], "修订后清除失效边界");
+assert.deepEqual(computeDeepens([info(base), info(rewritten, "改写介绍"), info({ ...rewritten, blocks: [...rewritten.blocks, { type: "text", content: "新补充" }] }, "再补充")]).map(x => x.fromIndex), [rewritten.blocks.length]);
+const server = "http://127.0.0.1:3100", model = "http://127.0.0.1:3101";
+let spaceId;
+async function run(path, body, outputs) {
+  await fetch(model + "/control", { method: "POST", body: JSON.stringify({ outputs }) });
+  const response = await fetch(server + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  assert(response.ok);
+  const events = (await response.text()).split("\n").filter(line => line.startsWith("data: ")).map(line => JSON.parse(line.slice(6)));
+  return { done: events.find(e => e.type === "done"), events, state: await (await fetch(model + "/state")).json() };
+}
+try {
+  ({ id: spaceId } = await (await fetch(server + "/api/spaces", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: `持续深化验收-${Date.now()}` }) })).json());
+  const initial = (await run("/api/generate", { concept: base.title, webSearch: false, spaceId }, [base])).done;
+  assert(initial);
+  const parent = { doc: base, docId: initial.docId, instruction: "补充上下文来源", mode: "append", effort: "high" };
+  const fixed = await run("/api/refine", parent, [rewritten, appended]);
+  assert.deepEqual(fixed.done.doc, appended);
+  assert.equal(fixed.state.repairRequests.length, 1);
+  assert.deepEqual(fixed.state.requests.map(r => r.effort), ["high", "high", "low"]);
+  const count = async () => (await (await fetch(`${server}/api/docs?spaceId=${spaceId}`)).json()).docs.length;
+  const before = await count();
+  const failed = await run("/api/refine", parent, [rewritten, rewritten]);
+  assert(!failed.done && failed.events.some(e => e.type === "error"));
+  assert.equal(await count(), before, "重复改写补充请求不得保存");
+  const revised = await run("/api/refine", { ...parent, doc: appended, docId: fixed.done.docId, instruction: "改写介绍", mode: "revise" }, [rewritten]);
+  assert.deepEqual(revised.done.doc, rewritten);
+  const groups = (await (await fetch(`${server}/api/docs?grouped=1&spaceId=${spaceId}`)).json()).docs;
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].id, initial.docId);
+  assert.equal(groups[0].latestId, revised.done.docId);
+  assert.deepEqual(groups[0].versions.map(v => v.id), [revised.done.docId, fixed.done.docId, initial.docId]);
+  assert.deepEqual((await (await fetch(`${server}/api/docs/${initial.docId}`)).json()).doc, base, "原文仍可单独恢复");
+  const invalidMode = await fetch(server + "/api/refine", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...parent, mode: "replace-all" }) });
+  assert.equal(invalidMode.status, 400);
+  writeFileSync("data/lesson-continuity-fixture.json", JSON.stringify({ spaceId, base, appended, rewritten, reactDiagram, rootId: initial.docId, latestId: revised.done.docId }));
+  assert.equal(spawnSync("python", ["test/lesson-continuity-ui.py"], { stdio: "inherit" }).status, 0);
+  for (const id of [initial.docId, fixed.done.docId, revised.done.docId]) assert.equal((await fetch(`${server}/api/docs/${id}`)).status, 404, "历史删除整篇及其全部版本");
+  assert.equal((await (await fetch(`${server}/api/docs?grouped=1&spaceId=${spaceId}`)).json()).docs.length, 1, "其他独立讲解仍保留");
+  console.log("PASS: append/revise protection, bounded repair, original recovery, grouped history, multi-round boundaries and desktop slow-stream continuity");
+} finally {
+  if (spaceId) await fetch(`${server}/api/spaces/${spaceId}`, { method: "DELETE" });
+}

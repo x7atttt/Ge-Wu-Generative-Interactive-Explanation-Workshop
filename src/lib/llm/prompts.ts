@@ -138,11 +138,11 @@ ${opts.practice ? "" : `
  {"type":"quiz","question":"key 和 city 都以 y 结尾，为什么复数分别是 keys 和 cities？","options":["y 前的字母不同：key 是元音加 y，city 是辅音加 y","所有 y 结尾都直接加 s","key 是不规则名词","city 是不可数名词"],"answer":0,"explanation":"要看 y 前的字母：元音加 y 直接加 s；辅音加 y 变 y 为 ies。不能只看最后一个字母 y。"}]}`}`;
 }
 
-export function refineSystemPrompt(): string {
+export function refineSystemPrompt(mode: "append" | "revise" = "revise"): string {
   return `你是「格物」的讲解改造器。输入是当前讲解文档（JSON）与用户的一句改造指令，输出修改后的完整文档 JSON。只输出 JSON 本身，不要用 markdown 代码块包裹。
 
 规则：${CONTENT_RULES}
-- version 保持 1，块类型不变；指令未提及的既有块保持逐字不变（前端靠块级 diff 做"深化"分组）
+- version 保持 1，块类型不变；${mode === "append" ? "本轮仅补充：标题和所有既有块必须逐字不变、顺序不变，完整原文之后才追加新块；即使用户要求换一种讲法，也在末尾补充新解释，不替换原文。不要重复原有四段教学或重新讲整篇。" : "本轮修订原文：允许按指令修改既有块，未涉及的内容逐字保留；不要把修订内容复制追加成重复章节。"}
 - 新增内容以 heading 块开头，标题概括本次深化主题；heading 文本**不要以「深化：」开头**（界面已用分组卡表达深化语义），直接写主题，如 {"type":"heading","text":"自测题——检验你的理解"}
 - 尽量把新增块追加在文档末尾
 - 指令通常是内容级操作：深入某主题、增加对比演示/现实例子、补充公式、出自测题、改用图表呈现等

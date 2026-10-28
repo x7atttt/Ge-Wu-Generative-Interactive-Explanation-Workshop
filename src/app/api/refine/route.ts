@@ -7,7 +7,7 @@ import { explainDocSchema } from "@/lib/dsl/schema";
 import { isReasoningEffort } from "@/lib/effort";
 
 export async function POST(req: Request) {
-  let body: { doc?: unknown; instruction?: unknown; docId?: unknown; effort?: unknown };
+  let body: { doc?: unknown; instruction?: unknown; docId?: unknown; effort?: unknown; mode?: unknown };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -18,6 +18,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "思考强度须为 low、high 或 max" }, { status: 400 });
   }
   const effort = body.effort;
+  if (body.mode !== undefined && body.mode !== "append" && body.mode !== "revise") {
+    return NextResponse.json({ error: "请选择补充讲解或修订原文" }, { status: 400 });
+  }
+  // 未传 mode 的旧客户端保留原有改造语义，新界面明确选择补充或修订。
+  const mode = body.mode ?? "revise";
   const instruction = body.instruction;
   if (typeof instruction !== "string" || !instruction.trim()) {
     return NextResponse.json({ error: "请输入改造指令" }, { status: 400 });
@@ -56,7 +61,7 @@ export async function POST(req: Request) {
         signal,
         onThinking: () => send({ type: "info", message: "模型正在思考，尚未返回正文" }),
         onRetry: (attempt) => send({ type: "retry", attempt, message: `连接暂时异常，正在重新连接（${attempt}/2）` }),
-      });
+      }, mode);
       if (signal.aborted) return;
       // refine 子版本继承父版本的空间归属与出身概念（概念地图状态不被深化打散）
       const parent = parentDocId !== null ? getDoc(parentDocId) : null;

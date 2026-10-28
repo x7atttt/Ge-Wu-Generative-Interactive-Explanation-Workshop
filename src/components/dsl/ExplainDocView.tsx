@@ -135,7 +135,7 @@ export function ExplainDocView({
               key={gi}
               className="rounded-xl border border-accent-100 bg-accent-50/60 px-4 py-3 text-xs text-accent-700"
             >
-              深化 · {segment.label}（本次新增参数已加入参数台）
+              补充 · {segment.label}（本次新增参数已加入参数台）
             </div>
           );
         }
@@ -145,7 +145,7 @@ export function ExplainDocView({
             className="flex flex-col gap-4 rounded-xl border border-accent-100 bg-accent-50/60 p-4"
           >
             <p className="text-xs font-medium text-accent-700">
-              <span className="mr-1.5 rounded bg-accent-100 px-1.5 py-0.5">深化</span>
+              <span className="mr-1.5 rounded bg-accent-100 px-1.5 py-0.5">补充</span>
               {segment.label}
             </p>
             <div className="flex flex-col gap-4">

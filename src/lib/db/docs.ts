@@ -29,6 +29,11 @@ export interface DocSummary {
   createdAt: string;
 }
 
+export interface DocHistoryEntry extends DocSummary {
+  latestId: number;
+  versions: (DocSummary & { instruction: string | null })[];
+}
+
 interface RawRow {
   id: number;
   parent_id: number | null;
@@ -142,6 +147,31 @@ export function listDocs(limit = 500, spaceId?: number): DocSummary[] {
           .prepare("SELECT id, title, created_at FROM docs ORDER BY id DESC LIMIT ?")
           .all(limit) as unknown as { id: number; title: string; created_at: string }[]);
   return rows.map((row) => ({ id: row.id, title: row.title, createdAt: row.created_at }));
+}
+
+/** 按原始讲解归组，旧版本保留；限制篇数而非先截断版本链。 */
+export function listDocHistory(limit = 500, spaceId?: number): DocHistoryEntry[] {
+  const rows = getDb().prepare(`
+    WITH RECURSIVE families(id, root_id) AS (
+      SELECT id, id FROM docs WHERE parent_id IS NULL
+      UNION ALL
+      SELECT d.id, f.root_id FROM docs d JOIN families f ON d.parent_id = f.id
+    )
+    SELECT d.id, f.root_id, d.title, d.instruction, d.created_at, root.title AS root_title
+    FROM docs d JOIN families f ON f.id = d.id JOIN docs root ON root.id = f.root_id
+    ${spaceId !== undefined ? "WHERE d.space_id = ?" : ""} ORDER BY d.id DESC
+  `).all(...(spaceId !== undefined ? [spaceId] : [])) as unknown as { id: number; root_id: number; title: string; instruction: string | null; created_at: string; root_title: string }[];
+  const groups = new Map<number, DocHistoryEntry>();
+  for (const row of rows) {
+    let group = groups.get(row.root_id);
+    if (!group) {
+      if (groups.size >= limit) continue;
+      group = { id: row.root_id, latestId: row.id, title: row.root_title, createdAt: row.created_at, versions: [] };
+      groups.set(row.root_id, group);
+    }
+    group.versions.push({ id: row.id, title: row.title, instruction: row.instruction, createdAt: row.created_at });
+  }
+  return [...groups.values()];
 }
 
 /**

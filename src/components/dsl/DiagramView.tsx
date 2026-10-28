@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { BaseEdge, EdgeLabelRenderer, Handle, MarkerType, Position, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type EdgeProps, type Node, type NodeProps } from "@xyflow/react";
+import { memo, useEffect, useId, useMemo, useRef, useState } from "react";
+import { BaseEdge, EdgeLabelRenderer, Handle, MarkerType, Position, ReactFlow, ReactFlowProvider, useNodesInitialized, useReactFlow, type Edge, type EdgeProps, type Node, type NodeProps } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { DiagramBlock } from "@/lib/dsl/schema";
 import { chooseDiagramLayout, diagramGeometryKey, diagramViewport, layoutDiagramCandidates, type DiagramCandidates, type DiagramDirection, type DiagramLayout, type DiagramPort } from "@/lib/dsl/diagram-layout";
@@ -45,11 +45,14 @@ function DiagramCanvas({ block }: { block: DiagramBlock }) {
   const [width, setWidth] = useState(800);
   const [measuredHeight, setMeasuredHeight] = useState(560);
   const container = useRef<HTMLDivElement>(null);
+  const fitted = useRef<{ layout: DiagramLayout; width: number; height: number } | null>(null);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [step, setStep] = useState<number | null>(() => typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches && block.steps?.length ? 0 : null);
   const flow = useReactFlow();
+  // 直接观察已测量的节点/端口；受控 nodes 不依赖后续流片段来刷新就绪状态。
+  const nodesReady = useNodesInitialized({ includeHiddenNodes: true });
   useEffect(() => {
     let cancelled = false;
     layoutDiagramCandidates(block).then(value => { if (!cancelled) { setCandidates(value); setError(false); } }).catch(() => { if (!cancelled) setError(true); });
@@ -69,24 +72,30 @@ function DiagramCanvas({ block }: { block: DiagramBlock }) {
   const height = layout ? diagramViewport(layout, width).height : 560;
   useEffect(() => {
     // 方向切换会改变图框高度，等实际尺寸与 React Flow 的观察器同步后再适配。
-    if (!layout || measuredHeight !== height) return;
-    const frame = requestAnimationFrame(() => { void flow.fitBounds(layout.bounds, { padding: 0.06 }); });
+    if (!layout || measuredHeight !== height || !nodesReady || !flow.viewportInitialized) return;
+    if (fitted.current?.layout === layout && fitted.current.width === width && fitted.current.height === height) return;
+    const frame = requestAnimationFrame(() => {
+      void flow.fitBounds(layout.bounds, { padding: 0.06 });
+      fitted.current = { layout, width, height };
+    });
     return () => cancelAnimationFrame(frame);
-  }, [layout, width, height, measuredHeight, flow]);
+  }, [layout, width, height, measuredHeight, nodesReady, flow]);
   const currentStep = step === null ? undefined : block.steps?.[step];
-  const activeNodes = currentStep?.nodeIds ?? (selected ? [selected] : []);
-  const activeEdges = currentStep?.edgeIds ?? [];
+  const activeNodes = useMemo(() => currentStep?.nodeIds ?? (selected ? [selected] : []), [currentStep, selected]);
+  const activeEdges = useMemo(() => currentStep?.edgeIds ?? [], [currentStep]);
   const selectedNode = block.nodes.find(node => node.id === selected);
-  const nodes: Node[] = (layout?.nodes ?? []).map(node => node.group ? {
+  const nodes = useMemo<Node[]>(() => (layout?.nodes ?? []).map(node => node.group ? {
     id: node.id, type: "lessonGroup", position: node.position, data: { label: node.label, labelPosition: node.labelPosition },
+    width: node.width, height: node.height,
     style: { width: node.width, height: node.height, background: "var(--color-secondary-50)", border: "1px solid var(--color-secondary-200)", borderRadius: 16, color: "var(--color-secondary-700)", padding: 14, fontSize: 13 },
     selectable: false, draggable: false, focusable: false,
   } : {
     id: node.id, type: "lesson", position: node.position, parentId: node.parentId,
+    width: node.width, height: node.height,
     style: { width: node.width, height: node.height, pointerEvents: "all" }, draggable: false, selectable: false, focusable: false,
     data: { label: node.label, accessibleLabel: block.nodes.find(item => `node:${item.id}` === node.id)!.label, ports: node.ports, active: activeNodes.includes(node.id.slice(5)), choose: () => { setSelected(node.id.slice(5)); setStep(null); } },
-  });
-  const edges: Edge[] = (layout?.edges ?? []).map(edge => {
+  }), [layout, block.nodes, activeNodes]);
+  const edges = useMemo<Edge[]>(() => (layout?.edges ?? []).map(edge => {
     const source = block.edges.find(item => item.id === edge.id)!;
     const active = activeEdges.includes(edge.id) || (selected !== null && (source.source === selected || source.target === selected));
     const color = active ? "var(--color-accent-600)" : "var(--color-secondary-400)";
@@ -94,7 +103,7 @@ function DiagramCanvas({ block }: { block: DiagramBlock }) {
       data: { path: edge.path, labelPosition: edge.labelPosition, labelWidth: edge.labelWidth, labelHeight: edge.labelHeight }, focusable: false, selectable: false,
       markerEnd: { type: MarkerType.ArrowClosed, color }, style: { stroke: color, strokeWidth: active ? 2.5 : 1.5, strokeDasharray: source.kind === "residual" ? "6 4" : undefined },
     };
-  });
+  }), [layout, block.edges, activeEdges, selected]);
   const steps = block.steps ?? [];
   const chooseStep = (index: number | null) => {
     setStep(index); setSelected(null);
@@ -120,9 +129,10 @@ function DiagramCanvas({ block }: { block: DiagramBlock }) {
         <button type="button" onClick={() => chooseStep(null)} className="min-h-9 rounded-lg border border-stone-200 bg-card px-2 text-xs text-stone-700">适应视图</button>
       </div>
     </div>
-    <div ref={container} className="diagram-canvas relative w-full" style={{ height }} data-direction={layout?.direction} aria-busy={!layout && !error}>
+    <div ref={container} className="diagram-canvas relative w-full" style={{ height }} data-direction={layout?.direction} aria-busy={(!layout || !nodesReady) && !error}>
       {layout && <ReactFlow id={id} key={retry} nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} fitView fitViewOptions={step === null ? fitOptions : stepFitOptions(block, step)} onInit={() => { if (step === null) void flow.fitBounds(layout.bounds, { padding: 0.06 }); }} minZoom={0.15} maxZoom={1.5} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} nodesFocusable={false} edgesFocusable={false} zoomOnScroll={false} preventScrolling={false} onPaneClick={() => chooseStep(null)} aria-label="架构图画布" />}
       {!layout && !error && <p role="status" className="absolute inset-0 flex items-center justify-center text-sm text-stone-500">正在排布架构图…</p>}
+      {layout && !nodesReady && <p role="status" className="pointer-events-none absolute inset-0 flex items-center justify-center bg-paper/80 text-sm text-stone-500">图已生成，正在准备视图…</p>}
       {error && <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-card text-sm text-stone-700">架构图排布失败<button type="button" onClick={() => { setError(false); setRetry(value => value + 1); }} className="rounded-lg border border-accent-200 px-3 py-2 text-accent-700">重试排布</button></div>}
     </div>
     {steps.length > 0 && <div className="border-t border-stone-200 bg-card px-4 py-3">
@@ -142,6 +152,6 @@ function DiagramCanvas({ block }: { block: DiagramBlock }) {
   </figure>;
 }
 
-export default function DiagramView({ block }: { block: DiagramBlock }) {
+export default memo(function DiagramView({ block }: { block: DiagramBlock }) {
   return <ReactFlowProvider><DiagramCanvas key={diagramGeometryKey(block)} block={block} /></ReactFlowProvider>;
-}
+}, (previous, next) => JSON.stringify(previous.block) === JSON.stringify(next.block));
