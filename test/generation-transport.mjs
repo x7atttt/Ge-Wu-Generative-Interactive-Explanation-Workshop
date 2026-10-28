@@ -42,7 +42,7 @@ try {
   assert.deepEqual(recovered.filter(e => e.type === "retry").map(e => e.attempt), [1, 2]);
   const parent = recovered.find(e => e.type === "done");
   assert.deepEqual(parent.doc, valid);
-  assert.deepEqual((await state()).requests.map(r => r.effort), ["max", "max", "max", "max"]);
+  assert.deepEqual((await state()).requests.map(r => r.effort), ["max", "max", "max", "low"]);
   for (const path of ["/api/generate", "/api/refine", "/api/ask"]) {
     await configure({ faults: [{ mode: "reasoning", delay: 300 }], outputs: [path === "/api/ask" ? "完整回答" : valid] });
     const body = path === "/api/ask" ? { docId: parent.docId, question: "解释等待过程" } : path === "/api/refine" ? { doc: valid, docId: parent.docId, instruction: "补充说明" } : generate;

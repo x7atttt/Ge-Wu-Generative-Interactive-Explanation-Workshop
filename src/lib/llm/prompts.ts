@@ -7,9 +7,9 @@ const DIAGRAM_RULES = `
 架构图 diagram 契约（不生成 image）：
 {"type":"diagram","title":"架构总览","caption":"可选说明","direction":"LR","groups":[{"id":"encoder","label":"编码器"}],"nodes":[{"id":"attention","label":"自注意力","description":"点击模块显示的具体说明","group":"encoder"},{"id":"ffn","label":"前馈网络","description":"解释该模块的职责","group":"encoder"}],"edges":[{"id":"attention_ffn","source":"attention","target":"ffn","label":"表示","kind":"data"}],"steps":[{"title":"理解表示","description":"说明此步的数据流与模块职责","nodeIds":["attention","ffn"],"edgeIds":["attention_ffn"]}]}
 - 上例仅演示字段，不是完整架构；按用户主题生成实际模块与关系。架构/组成/流程主题优先 diagram + 文字 + 自测，不用 chart 冒充架构图。
-- direction 只能 LR 或 TB，可省略；分组架构优先 LR，组内由程序纵向排布，输入处理模块也归入对应分组，避免把组间流程拉成长链。groups、steps、caption、节点 group、边 label/kind、步骤 edgeIds 均可省略。nodes 的 id/label/description 和 edges 的 id/source/target 必填。
+- direction 只能 LR 或 TB，可省略，是自动布局的偏好；程序统一处理全图方向和路由，不要依赖组内/组间方向混用。groups、steps、caption、节点 group、边 label/kind、步骤 edgeIds 均可省略。nodes 的 id/label/description 和 edges 的 id/source/target 必填。
 - ID 以字母或下划线开头，只含字母/数字/下划线/连字符；各数组内部 ID 唯一。节点 group 必须存在，分组不能空；边两端必须是节点 ID，步骤 nodeIds/edgeIds 必须实际存在。
-- 最多 40 个节点、80 条边、8 个分组、20 个步骤；节点说明不超过 1500 字，标签不超过 120 字。大架构分成总览与局部 diagram，不堆叠全部细节。
+- 默认主图通常 5–10 个节点、2–4 个步骤，节点与步骤说明各用一两句话；只画解释核心机制必需的模块，不重复抄写正文。复杂内容可通过深化补充，不能省略影响正确性的条件。契约上限仍为 40 个节点、80 条边、8 个分组、20 个步骤，节点说明不超过 1500 字，标签不超过 120 字。
 - kind=data 表示实线数据流，kind=residual 表示虚线残差或跳连。steps 按教学顺序组织，每步给完整说明并至少高亮一个节点。
 - 不同执行位置的同名模块必须有独立 ID；例如多处 Add & Norm 不能共用一个节点，避免把前向网络误画成回路。省略模块时用 caption 明确说明，不画虚假的数据流。
 - 不输出坐标、CSS、HTML、SVG 或脚本。文字、图中节点、箭头方向须一致；保留架构版本差异，不能混用不同变体。diagram 不消费滑块变量，数值实验仍用真正绑定的 chart/wavePlot。`;
@@ -40,11 +40,11 @@ export interface GeneratePromptOpts {
 }
 
 const TEACHING_FLOW = `
-讲解组织（普通新讲解）：用一句直觉问题引入，引入也不能提前泄露后续预测的答案；随后依次使用四个 heading：“先预测”“动手观察”“解释现象”“变式自测”。每段围绕同一个可核对的小案例，不写成长篇百科。
+讲解组织（普通新讲解）：用一句直觉问题引入，引入也不能提前泄露后续预测的答案；随后依次使用四个 heading：“先预测”“动手观察”“解释现象”“变式自测”。以一个核心案例、一幅主要图示（适用时）和一道迁移题为主，各段文字一两小段，细节留给深化讲解。这是篇幅目标，不得截断输出或删除必要条件。
 - 先预测：用 text 提出一个具体、可验证的问题，让学习者在心中判断并记下理由；在这一段保留悬念，不提前给结论，不用 quiz/fillBlank/match/sort 记录预测，避免把学习前的猜测计为练习错误。
 - 动手观察：给出实际可执行的任务与观察目标。数值主题说明固定什么、把哪个真实滑块从哪个值调到哪个值、在哪个区间看什么；取值必须在范围内并符合 step。架构主题让用户点击真实存在的节点或切换真实步骤，沿箭头追踪信息；语言主题用 fillBlank/match/sort 比较例子；没有适合的控件时用固定案例逐步推演，明确它不是动态模拟。不为凑流程添加滑块。
 - 解释现象：操作之后再揭示预测结果，用文字/公式说明原因及适用条件，回应观察目标；明确固定参考与可变部分。涉及时间频率时说清横轴按秒计时，不能把任意空间坐标直接当 Hz；保留模型变体、计数约定、简化图的省略说明。
-- 变式自测：给 1~2 个能独立作答的 quiz（需要时可配其他练习），改变条件或推理方向以检验迁移，不照抄预测问题，也不只换一组数值。选项完整、答案唯一，解析说明理由与常见误区。
+- 变式自测：默认给一道能独立作答的 quiz，改变条件或推理方向以检验迁移，不照抄预测问题，也不只换一组数值。选项完整、答案唯一，解析说明理由与常见误区；用户明确要求多题时按要求提供。
 - 四段只使用已有块类型，标题可在约定名称后补主题；正文与 diagram 的步骤/节点标签必须相互对应。用直接服务主题的例子，避免无关的群体概括或无法核对的数字。`;
 
 export function generateSystemPrompt(opts: GeneratePromptOpts = {}): string {

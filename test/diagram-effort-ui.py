@@ -43,7 +43,7 @@ with sync_playwright() as p:
     expect(figure.get_by_text('正在排布架构图…', exact=True)).to_have_count(0)
     expect(figure.get_by_text('编码器 · Encoder', exact=True)).to_be_visible()
     expect(figure.get_by_text('解码器 · Decoder', exact=True)).to_be_visible()
-    assert page.request.get(MODEL + '/state').json()['requests'][-1]['effort'] == 'max'
+    assert [r for r in page.request.get(MODEL + '/state').json()['requests'] if not r['review']][-1]['effort'] == 'max'
     expect(effort).to_be_enabled()
     expect(figure.locator('path.react-flow__edge-path')).to_have_count(8)
     expect(figure.locator('path.react-flow__edge-path[style*="stroke-dasharray"]')).to_have_count(1)

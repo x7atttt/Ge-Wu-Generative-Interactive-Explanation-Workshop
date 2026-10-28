@@ -702,7 +702,7 @@ export default function Home() {
               />
               <HoverSelect
                 label="思考强度"
-                description="用于讲解生成、深化和追问；更高档位可能需要更久"
+                description="正文、深化与追问使用所选档位；保存前复核固定 low"
                 prefix="思考"
                 value={effort}
                 onChange={updateEffort}

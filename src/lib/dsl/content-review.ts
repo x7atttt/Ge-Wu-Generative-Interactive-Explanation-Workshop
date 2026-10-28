@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { chat, requestTimeouts, type ChatMessage, type RequestControl } from "@/lib/llm/client";
-import type { ReasoningEffort } from "@/lib/effort";
 import type { ExplainDoc } from "./schema";
 
 export class ContentReviewError extends Error {
@@ -120,8 +119,9 @@ export function readContentReview(raw: string, doc: ExplainDoc): string | null {
   return issues.length ? issues.map((item) => `${item.blockIndex === -1 ? "文档" : `blocks[${item.blockIndex}]`}：${item.verdict === "uncertain" ? "条件不足，无法确认；" : ""}${item.reason}`).join("\n") : null;
 }
 
-export async function reviewContent(doc: ExplainDoc, context: ChatMessage[], effort?: ReasoningEffort, control: RequestControl = {}): Promise<string | null> {
+export async function reviewContent(doc: ExplainDoc, context: ChatMessage[], control: RequestControl = {}): Promise<string | null> {
   // 总预算覆盖客户端重试；服务异常不能交给生成器通过改写文档来“修复”。
+  const effort = "low";
   const timeout = AbortSignal.timeout(requestTimeouts(effort).reviewMs);
   const signal = control.signal ? AbortSignal.any([control.signal, timeout]) : timeout;
   try {

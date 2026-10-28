@@ -41,14 +41,46 @@ process.env.LLM_BASE_URL = "http://127.0.0.1:3101";
 process.env.LLM_API_KEY = "local-test-only";
 process.env.LLM_MODEL = "local-test";
 try {
-  for (const [effort, budget] of [["low", 90000], ["high", 180000], ["max", 300000]]) {
+  for (const effort of ["low", "high", "max"]) {
+    process.env.LLM_REASONING_EFFORT = effort;
     let budgetCalls = 0;
-    AbortSignal.timeout = ms => { assert.equal(ms, budget); return nativeTimeout(200); };
-    globalThis.fetch = async () => { budgetCalls++; return new Response("temporary", { status: 503 }); };
-    await assert.rejects(reviewContent(valid, [], effort), /内容复核超时/);
-    assert.equal(budgetCalls, 1, "各档复核总预算也约束重试退避，不能每次重试重新续期");
+    AbortSignal.timeout = ms => { assert.equal(ms, 90000); return nativeTimeout(200); };
+    globalThis.fetch = async (url, init) => {
+      budgetCalls++;
+      const body = JSON.parse(init.body);
+      assert.equal(body.reasoning_effort, "low");
+      assert.equal(body.model, process.env.LLM_MODEL, "复核仍用主模型");
+      return new Response("temporary", { status: 503 });
+    };
+    await assert.rejects(reviewContent(valid, []), /内容复核超时/);
+    assert.equal(budgetCalls, 1, "复核固定 low，整阶段预算约束重试退避");
   }
 } finally { globalThis.fetch = nativeFetch; AbortSignal.timeout = nativeTimeout; }
+const { generateDoc, refineDoc } = await import("../src/lib/dsl/generate.ts");
+try {
+  const requests = [];
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body); requests.push(body);
+    const reviewing = body.messages[0].content.startsWith("你是教学内容复核员");
+    return Response.json({ choices: [{ message: { content: JSON.stringify(reviewing ? verdict(valid) : valid) } }] });
+  };
+  const image = "data:image/png;base64,dGVzdA==";
+  await generateDoc("资料图像上下文验收", { effort: "max", sources: [{ title: "真实资料", content: "资料事实保留标记" }], refs: [{ title: "网络摘要", summary: "网络依据保留标记", url: "https://example.test" }], images: [image] });
+  assert.deepEqual(requests.map(body => body.reasoning_effort), ["max", "low"]);
+  const review = requests[1];
+  assert.equal(review.messages.length, 3, "复核不重复发送生成规范");
+  assert.match(JSON.stringify(review.messages[1]), /资料事实保留标记/);
+  assert.match(JSON.stringify(review.messages[1]), /网络依据保留标记/);
+  assert(JSON.stringify(review.messages[1]).includes(image), "复核保留原图");
+  assert.deepEqual(JSON.parse(review.messages.at(-1).content).document, valid);
+  requests.length = 0;
+  await refineDoc({ ...valid, title: "旧文档唯一标记" }, "增加对照说明", undefined, undefined, "high");
+  assert.deepEqual(requests.map(body => body.reasoning_effort), ["high", "low"]);
+  assert(JSON.stringify(requests[0]).includes("旧文档唯一标记"), "改造仍收到完整旧文档");
+  assert(!JSON.stringify(requests[1]).includes("旧文档唯一标记"), "复核不重复传旧文档");
+  assert.match(requests[1].messages[1].content, /增加对照说明/);
+  assert.deepEqual(JSON.parse(requests[1].messages.at(-1).content).document, valid);
+} finally { globalThis.fetch = nativeFetch; }
 const { streamExplanation } = await import("../src/lib/api/explanation.ts");
 for (const phase of ["build", "review", "repair"]) {
   let resets = 0;

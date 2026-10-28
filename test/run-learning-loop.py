@@ -39,6 +39,7 @@ try:
     if '--teaching-only' in sys.argv:
         sys.exit(subprocess.run(['node', 'test/teaching-flow.mjs', *[arg for arg in sys.argv if arg.startswith('--eval-run=')]], cwd=ROOT).returncode)
     choices = {'--review-only': ['content-review.mjs'], '--transport-only': ['generation-transport.mjs'], '--diagram-only': ['diagram-effort.mjs'], '--repair-only': ['generation-repair.mjs'], '--layout-only': ['light-toolbar.mjs'], '--hover-only': ['hover-select.mjs'], '--deletion-only': ['space-deletion.mjs'], '--content-only': ['content-quality.mjs']}
+    choices['--diagram-speed'] = ['diagram-effort.mjs', 'content-review.mjs', 'generation-transport.mjs', 'teaching-flow.mjs']
     scripts = next((scripts for flag, scripts in choices.items() if flag in sys.argv), ['learning-loop.mjs', 'content-quality.mjs', 'generation-repair.mjs', 'space-deletion.mjs', 'hover-select.mjs', 'light-toolbar.mjs', 'diagram-effort.mjs', 'generation-transport.mjs'])
     if not any(flag in sys.argv for flag in choices):
         scripts.append('teaching-flow.mjs')

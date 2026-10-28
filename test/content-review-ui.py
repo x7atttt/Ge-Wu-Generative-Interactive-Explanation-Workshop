@@ -23,7 +23,7 @@ with sync_playwright() as p:
     progress = page.get_by_role('region', name='讲解生成进度', exact=True)
     expect(progress.get_by_role('progressbar')).to_have_attribute('data-stage', 'review')
     expect(progress.get_by_text('正在核对题目与解析', exact=True)).to_be_visible()
-    expect(progress.get_by_text('正在单独复核算例、答案与解析，这一步也需要模型返回结果。', exact=True)).to_be_visible()
+    expect(progress.get_by_text('正文生成完成，正在以 low 单独复核算例、答案与解析。', exact=True)).to_be_visible()
     expect(progress.get_by_role('button', name='取消生成', exact=True)).to_be_enabled()
     assert progress.get_by_role('progressbar').get_attribute('aria-valuenow') is None
     expect(page.get_by_text('标准阶乘 factorial(3) = 6。', exact=True)).to_be_visible()

@@ -37,7 +37,7 @@ export function BuildProgressPanel({ raw, phase, stage, note, onCancel }: {
   const count = [...raw.matchAll(/"type"\s*:\s*"(heading|text|formula|slider|wavePlot|chart|diagram|fillBlank|match|sort|quiz)"/g)].length;
   const helper = stage === "prepare" ? "整理参考资料后开始生成。"
     : stage === "verify" ? "检查文档结构、公式和交互引用。"
-    : stage === "review" ? "正在单独复核算例、答案与解析，这一步也需要模型返回结果。"
+    : stage === "review" ? "正文生成完成，正在以 low 单独复核算例、答案与解析。"
     : stage === "repair" ? "正在调整内容与练习，请稍候。"
     : raw.trim() ? "已接收的讲解会在下方逐段显示。" : elapsed >= 15 ? "仍在等待正文；等待上限随思考强度调整，网络故障最多重试两次。" : "正在等待第一段内容，收到后会逐步展开。";
 

@@ -70,7 +70,7 @@ function strictChartChecks(doc: ExplainDoc): string | null {
 }
 
 /** 结构和内容共享一次修复；复核服务异常直接停止，不用改写文档掩盖检查失败。 */
-async function withRepair(raw: string, history: ChatMessage[], onStage?: (stage: GenerationStage) => void, effort?: ReasoningEffort, control: RequestControl = {}): Promise<ExplainDoc> {
+async function withRepair(raw: string, history: ChatMessage[], onStage?: (stage: GenerationStage) => void, effort?: ReasoningEffort, control: RequestControl = {}, reviewContext: ChatMessage[] = history): Promise<ExplainDoc> {
   control.signal?.throwIfAborted();
   const toMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
   let original: ExplainDoc | undefined;
@@ -86,7 +86,7 @@ async function withRepair(raw: string, history: ChatMessage[], onStage?: (stage:
     const arithmeticIssue = factorialFormulaIssue(doc) ?? factorialPremiseIssue(doc);
     if (arithmeticIssue) throw new DslError(`算例校验失败：${arithmeticIssue}`);
     onStage?.("review");
-    const issue = await reviewContent(doc, history, effort, control);
+    const issue = await reviewContent(doc, reviewContext, control);
     if (issue) throw new DslError(`内容一致性复核未通过：${issue}`);
     return doc;
   };
@@ -225,7 +225,8 @@ export async function refineDoc(
   const raw = onDelta
     ? await streamChat(history, options, onDelta)
     : await chat(history, options);
-  return withRepair(raw, history, onStage, effort, control);
+  // 复核已收到完整新文档；旧文档仅留给改造与必要的修复，避免重复传输。
+  return withRepair(raw, history, onStage, effort, control, [{ role: "user", content: `改造指令：${instruction}` }]);
 }
 
 /** 追问的既有对话轮次（user/assistant 交替），由路由层从库中组装 */
