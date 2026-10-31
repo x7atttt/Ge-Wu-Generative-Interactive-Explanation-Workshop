@@ -1,0 +1,455 @@
+{
+  "format": 1,
+  "id": "gewu-showcase-v1",
+  "name": "交互学习精选",
+  "provenance": "波形来自历史生成样本并经整理；算法流程、补充版本与资料为人工编排；无模拟成绩",
+  "sources": [
+    {
+      "key": "wave-notes",
+      "title": "演示资料 · 频率与周期",
+      "markdown": "# 频率与周期\n\n频率 f 表示每秒的完整振动次数，周期 T 表示一次完整振动所需时间，T=1/f。正弦波 y=A sin(2πft) 中，振幅 A 控制高度，频率 f 控制单位时间内的周期数。\n\n本资料为预置教学演示内容。",
+      "concepts": [
+        "正弦波的频率"
+      ]
+    },
+    {
+      "key": "sort-notes",
+      "title": "演示资料 · 分区与递归",
+      "markdown": "# 快速排序\n\n一次分区使基准两侧满足大小关系，子数组内部仍可能无序。递归入口检查子数组长度，长度不超过 1 时返回。\n\n# 稳定性\n\n排序的稳定性指相等关键字的记录在排序后是否保持原来的相对次序，不能只观察互不相同的整数来判断。\n\n本资料为预置教学演示内容。",
+      "concepts": [
+        "快速排序的分区与递归",
+        "排序的稳定性"
+      ]
+    }
+  ],
+  "lessons": [
+    {
+      "key": "wave-original",
+      "parent": null,
+      "instruction": null,
+      "concept": "正弦波的频率",
+      "sources": [
+        "wave-notes"
+      ],
+      "doc": {
+        "version": 1,
+        "title": "正弦波的频率",
+        "blocks": [
+          {
+            "type": "text",
+            "content": "预置演示案例：来自历史生成验收样本，经人工整理。可直接拖动滑块、作答；本次打开不调用模型。"
+          },
+          {
+            "type": "text",
+            "content": "同一秒里，波形能完成多少次完整振动？用一次小实验来判断。"
+          },
+          {
+            "type": "heading",
+            "text": "先预测"
+          },
+          {
+            "type": "text",
+            "content": "先在心中判断：振幅固定为 1，把频率 f 从 1 调到 3，1 秒内的完整周期数会怎样变化？每个周期占用的时间会变长还是变短？波峰高度又会如何？记下你的理由，稍后再核对。"
+          },
+          {
+            "type": "heading",
+            "text": "动手观察"
+          },
+          {
+            "type": "slider",
+            "var": "f",
+            "label": "频率 f",
+            "min": 0.5,
+            "max": 5,
+            "step": 0.1,
+            "initial": 1
+          },
+          {
+            "type": "text",
+            "content": "横轴按秒计时。把「频率 f」从 1 调到 2，再调到 3：数一数 0 到 1 秒内曲线完整起落了几次，比较周期被压缩的程度；同时观察波峰的高度是否始终保持在 1 附近。振幅与初相位在整个过程中保持不变。"
+          },
+          {
+            "type": "wavePlot",
+            "title": "固定振幅，观察频率变化",
+            "xLabel": "时间（秒）",
+            "yLabel": "y",
+            "terms": [
+              {
+                "fn": "sin",
+                "amp": 1,
+                "freq": {
+                  "$var": "f"
+                },
+                "phase": 0
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "text": "解释现象"
+          },
+          {
+            "type": "formula",
+            "latex": "y = A\\sin(2\\pi f t)",
+            "caption": "本例振幅 A=1、初相位为 0；t 按秒计时，f 的单位是赫兹（Hz）"
+          },
+          {
+            "type": "text",
+            "content": "频率 f 表示每秒完成的完整振动次数。f 从 1 调到 3，1 秒内的周期数就从 1 个变为 3 个；对应地，周期 T=1/f 从 1 秒缩短到约 0.33 秒——频率越高，每个周期越短，两者互为倒数。由于振幅 A 固定为 1，波形只在横向上被压缩或拉伸，波峰高度不变。这里的时间 t 是按秒计时的物理时间，f 的单位是 Hz；不能把任意横轴坐标直接当作秒来读频率，要看图的横轴标注。"
+          },
+          {
+            "type": "heading",
+            "text": "变式自测"
+          },
+          {
+            "type": "quiz",
+            "question": "某正弦波在 4 秒内完成 12 次完整振动，它的频率和周期分别是多少？",
+            "options": [
+              "3 Hz，0.33 秒",
+              "12 Hz，4 秒",
+              "0.33 Hz，3 秒",
+              "4 Hz，12 秒"
+            ],
+            "answer": 0,
+            "explanation": "频率是每秒的振动次数：12÷4=3 Hz；周期是每次振动所需时间：4÷12≈0.33 秒，且 T=1/f。把总次数 12 直接当成频率是常见误区。"
+          },
+          {
+            "type": "quiz",
+            "question": "保持频率不变，只把振幅从 1 调大到 2，波形会发生什么变化？",
+            "options": [
+              "波形在纵向被拉伸，波峰从 1 变为 2，周期数不变",
+              "每秒的周期数变为原来的 2 倍",
+              "波形在横向上被压缩，周期变短",
+              "波形整体向右平移半个周期"
+            ],
+            "answer": 0,
+            "explanation": "振幅只决定波形在纵向的高度范围，y=A·sin(2πft) 中的 A 不影响 2πft 这一项，所以频率与周期都不变，只是波峰从 1 升到 2。把振幅和频率的作用混在一起是常见错误。"
+          }
+        ]
+      }
+    },
+    {
+      "key": "wave-supplement",
+      "parent": "wave-original",
+      "instruction": "补充频率翻倍与周期的关系（预置示例）",
+      "concept": "正弦波的频率",
+      "sources": [
+        "wave-notes"
+      ],
+      "doc": {
+        "version": 1,
+        "title": "正弦波的频率",
+        "blocks": [
+          {
+            "type": "text",
+            "content": "预置演示案例：来自历史生成验收样本，经人工整理。可直接拖动滑块、作答；本次打开不调用模型。"
+          },
+          {
+            "type": "text",
+            "content": "同一秒里，波形能完成多少次完整振动？用一次小实验来判断。"
+          },
+          {
+            "type": "heading",
+            "text": "先预测"
+          },
+          {
+            "type": "text",
+            "content": "先在心中判断：振幅固定为 1，把频率 f 从 1 调到 3，1 秒内的完整周期数会怎样变化？每个周期占用的时间会变长还是变短？波峰高度又会如何？记下你的理由，稍后再核对。"
+          },
+          {
+            "type": "heading",
+            "text": "动手观察"
+          },
+          {
+            "type": "slider",
+            "var": "f",
+            "label": "频率 f",
+            "min": 0.5,
+            "max": 5,
+            "step": 0.1,
+            "initial": 1
+          },
+          {
+            "type": "text",
+            "content": "横轴按秒计时。把「频率 f」从 1 调到 2，再调到 3：数一数 0 到 1 秒内曲线完整起落了几次，比较周期被压缩的程度；同时观察波峰的高度是否始终保持在 1 附近。振幅与初相位在整个过程中保持不变。"
+          },
+          {
+            "type": "wavePlot",
+            "title": "固定振幅，观察频率变化",
+            "xLabel": "时间（秒）",
+            "yLabel": "y",
+            "terms": [
+              {
+                "fn": "sin",
+                "amp": 1,
+                "freq": {
+                  "$var": "f"
+                },
+                "phase": 0
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "text": "解释现象"
+          },
+          {
+            "type": "formula",
+            "latex": "y = A\\sin(2\\pi f t)",
+            "caption": "本例振幅 A=1、初相位为 0；t 按秒计时，f 的单位是赫兹（Hz）"
+          },
+          {
+            "type": "text",
+            "content": "频率 f 表示每秒完成的完整振动次数。f 从 1 调到 3，1 秒内的周期数就从 1 个变为 3 个；对应地，周期 T=1/f 从 1 秒缩短到约 0.33 秒——频率越高，每个周期越短，两者互为倒数。由于振幅 A 固定为 1，波形只在横向上被压缩或拉伸，波峰高度不变。这里的时间 t 是按秒计时的物理时间，f 的单位是 Hz；不能把任意横轴坐标直接当作秒来读频率，要看图的横轴标注。"
+          },
+          {
+            "type": "heading",
+            "text": "变式自测"
+          },
+          {
+            "type": "quiz",
+            "question": "某正弦波在 4 秒内完成 12 次完整振动，它的频率和周期分别是多少？",
+            "options": [
+              "3 Hz，0.33 秒",
+              "12 Hz，4 秒",
+              "0.33 Hz，3 秒",
+              "4 Hz，12 秒"
+            ],
+            "answer": 0,
+            "explanation": "频率是每秒的振动次数：12÷4=3 Hz；周期是每次振动所需时间：4÷12≈0.33 秒，且 T=1/f。把总次数 12 直接当成频率是常见误区。"
+          },
+          {
+            "type": "quiz",
+            "question": "保持频率不变，只把振幅从 1 调大到 2，波形会发生什么变化？",
+            "options": [
+              "波形在纵向被拉伸，波峰从 1 变为 2，周期数不变",
+              "每秒的周期数变为原来的 2 倍",
+              "波形在横向上被压缩，周期变短",
+              "波形整体向右平移半个周期"
+            ],
+            "answer": 0,
+            "explanation": "振幅只决定波形在纵向的高度范围，y=A·sin(2πft) 中的 A 不影响 2πft 这一项，所以频率与周期都不变，只是波峰从 1 升到 2。把振幅和频率的作用混在一起是常见错误。"
+          },
+          {
+            "type": "heading",
+            "text": "补充：频率翻倍，周期怎样变化？"
+          },
+          {
+            "type": "text",
+            "content": "保持振幅不变，把频率从 1 Hz 调到 2 Hz，观察同一时间范围内的周期数翻倍。由 T=1/f，周期从 1 秒缩短为 0.5 秒。原文与原有练习全部保留；这是预置的追加补充版本，可在历史记录展开查看原始讲解。"
+          }
+        ]
+      }
+    },
+    {
+      "key": "sort-original",
+      "parent": null,
+      "instruction": null,
+      "concept": "快速排序的分区与递归",
+      "sources": [
+        "sort-notes"
+      ],
+      "doc": {
+        "version": 1,
+        "title": "快速排序：先分区，再递归",
+        "blocks": [
+          {
+            "type": "text",
+            "content": "预置演示案例：人工整理的算法流程示意，不是本次实时生成结果。本例使用互不相同的整数。"
+          },
+          {
+            "type": "heading",
+            "text": "先预测"
+          },
+          {
+            "type": "text",
+            "content": "以 3 为基准整理 [3, 1, 5, 2, 4]，如果较小的值都去了左边、较大的值都去了右边，两边是否一定已经有序？先记下判断。"
+          },
+          {
+            "type": "heading",
+            "text": "动手观察"
+          },
+          {
+            "type": "diagram",
+            "title": "快速排序的分区与递归流程",
+            "direction": "LR",
+            "caption": "不同整数的简化流程，省略指针移动和交换细节；每次递归首先检查长度，不超过 1 就直接返回。点击节点或切换步骤观察分区与递归的关系。",
+            "groups": [
+              {
+                "id": "partition",
+                "label": "单轮分区"
+              },
+              {
+                "id": "recursion",
+                "label": "递归治理"
+              }
+            ],
+            "nodes": [
+              {
+                "id": "pivot",
+                "label": "选取基准",
+                "group": "partition",
+                "description": "选取基准，记录坑位。"
+              },
+              {
+                "id": "scan",
+                "label": "双向扫描分区",
+                "group": "partition",
+                "description": "移动左右指针，直到相遇。"
+              },
+              {
+                "id": "place",
+                "label": "基准归位",
+                "group": "partition",
+                "description": "基准两侧形成子数组。"
+              },
+              {
+                "id": "left",
+                "label": "左子数组递归",
+                "group": "recursion",
+                "description": "递归处理小于基准的部分。"
+              },
+              {
+                "id": "right",
+                "label": "右子数组递归",
+                "group": "recursion",
+                "description": "递归处理大于基准的部分。"
+              },
+              {
+                "id": "stop",
+                "label": "子数组长度 ≤ 1",
+                "group": "recursion",
+                "description": "无需再分区。"
+              }
+            ],
+            "edges": [
+              {
+                "id": "choose_scan",
+                "source": "pivot",
+                "target": "scan",
+                "label": "确定 pivot 与坑位"
+              },
+              {
+                "id": "scan_place",
+                "source": "scan",
+                "target": "place",
+                "label": "指针相遇"
+              },
+              {
+                "id": "split_left",
+                "source": "place",
+                "target": "left",
+                "label": "小于基准的部分"
+              },
+              {
+                "id": "split_right",
+                "source": "place",
+                "target": "right",
+                "label": "大于基准的部分"
+              },
+              {
+                "id": "left_end",
+                "source": "left",
+                "target": "stop",
+                "label": "规模缩小"
+              },
+              {
+                "id": "right_end",
+                "source": "right",
+                "target": "stop",
+                "label": "规模缩小"
+              }
+            ],
+            "steps": [
+              {
+                "title": "单轮分区",
+                "description": "先确定基准，再扫描并归位。",
+                "nodeIds": [
+                  "pivot",
+                  "scan",
+                  "place"
+                ],
+                "edgeIds": [
+                  "choose_scan",
+                  "scan_place"
+                ]
+              },
+              {
+                "title": "左右递归",
+                "description": "两个子数组分别递归处理。",
+                "nodeIds": [
+                  "place",
+                  "left",
+                  "right"
+                ],
+                "edgeIds": [
+                  "split_left",
+                  "split_right"
+                ]
+              },
+              {
+                "title": "递归终点",
+                "description": "子数组长度不超过 1 时终止。",
+                "nodeIds": [
+                  "left",
+                  "right",
+                  "stop"
+                ],
+                "edgeIds": [
+                  "left_end",
+                  "right_end"
+                ]
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "text": "解释现象"
+          },
+          {
+            "type": "text",
+            "content": "一次分区可以得到 [1, 2]、基准 3、[5, 4] 这样的左右两部分。这只保证基准两侧的大小关系，右边的 [5, 4] 仍需排序。接下来对子数组分别递归，每次先检查长度：长度不超过 1 就终止，否则再次分区。图中汇合到终点表示子问题最终都会终止，不表示所有子数组只分区一次。具体交换方案可以产生不同的分区结果。"
+          },
+          {
+            "type": "heading",
+            "text": "变式自测"
+          },
+          {
+            "type": "quiz",
+            "question": "一次正确分区后，基准右侧为 [8, 6, 7]。接下来应该怎样做？",
+            "options": [
+              "继续对右侧子数组递归排序",
+              "右边已经有序，直接结束",
+              "把基准移到整个数组末尾"
+            ],
+            "answer": 0,
+            "explanation": "分区只建立相对基准的大小关系，不保证子数组内部有序。长度大于 1 的子数组仍需递归处理。"
+          }
+        ]
+      }
+    }
+  ],
+  "roadmap": [
+    {
+      "title": "观察参数联动",
+      "goal": "拖动频率，比较周期与波峰高度；完成练习。",
+      "concepts": [
+        "正弦波的频率"
+      ]
+    },
+    {
+      "title": "读懂分区与递归",
+      "goal": "按步骤探索流程图，区分分区完成与排序完成。",
+      "concepts": [
+        "快速排序的分区与递归"
+      ]
+    },
+    {
+      "title": "继续现场探索",
+      "goal": "从资料生成稳定性讲解，体验实时生成；此步骤需要配置模型服务。",
+      "concepts": [
+        "排序的稳定性"
+      ]
+    }
+  ]
+}

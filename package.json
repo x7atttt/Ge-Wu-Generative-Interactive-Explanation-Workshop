@@ -9,7 +9,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "demo:import": "node scripts/demo-pack.mjs import",
+    "demo:export": "node scripts/demo-pack.mjs export"
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.20.0",
