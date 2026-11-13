@@ -250,7 +250,7 @@ export function SpaceMapPanel({
   }) : [];
 
   return (
-    <section aria-label="空间学习概览" className="home-reading-surface mx-auto mt-8 w-full max-w-[800px] rounded-3xl border border-panel-border bg-card p-4 text-ink sm:p-6">
+    <section aria-label="空间学习概览" className="mt-6 rounded-2xl border border-panel-border bg-card p-4 text-ink shadow-sm sm:p-6">
       {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}，已保留上次内容。
         <button type="button" disabled={loading} onClick={refresh} className="ml-2 underline">重试加载地图</button>
       </p>}

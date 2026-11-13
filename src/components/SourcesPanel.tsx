@@ -365,7 +365,7 @@ function SourcesDrawer({ context, onClose, children }: { context: string; onClos
     return () => { document.body.style.overflow = previous; };
   }, []);
   return createPortal(<motion.div className="fixed inset-0 z-[70] flex justify-end bg-stone-900/25" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }} onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>
-    <aside ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label="资料库" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }} className="home-palette home-focus h-dvh w-full max-w-md overflow-y-auto border-l border-panel-border bg-card text-ink shadow-xl outline-none">
+    <aside ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label="资料库" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }} className="home-focus h-dvh w-full max-w-md overflow-y-auto border-l border-panel-border bg-card text-ink shadow-xl outline-none">
       <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-divider bg-card px-6 py-5">
         <div><h2 className="font-display text-xl font-semibold text-ink">资料库</h2><p className="mt-1 break-words text-xs text-ink-muted">{context} · 参考资料</p></div>
         <button type="button" onClick={onClose} aria-label="关闭资料" className="home-tool h-9 w-9 shrink-0 justify-center"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4"><path d="m5 5 10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
