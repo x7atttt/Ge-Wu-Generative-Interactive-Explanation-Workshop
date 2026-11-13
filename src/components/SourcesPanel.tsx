@@ -235,7 +235,7 @@ export function SourcesPanel({
                 {loading && <span role="status" className="ml-auto text-ink-muted">加载中…</span>}
               </div>
 
-              {error && <p role="alert" className="mt-2 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs text-red-700">{error}<button type="button" onClick={() => { setError(null); if (retryAction) retryAction(); else refresh(); }} className="ml-2 underline">重试</button></p>}
+              {error && <p role="alert" className="mt-2 rounded-lg bg-caution-50 px-2.5 py-1.5 text-xs text-caution-700">{error}<button type="button" onClick={() => { setError(null); if (retryAction) retryAction(); else refresh(); }} className="ml-2 underline">重试</button></p>}
 
               <div className="mt-3 space-y-3">
                 {!viewingUngrouped && visible.length === 0 && !loading && (
@@ -265,16 +265,16 @@ export function SourcesPanel({
                         </span>
                         <span className="ml-auto shrink-0 text-xs">
                           {source.status === "parsing" && (
-                            <span className="animate-pulse text-amber-800">
+                            <span className="animate-pulse text-ink-secondary">
                               解析中{source.progress ? ` ${source.progress}` : elapsedSince(source.createdAt)}
                             </span>
                           )}
                           {source.status === "error" && (
-                            <span className="text-red-700" title={source.error}>
+                            <span className="text-caution-700" title={source.error}>
                               失败
                             </span>
                           )}
-                          {ready && <span className="text-emerald-800">{source.chars.toLocaleString()} 字</span>}
+                          {ready && <span className="text-ink-muted">{source.chars.toLocaleString()} 字</span>}
                         </span>
                       </div>
 
@@ -301,7 +301,7 @@ export function SourcesPanel({
                         <button
                           type="button"
                           onClick={() => handleDelete(source.id)}
-                          className="ml-auto text-ink-muted transition-colors hover:text-red-700"
+                          className="ml-auto text-ink-muted transition-colors hover:text-caution-700"
                         >
                           删除
                         </button>

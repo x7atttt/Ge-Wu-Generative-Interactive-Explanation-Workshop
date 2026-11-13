@@ -220,7 +220,7 @@ export function AskPanel({
           }}
           placeholder="如：这题为什么选 B？（📷 / 粘贴 / 拖入截图提问）"
           maxLength={300}
-          className="h-10 flex-1 rounded-xl border border-stone-200 px-3 text-sm outline-none transition-colors focus:border-accent-400"
+          className="home-field h-10 flex-1 rounded-xl border px-3 text-sm transition-colors"
           disabled={asking}
         />
         <input
@@ -239,7 +239,7 @@ export function AskPanel({
           onClick={() => fileRef.current?.click()}
           disabled={asking || imgBusy || images.length >= MAX_IMAGES}
           title={`附图提问（最多 ${MAX_IMAGES} 张，可粘贴截图）`}
-          className="h-10 rounded-xl border border-stone-200 px-3 text-sm text-stone-500 transition-colors hover:border-accent-300 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="h-10 rounded-xl border border-control-border px-3 text-sm text-ink-secondary transition-colors hover:border-accent-600 hover:text-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           📷
         </button>

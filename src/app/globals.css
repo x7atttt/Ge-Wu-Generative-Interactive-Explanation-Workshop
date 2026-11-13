@@ -1,40 +1,35 @@
 @import "tailwindcss";
 
 :root {
-  --background: #faf7f2;
-  --foreground: #292524;
+  --background: #f4f4f1;
+  --foreground: #252a28;
 }
 
 /*
- * 设计令牌「纸墨朱砂」（迭代 19）：
- * 纸色底 + 墨色字 + 朱砂点睛 + 黛青辅助，中文书面气质（格物致知）。
- * 语义功能色（答对绿/错误红/等待琥珀）沿用 Tailwind 内置，仅换装饰层。
+ * 灰白表面与黛青操作色。薄弱和错误使用独立的暖红色阶。
  */
 @theme {
-  /* 纸（页面底色，暖白微黄） */
-  --color-paper: #faf7f2;
+  --color-paper: #f5f6f5;
   --color-home-paper: #f4f4f1;
-  --color-card: #fffdf9;
-  --color-warm-surface: #f2e9dc;
-  --color-ink: #292524;
-  --color-ink-secondary: #514740;
-  --color-ink-muted: #6b5c50;
-  --color-divider: #d7cabb;
-  --color-panel-border: #c7b8a9;
-  --color-control-border: #8a7768;
-  --color-disabled-surface: #e7dfd4;
+  --color-card: #fcfdfc;
+  --color-warm-surface: #eef0ef;
+  --color-ink: #252a28;
+  --color-ink-secondary: #444d49;
+  --color-ink-muted: #58645f;
+  --color-divider: #d6dad8;
+  --color-panel-border: #c8d0cc;
+  --color-control-border: #75827e;
+  --color-disabled-surface: #e7ebe9;
 
-  /* 朱砂（accent：选中态/链接/点睛，按钮主色为墨不抢戏） */
-  --color-accent-50: #faf0ed;
-  --color-accent-100: #f4ddd6;
-  --color-accent-200: #e9bab0;
-  --color-accent-300: #dc9788;
-  --color-accent-400: #c96852;
-  --color-accent-500: #b34e38;
-  --color-accent-600: #a03d2a;
-  --color-accent-700: #843222;
+  --color-accent-50: var(--color-secondary-50);
+  --color-accent-100: var(--color-secondary-100);
+  --color-accent-200: var(--color-secondary-200);
+  --color-accent-300: var(--color-secondary-300);
+  --color-accent-400: var(--color-secondary-400);
+  --color-accent-500: var(--color-secondary-500);
+  --color-accent-600: var(--color-secondary-600);
+  --color-accent-700: var(--color-secondary-700);
 
-  /* 黛青（secondary：空间/已练习等信息层） */
   --color-secondary-50: #eef3f2;
   --color-secondary-100: #dce7e5;
   --color-secondary-200: #b9cfcc;
@@ -43,16 +38,19 @@
   --color-secondary-500: #43736e;
   --color-secondary-600: #365e5a;
   --color-secondary-700: #2c4a47;
+
+  --color-caution-50: #f8efed;
+  --color-caution-100: #f1e1de;
+  --color-caution-200: #c69d96;
+  --color-caution-600: #985951;
+  --color-caution-700: #79423a;
 }
 
 @layer components {
   .home-backdrop {
-    --color-divider: #d6dad8;
-    --color-panel-border: #c8d0cc;
-    --color-control-border: #7b8986;
     background-image:
       radial-gradient(ellipse 40rem 21rem at 25% 11rem, #dce8e4 0%, transparent 100%),
-      radial-gradient(ellipse 34rem 19rem at 78% 15rem, #e6e9f0 0%, transparent 100%);
+      radial-gradient(ellipse 34rem 19rem at 78% 15rem, #e5ebe8 0%, transparent 100%);
   }
 
   .home-glass {
@@ -81,17 +79,14 @@
 
   .home-header-tools .home-tool,
   .home-example {
-    @apply rounded-lg border px-2.5 text-slate-700 transition-colors duration-150;
-    border-color: #9aa8a4;
+    @apply rounded-lg border border-control-border px-2.5 text-ink-secondary transition-colors duration-150;
     background-color: #ffffffa6;
   }
 
   .home-header-tools .home-tool:enabled:hover,
   .home-header-tools .home-tool[aria-expanded="true"],
   .home-example:enabled:hover {
-    border-color: #657975;
-    background-color: #eaf1ef;
-    color: #243e3a;
+    @apply border-secondary-600 bg-secondary-50 text-secondary-700;
   }
 
   .home-focus :is(button, input, textarea, select, summary, a):focus-visible {

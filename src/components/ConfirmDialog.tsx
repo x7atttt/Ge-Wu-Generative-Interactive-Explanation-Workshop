@@ -46,7 +46,7 @@ function ConfirmDialog({ request, onResult }: { request: Confirmation; onResult:
           </label>)}</fieldset>}
         <div className="mt-6 flex justify-end gap-3">
           <button type="button" onClick={() => onResult(null)} className="min-h-11 rounded-xl border border-stone-300 px-5 text-sm text-stone-700 hover:bg-stone-100">取消</button>
-          <button type="button" onClick={() => onResult(value)} className={`min-h-11 rounded-xl px-5 text-sm text-white ${danger ? "bg-red-700 hover:bg-red-800" : "bg-accent-600 hover:bg-accent-700"}`}>{selected?.label ?? request.confirmLabel ?? "确认"}</button>
+          <button type="button" onClick={() => onResult(value)} className={`min-h-11 rounded-xl px-5 text-sm text-white ${danger ? "bg-caution-700 hover:bg-caution-600" : "bg-accent-600 hover:bg-accent-700"}`}>{selected?.label ?? request.confirmLabel ?? "确认"}</button>
         </div>
       </section>
     </div>, document.body);

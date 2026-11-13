@@ -166,7 +166,7 @@ export function StatsPanel({
                           </span>
                           <div className="h-2 flex-1 overflow-hidden rounded-full bg-warm-surface">
                             <div
-                              className={`h-full rounded-full ${rate >= 60 ? "bg-accent-400" : "bg-orange-400"}`}
+                              className="h-full rounded-full bg-secondary-500"
                               style={{ width: `${rate}%` }}
                             />
                           </div>
@@ -182,7 +182,7 @@ export function StatsPanel({
                 <div>
                   <p className="mb-2 text-xs font-medium text-ink-muted">弱项概念（正确率 &lt; 60%）</p>
                   {weakSpots.length === 0 ? (
-                    <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                    <p className="rounded-lg bg-warm-surface px-3 py-2 text-xs text-ink-secondary">
                       暂无明显弱项，继续保持 💪
                     </p>
                   ) : (
@@ -192,10 +192,10 @@ export function StatsPanel({
                         return (
                           <li
                             key={c.docId}
-                            className="flex items-center gap-2 rounded-lg bg-orange-50/60 px-3 py-1.5 text-xs"
+                            className="flex items-center gap-2 rounded-lg bg-warm-surface px-3 py-1.5 text-xs"
                           >
                             <span className="min-w-0 flex-1 truncate text-ink-secondary">{c.title}</span>
-                            <span className="shrink-0 font-mono text-orange-500">
+                            <span className="shrink-0 font-mono text-caution-700">
                               {c.correct}/{c.total} · {rate}%
                             </span>
                             {onPractice && (
@@ -205,7 +205,7 @@ export function StatsPanel({
                                   setOpen(false);
                                   onPractice(c.docId, c.title);
                                 }}
-                                className="shrink-0 rounded-full border border-orange-200 bg-card px-2 py-0.5 text-[11px] text-orange-600 transition-colors hover:bg-orange-100"
+                                className="shrink-0 rounded-full border border-control-border bg-card px-2 py-0.5 text-[11px] text-ink-secondary transition-colors hover:border-secondary-600 hover:bg-secondary-50 hover:text-secondary-700"
                               >
                                 补练
                               </button>

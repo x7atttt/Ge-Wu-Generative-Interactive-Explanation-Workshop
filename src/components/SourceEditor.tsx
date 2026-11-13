@@ -46,7 +46,7 @@ export function SourceEditor({ id, onClose, onSaved }: { id: number; onClose: ()
     <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="查看与纠正资料" onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); if (!busy) close(); } }} onClick={(e) => e.stopPropagation()} className="max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-panel-border bg-card text-ink p-5 shadow-xl">
       <div className="flex items-center gap-3"><h3 className="font-display text-lg font-semibold">查看与纠正资料</h3><button type="button" disabled={busy} className="ml-auto min-h-11 px-3 text-sm" onClick={close}>关闭</button></div>
       <p className="mb-3 text-sm text-ink-secondary">{source?.title} {source && `· 版本 ${source.revision}`}</p>
-      {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}<button type="button" disabled={busy} className="ml-2 underline" onClick={async () => { if (!dirty || await confirm({ title: "重新加载正文", description: "这会用已保存的版本替换草稿，请先复制需要保留的修改。", confirmLabel: "替换草稿", danger: true })) load(); }}>重新加载正文</button></p>}
+      {error && <p role="alert" className="mb-3 rounded-lg bg-caution-50 p-3 text-sm text-caution-700">{error}<button type="button" disabled={busy} className="ml-2 underline" onClick={async () => { if (!dirty || await confirm({ title: "重新加载正文", description: "这会用已保存的版本替换草稿，请先复制需要保留的修改。", confirmLabel: "替换草稿", danger: true })) load(); }}>重新加载正文</button></p>}
       {note && <p role="status" className="mb-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{note}</p>}
       {busy && !source && <p className="py-8 text-sm text-ink-muted">加载正文…</p>}
       {source && <>

@@ -632,7 +632,7 @@ export default function Home() {
             <button
               onClick={handleGenerate}
               disabled={busy !== null || (!concept.trim() && attachedSourceIds.length === 0 && genImages.length === 0)}
-              className="ml-auto h-11 shrink-0 whitespace-nowrap rounded-xl border border-secondary-700 bg-secondary-700 px-4 text-sm font-semibold text-white transition-colors duration-150 enabled:hover:border-secondary-600 enabled:hover:bg-secondary-600 disabled:cursor-not-allowed disabled:border-panel-border disabled:bg-slate-100 disabled:text-slate-600 sm:ml-0 sm:px-5"
+              className="ml-auto h-11 shrink-0 whitespace-nowrap rounded-xl border border-secondary-700 bg-secondary-700 px-4 text-sm font-semibold text-white transition-colors duration-150 enabled:hover:border-secondary-600 enabled:hover:bg-secondary-600 disabled:cursor-not-allowed disabled:border-panel-border disabled:bg-disabled-surface disabled:text-ink-muted sm:ml-0 sm:px-5"
             >
               生成讲解
             </button>
@@ -662,7 +662,7 @@ export default function Home() {
             </div>
           )}
           {(droppingBusy || dropNote) && (
-            <p className={`mt-2 text-xs ${dropNote?.startsWith("已忽略") ? "text-amber-800" : "text-ink-muted"}`}>
+            <p className="mt-2 text-xs text-ink-muted">
               {droppingBusy ? "资料导入中…" : dropNote}
             </p>
           )}
@@ -676,7 +676,7 @@ export default function Home() {
                   setOriginConcept(null);
                 }}
                 disabled={busy === "generate"}
-                className="home-example min-h-8 py-1 text-[13px] disabled:cursor-not-allowed disabled:text-slate-500"
+                className="home-example min-h-8 py-1 text-[13px] disabled:cursor-not-allowed disabled:text-ink-muted"
               >
                 {example}
               </button>
@@ -764,10 +764,10 @@ export default function Home() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 role="alert"
-                className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-xs leading-5 text-red-600"
+                className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-caution-50 px-3 py-2 text-xs leading-5 text-caution-700"
               >
                 <span>{error}</span>
-                <button type="button" aria-label="关闭错误提示" onClick={() => setError(null)} className="min-h-9 min-w-9 shrink-0 rounded-lg hover:bg-red-100">×</button>
+                <button type="button" aria-label="关闭错误提示" onClick={() => setError(null)} className="min-h-9 min-w-9 shrink-0 rounded-lg hover:bg-caution-100">×</button>
               </motion.p>
             )}
           </AnimatePresence>
@@ -853,7 +853,7 @@ export default function Home() {
                     type="button"
                     onClick={handleMakeCards}
                     disabled={busy !== null}
-                    className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs text-orange-700 transition-colors hover:border-orange-400 disabled:opacity-50"
+                    className="rounded-full border border-control-border bg-card px-3 py-1 text-xs text-ink-secondary transition-colors hover:border-secondary-600 hover:bg-secondary-50 hover:text-secondary-700 disabled:opacity-50"
                     title="把本篇的自测题/填空提取为 FSRS 复习卡（空间概念地图的复习入口）"
                   >
                     🔖 制成复习卡
@@ -886,7 +886,7 @@ export default function Home() {
                     onKeyDown={(e) => e.key === "Enter" && handleRefine()}
                     placeholder="或直接输入你想要的深化方向"
                     maxLength={300}
-                    className="h-10 flex-1 rounded-xl border border-stone-200 px-3 text-sm outline-none transition-colors focus:border-accent-400"
+                    className="h-10 flex-1 rounded-xl border border-control-border px-3 text-sm transition-colors focus:border-accent-600"
                     disabled={busy === "refine"}
                   />
                   <button
@@ -901,9 +901,9 @@ export default function Home() {
                   <BuildProgressPanel raw={buildText} stage={generationStage} phase="refine" note={searchNote} onCancel={cancel} />
                 )}
                 {refineError && (
-                  <p role="alert" className="mt-2 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                  <p role="alert" className="mt-2 flex items-center justify-between gap-3 rounded-lg bg-caution-50 px-3 py-2 text-xs text-caution-700">
                     <span>{refineError}</span>
-                    <button type="button" aria-label="关闭改造错误提示" onClick={() => setRefineError(null)} className="min-h-9 min-w-9 shrink-0 rounded-lg hover:bg-red-100">×</button>
+                    <button type="button" aria-label="关闭改造错误提示" onClick={() => setRefineError(null)} className="min-h-9 min-w-9 shrink-0 rounded-lg hover:bg-caution-100">×</button>
                   </p>
                 )}
               </div>

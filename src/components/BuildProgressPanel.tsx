@@ -47,7 +47,7 @@ export function BuildProgressPanel({ raw, phase, stage, note, onCancel }: {
         <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0 text-accent-700"><path d="m10 2 2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
         {phase === "refine" && stage === "build" ? "正在改造讲解" : STATUS[stage]}
       </p>
-      <button type="button" onClick={onCancel} className="min-h-9 shrink-0 rounded-lg border border-control-border bg-card px-2.5 text-[13px] font-medium text-ink-secondary hover:bg-red-50 hover:text-red-700">{phase === "generate" ? "取消生成" : "取消改造"}</button>
+      <button type="button" onClick={onCancel} className="min-h-9 shrink-0 rounded-lg border border-control-border bg-card px-2.5 text-[13px] font-medium text-ink-secondary transition-colors hover:bg-secondary-50 hover:text-secondary-700">{phase === "generate" ? "取消生成" : "取消改造"}</button>
     </div>
     <ol aria-label="生成阶段" className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
       {STAGES.map((item, i) => <li key={item.key} aria-current={i === index ? "step" : undefined} className={`flex items-center gap-2 ${i === index ? "font-medium text-accent-700" : i < index ? "text-secondary-600" : "text-ink-muted"}`}>

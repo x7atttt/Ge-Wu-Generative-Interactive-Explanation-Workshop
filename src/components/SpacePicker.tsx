@@ -143,7 +143,7 @@ export function SpacePicker({
           </motion.div>
         )}
       </AnimatePresence>
-      {error && <span role="alert" className="text-xs text-red-700">{error}</span>}
+      {error && <span role="alert" className="text-xs text-caution-700">{error}</span>}
 
       <AnimatePresence>
         {hubOpen && (
@@ -381,7 +381,7 @@ function SpaceHub({
                             setDatingId(space.id);
                             setDateText(space.examDate ?? "");
                           }}
-                          className="shrink-0 text-xs text-ink-muted transition-colors hover:text-orange-600 disabled:opacity-50"
+                          className="shrink-0 text-xs text-ink-muted transition-colors hover:text-secondary-700 disabled:opacity-50"
                           title="设置考试日期（概念地图显示倒计时）"
                         >
                           日期
@@ -418,7 +418,7 @@ function SpaceHub({
                         type="button"
                         disabled={disabled || busyId !== null || deletingId !== null}
                         onClick={() => onDelete(space)}
-                        className="shrink-0 text-xs text-ink-muted transition-colors hover:text-red-700 disabled:opacity-50"
+                        className="shrink-0 text-xs text-ink-muted transition-colors hover:text-caution-700 disabled:opacity-50"
                       >
                         {deletingId === space.id ? "删除中…" : "删除"}
                       </button>

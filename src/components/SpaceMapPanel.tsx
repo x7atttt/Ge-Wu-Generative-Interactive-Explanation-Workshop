@@ -9,41 +9,36 @@ import { CardManagerPanel } from "@/components/CardManagerPanel";
 
 const STATUS_META: Record<
   string,
-  { label: string; chip: string; badge: string; hint: string; dot: string }
+  { label: string; badge: string; hint: string; dot: string }
 > = {
   new: {
     label: "未学",
-    dot: "bg-stone-400",
-    badge: "border-stone-300 bg-stone-100 text-stone-700",
-    chip: "border-stone-200 bg-card text-stone-700 hover:border-secondary-300 hover:text-secondary-700",
+    dot: "bg-control-border",
+    badge: "border-panel-border bg-warm-surface text-ink-secondary",
     hint: "点击生成讲解",
   },
   explained: {
     label: "待练习",
-    dot: "bg-blue-500",
-    badge: "border-blue-200 bg-blue-100 text-blue-800",
-    chip: "border-blue-200 bg-blue-50 text-blue-800 hover:border-blue-400",
+    dot: "border border-secondary-600 bg-card",
+    badge: "border-secondary-400 bg-card text-secondary-700",
     hint: "已生成讲解，尚无练习记录；点击开始练习",
   },
   practiced: {
     label: "练习达标",
-    dot: "bg-secondary-600",
-    badge: "border-secondary-200 bg-secondary-100 text-secondary-700",
-    chip: "border-secondary-200 bg-secondary-50 text-secondary-700 hover:border-secondary-400",
+    dot: "bg-secondary-700",
+    badge: "border-secondary-700 bg-secondary-700 text-white",
     hint: "点击打开讲解",
   },
   learning: {
     label: "待巩固",
-    dot: "bg-amber-500",
-    badge: "border-amber-200 bg-amber-100 text-amber-800",
-    chip: "border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-400",
+    dot: "bg-secondary-400",
+    badge: "border-secondary-200 bg-secondary-100 text-secondary-700",
     hint: "已有练习，样本不足，点击继续巩固",
   },
   weak: {
     label: "薄弱",
-    dot: "bg-red-500",
-    badge: "border-red-200 bg-red-100 text-red-700",
-    chip: "border-red-300 bg-red-50 text-red-600 hover:border-red-400 font-medium",
+    dot: "bg-caution-600",
+    badge: "border-caution-200 bg-caution-100 text-caution-700",
     hint: "点击生成针对性补练",
   },
 };
@@ -251,7 +246,7 @@ export function SpaceMapPanel({
 
   return (
     <section aria-label="空间学习概览" className="mt-6 rounded-2xl border border-panel-border bg-card p-4 text-ink shadow-sm sm:p-6">
-      {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}，已保留上次内容。
+      {error && <p role="alert" className="mb-3 rounded-lg bg-caution-50 p-3 text-sm text-caution-700">{error}，已保留上次内容。
         <button type="button" disabled={loading} onClick={refresh} className="ml-2 underline">重试加载地图</button>
       </p>}
       {map && <div aria-label="今日学习安排" className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-divider px-1 pb-5">
@@ -297,7 +292,7 @@ export function SpaceMapPanel({
           <p className="text-xs text-ink-muted">
             {map.summary.sources} 份资料 · {map.concepts.length} 个概念 · 已讲 {map.summary.explained}
             {map.summary.weak > 0 && (
-              <span className="ml-1 font-medium text-red-700">· {map.summary.weak} 个薄弱</span>
+              <span className="ml-1 font-medium text-caution-700">· {map.summary.weak} 个薄弱</span>
             )}
           </p>
         )}
@@ -394,12 +389,12 @@ export function SpaceMapPanel({
               onClick={() => handleClick(concept)}
               title={meta.hint}
               disabled={disabled}
-              className={`group flex min-w-0 flex-col items-start rounded-xl border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-500 disabled:opacity-50 ${meta.chip}`}
+              className="group flex min-w-0 flex-col items-start rounded-xl border border-panel-border bg-card p-3 text-left transition-colors enabled:hover:border-secondary-400 enabled:hover:bg-secondary-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-500 disabled:opacity-50"
             >
               <span className="max-w-full text-sm font-medium leading-6 text-ink [overflow-wrap:anywhere]">{concept.text}</span>
               <span className="mt-2 flex max-w-full flex-wrap items-center gap-1.5 text-xs leading-5">
                 <span className={`whitespace-nowrap rounded-md border px-2 py-0.5 ${meta.badge}`}>{meta.label}</span>
-                <span className="max-w-full rounded-md border border-secondary-100 bg-secondary-50/70 px-2 py-0.5 text-secondary-700">
+                <span className="max-w-full rounded-md border border-divider bg-warm-surface px-2 py-0.5 text-ink-secondary">
                   {concept.status === "new"
                     ? `${concept.sourceIds.length} 份资料提及`
                     : rate !== null
@@ -439,8 +434,8 @@ export function SpaceMapPanel({
       {/* 学习路线：概念按依赖/难度编排的攻克路径（LLM 快照，重生成覆盖；完成度由概念状态推出） */}
       {map && (map.roadmap || map.concepts.length >= 2) && (
         <div className="mt-6 border-t border-divider pt-5">
-          {roadmapError && <p role="alert" className="mb-2 text-sm text-red-700">{roadmapError}，原路线已保留。<button type="button" disabled={roadmapBusy} onClick={handleGenRoadmap} className="ml-2 underline">重试编排</button></p>}
-          {map.space.roadmapStale && map.roadmap && <p className="mb-2 text-xs text-amber-800">资料或概念已变更，当前路线为旧快照，建议重新生成。已移除概念不会再触发无资料生成。</p>}
+          {roadmapError && <p role="alert" className="mb-2 text-sm text-caution-700">{roadmapError}，原路线已保留。<button type="button" disabled={roadmapBusy} onClick={handleGenRoadmap} className="ml-2 underline">重试编排</button></p>}
+          {map.space.roadmapStale && map.roadmap && <p className="mb-2 text-xs text-ink-secondary">资料或概念已变更，当前路线为旧快照，建议重新生成。已移除概念不会再触发无资料生成。</p>}
           <p className="mb-2 text-xs text-ink-muted">推进依据：站内概念的讲解练习均达标；自评回顾单独提示。</p>
           <div className="flex items-center gap-2">
             <h3 className="font-display text-base font-semibold text-ink">🗺 学习路线</h3>
@@ -503,11 +498,10 @@ export function SpaceMapPanel({
                             disabled={disabled || !map.concepts.some((c) => c.text === text)}
                             onClick={() => conceptClick(text)}
                             title={STATUS_META[statusOf(text)].hint}
-                            className={`rounded-lg border px-2 py-0.5 text-xs transition-colors disabled:opacity-50 ${
-                              STATUS_META[statusOf(text)].chip
-                            }`}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-control-border bg-card px-2 py-0.5 text-xs text-ink-secondary transition-colors enabled:hover:border-secondary-600 enabled:hover:bg-secondary-50 enabled:hover:text-secondary-700 disabled:opacity-50"
                           >
-                            {text}
+                            <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${STATUS_META[statusOf(text)].dot}`} />
+                            <span>{text}<span className="sr-only">，{STATUS_META[statusOf(text)].label}</span></span>
                           </button>
                         ))}
                       </div>
