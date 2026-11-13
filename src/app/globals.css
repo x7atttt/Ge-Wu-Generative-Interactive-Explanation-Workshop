@@ -13,7 +13,16 @@
 @theme {
   /* 纸（页面底色，暖白微黄） */
   --color-paper: #faf7f2;
+  --color-home-paper: #f5f0e7;
   --color-card: #fffdf9;
+  --color-warm-surface: #f2e9dc;
+  --color-ink: #292524;
+  --color-ink-secondary: #514740;
+  --color-ink-muted: #6b5c50;
+  --color-divider: #d7cabb;
+  --color-panel-border: #c7b8a9;
+  --color-control-border: #8a7768;
+  --color-disabled-surface: #e7dfd4;
 
   /* 朱砂（accent：选中态/链接/点睛，按钮主色为墨不抢戏） */
   --color-accent-50: #faf0ed;
@@ -34,6 +43,34 @@
   --color-secondary-500: #43736e;
   --color-secondary-600: #365e5a;
   --color-secondary-700: #2c4a47;
+}
+
+@layer components {
+  .home-focus :is(button, input, textarea, select, summary, a):focus-visible {
+    outline: 2px solid var(--color-accent-600);
+    outline-offset: 2px;
+  }
+
+  .home-tool {
+    @apply inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-medium text-ink-secondary transition-colors;
+  }
+
+  .home-tool:enabled:hover,
+  .home-tool[aria-expanded="true"] {
+    @apply bg-warm-surface text-ink;
+  }
+
+  .home-tool:disabled {
+    @apply cursor-not-allowed text-ink-muted;
+  }
+
+  .home-field {
+    @apply border-control-border bg-card text-ink placeholder:text-ink-muted;
+  }
+
+  .home-field:focus {
+    @apply border-accent-600;
+  }
 }
 
 @theme inline {

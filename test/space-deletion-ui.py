@@ -24,7 +24,7 @@ with sync_playwright() as p:
     picker = space_picker(page)
     confirm = page.get_by_role('alertdialog')
     def row(item):
-        return page.get_by_role('heading', name='空间管理', exact=True).locator('..').locator('div.rounded-lg.border.border-stone-100').filter(has_text=item['name']).first
+        return page.get_by_role('heading', name='空间管理', exact=True).locator('..').locator(f'[data-space-id="{item["id"]}"]')
     def select(item):
         select_space(page, item['id'])
         expect(page.get_by_role('heading', name='今天从这里开始')).to_be_visible()
@@ -131,7 +131,7 @@ with sync_playwright() as p:
     pending = []
     def hold(route):
         pending.append((route, route.fetch()))
-    page.route(f'**/api/docs?spaceId={f["late"]["id"]}', hold)
+    page.route(f'**/api/docs?grouped=1&spaceId={f["late"]["id"]}', hold)
     page.route(f'**/api/docs/{f["late"]["childId"]}', hold)
     select(f['late'])
     page.get_by_role('button', name=f'{f["late"]["name"]} 待巩固', exact=False).click()

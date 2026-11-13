@@ -21,11 +21,7 @@ export function SoundToggle() {
       }}
       aria-pressed={on}
       title={on ? "关闭所有音效" : "开启音效"}
-      className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
-        on
-          ? "text-stone-600 hover:bg-stone-100 hover:text-accent-700"
-          : "text-stone-500 hover:bg-stone-100"
-      }`}
+      className={`home-tool ${on ? "text-ink" : ""}`}
     >
       <svg
         viewBox="0 0 24 24"

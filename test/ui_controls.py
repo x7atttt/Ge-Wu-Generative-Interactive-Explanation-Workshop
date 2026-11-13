@@ -28,5 +28,5 @@ def open_current_space_delete(page):
         expect(heading).to_have_count(0)
     page.get_by_title('空间管理：查看所有空间与资料归属、新建/重命名/删除/移动').click()
     expect(heading).to_be_visible()
-    row = heading.locator('..').locator('div.rounded-lg.border.border-stone-100').filter(has=page.get_by_text('当前', exact=True))
+    row = heading.locator('..').locator('[data-space-id]').filter(has=page.get_by_text('当前', exact=True))
     row.get_by_role('button', name='删除', exact=True).click()

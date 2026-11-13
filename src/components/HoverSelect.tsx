@@ -132,21 +132,21 @@ export function HoverSelect({ value, options, onChange, label, description, pref
       onPointerEnter={(event) => { if (event.pointerType === "mouse" && window.matchMedia("(hover: hover)").matches) show(); }}
       onPointerLeave={(event) => leave(event.pointerType)}
       onClick={() => { if (expanded && clicked.current) close(); else { clicked.current = true; show(); } }}
-      className={`inline-flex min-h-9 max-w-52 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-stone-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 disabled:cursor-not-allowed disabled:opacity-50 ${expanded ? "bg-stone-100" : "hover:bg-stone-100/70"}`}>
-      <span className="shrink-0 text-stone-500">{prefix}</span>
-      <span className="truncate">{options[selected]?.label ?? "请选择"}</span>
+      className="home-tool max-w-52">
+      <span className="shrink-0 text-ink-muted">{prefix}</span>
+      <span className="truncate font-semibold text-ink">{options[selected]?.label ?? "请选择"}</span>
       <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" className={`h-3.5 w-3.5 shrink-0 transition-transform motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`}><path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
     </button>
     {expanded && placement && createPortal(
       <div ref={panel} style={placement.style} className={`fixed z-[60] ${placement.above ? "pb-2" : "pt-2"}`} onPointerEnter={keepOpen} onPointerLeave={(event) => leave(event.pointerType)}>
-        <div style={{ maxHeight: placement.height }} className="flex flex-col overflow-hidden rounded-2xl border border-stone-200 bg-card shadow-[0_12px_40px_-10px_rgba(41,37,36,0.24)]">
-          <div className="shrink-0 border-b border-stone-100 px-4 py-3"><p className="text-sm font-semibold text-stone-900">{label}</p><p className="mt-0.5 text-xs leading-5 text-stone-500">{description}</p></div>
+        <div style={{ maxHeight: placement.height }} className="flex flex-col overflow-hidden rounded-2xl border border-panel-border bg-card text-ink shadow-[0_12px_40px_-10px_rgba(41,37,36,0.24)]">
+          <div className="shrink-0 border-b border-divider px-4 py-3"><p className="text-sm font-semibold text-ink">{label}</p><p className="mt-0.5 text-xs leading-5 text-ink-muted">{description}</p></div>
           <div role="listbox" aria-label={label} id={`${id}-list`} className="min-h-0 overflow-y-auto overscroll-contain p-1.5">
             {options.map((option, index) => <button key={option.value} id={`${id}-option-${index}`} type="button" role="option" aria-label={option.label}
               aria-describedby={option.description ? `${id}-description-${index}` : undefined} aria-selected={option.value === value} data-value={option.value} tabIndex={-1}
               onPointerMove={(event) => { if (event.pointerType === "mouse") setActive(index); }} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(index)}
-              className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${option.action ? "mt-1 border-t border-stone-100" : ""} ${index === active ? highlight : option.value === value ? "bg-stone-50 text-stone-800" : "text-stone-700"}`}>
-              <span className="min-w-0 flex-1"><span className={`block break-words text-sm ${option.value === value || option.action ? "font-semibold" : "font-medium"}`}>{option.label}</span>{option.description && <span id={`${id}-description-${index}`} className="mt-0.5 block break-words text-xs leading-5 text-stone-500">{option.description}</span>}</span>
+              className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${option.action ? "mt-1 border-t border-divider" : ""} ${index === active ? highlight : option.value === value ? "bg-warm-surface text-ink" : "text-ink-secondary"}`}>
+              <span className="min-w-0 flex-1"><span className={`block break-words text-sm ${option.value === value || option.action ? "font-semibold" : "font-medium"}`}>{option.label}</span>{option.description && <span id={`${id}-description-${index}`} className="mt-0.5 block break-words text-xs leading-5 text-ink-muted">{option.description}</span>}</span>
               {option.value === value && <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className={`h-4 w-4 shrink-0 ${color}`}><path d="m4 10 4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>}
             </button>)}
           </div>

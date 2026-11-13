@@ -250,19 +250,19 @@ export function SpaceMapPanel({
   }) : [];
 
   return (
-    <section aria-label="空间学习概览" className="mt-6 rounded-2xl border border-stone-200 bg-card p-4 shadow-sm sm:p-6">
+    <section aria-label="空间学习概览" className="mt-6 rounded-2xl border border-panel-border bg-card p-4 text-ink shadow-sm sm:p-6">
       {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}，已保留上次内容。
         <button type="button" disabled={loading} onClick={refresh} className="ml-2 underline">重试加载地图</button>
       </p>}
-      {map && <div aria-label="今日学习安排" className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-1 pb-5">
+      {map && <div aria-label="今日学习安排" className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-divider px-1 pb-5">
         <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h3 className="font-display text-base font-medium text-stone-900">今天从这里开始</h3>
-        <p className="text-xs leading-5 text-stone-600">{[map.cards.due > 0 ? `${map.cards.due} 张卡片到期` : null, forgotten.length > 0 ? `建议回顾 ${forgotten.length} 张` : null, map.summary.weak > 0 ? `${map.summary.weak} 个薄弱概念` : null].filter(Boolean).join(" · ")}</p>
+        <h3 className="font-display text-base font-medium text-ink">今天从这里开始</h3>
+        <p className="text-xs leading-5 text-ink-secondary">{[map.cards.due > 0 ? `${map.cards.due} 张卡片到期` : null, forgotten.length > 0 ? `建议回顾 ${forgotten.length} 张` : null, map.summary.weak > 0 ? `${map.summary.weak} 个薄弱概念` : null].filter(Boolean).join(" · ")}</p>
         </div>
-        <p className="mt-1 text-sm leading-6 text-stone-700">{map.cards.due > 0 ? "先清理到期卡，再继续学习路线。" : forgotten.length > 0 ? "有自评忘记的概念，建议回看学习依据。" : weak ? `继续巩固「${weak.text}」。` : nextConcept ? `下一步：${nextConcept.text}。` : map.concepts.length === 0 ? "先导入资料并确认概念，建立你的学习地图。" : "当前练习已达标，到期复习已清。今天可以收尾，也可以做一次综合自测。"}</p>
+        <p className="mt-1 text-sm leading-6 text-ink-secondary">{map.cards.due > 0 ? "先清理到期卡，再继续学习路线。" : forgotten.length > 0 ? "有自评忘记的概念，建议回看学习依据。" : weak ? `继续巩固「${weak.text}」。` : nextConcept ? `下一步：${nextConcept.text}。` : map.concepts.length === 0 ? "先导入资料并确认概念，建立你的学习地图。" : "当前练习已达标，到期复习已清。今天可以收尾，也可以做一次综合自测。"}</p>
         </div>
-        <button type="button" disabled={disabled} className="min-h-9 shrink-0 rounded-lg border border-accent-200 bg-accent-50 px-3 py-2 text-xs font-medium text-accent-700 transition-colors hover:bg-accent-100 disabled:opacity-50" onClick={() => {
+        <button type="button" disabled={disabled} className="min-h-9 shrink-0 rounded-lg border border-accent-600 bg-accent-50 px-3 py-2 text-xs font-medium text-accent-700 transition-colors hover:bg-accent-100 disabled:opacity-50" onClick={() => {
           if (map.cards.due > 0) openReview();
           else if (forgotten.length > 0) openReview(forgotten);
           else if (weak) conceptClick(weak.text);
@@ -280,8 +280,8 @@ export function SpaceMapPanel({
               <li key={i} className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-3 text-xs leading-5">
                 <span className="font-mono text-secondary-700">{line.days}</span>
                 <div className="min-w-0 [overflow-wrap:anywhere]">
-                  <p className="font-medium text-stone-800">{line.label}</p>
-                  <p className="text-stone-600">{line.detail}</p>
+                  <p className="font-medium text-ink">{line.label}</p>
+                  <p className="text-ink-secondary">{line.detail}</p>
                 </div>
               </li>
             ))}
@@ -289,15 +289,15 @@ export function SpaceMapPanel({
         </section>
       )}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h2 className="flex min-w-0 items-center gap-2 font-display text-base font-bold text-stone-900">
+        <h2 className="flex min-w-0 items-center gap-2 font-display text-base font-bold text-ink">
           <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0 text-secondary-600"><path d="M10 4c-2-1-4-1-7-1v12c3 0 5 0 7 1m0-12c2-1 4-1 7-1v12c-3 0-5 0-7 1V4Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>
           <span className="min-w-0 [overflow-wrap:anywhere]">概念地图{map ? ` · ${map.space.name}` : ""}</span>
         </h2>
         {map && (
-          <p className="text-xs text-stone-500">
+          <p className="text-xs text-ink-muted">
             {map.summary.sources} 份资料 · {map.concepts.length} 个概念 · 已讲 {map.summary.explained}
             {map.summary.weak > 0 && (
-              <span className="ml-1 font-medium text-red-500">· {map.summary.weak} 个薄弱</span>
+              <span className="ml-1 font-medium text-red-700">· {map.summary.weak} 个薄弱</span>
             )}
           </p>
         )}
@@ -314,8 +314,8 @@ export function SpaceMapPanel({
               onClick={() => openReview()}
               className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors disabled:opacity-50 ${
                 map.cards.due > 0
-                  ? "border-accent-200 bg-accent-50 font-medium text-accent-700 hover:border-accent-300"
-                  : "border-stone-200 bg-card text-stone-600 hover:border-accent-200 hover:text-accent-700"
+                  ? "border-accent-600 bg-accent-50 font-medium text-accent-700 hover:border-accent-700"
+                  : "border-control-border bg-card text-ink-secondary hover:border-accent-600 hover:text-accent-700"
               }`}
               title="FSRS 间隔复习：讲解底部的题目按遗忘曲线安排回来"
             >
@@ -328,7 +328,7 @@ export function SpaceMapPanel({
               type="button"
               disabled={disabled}
               onClick={() => setExamOpen(true)}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-stone-200 bg-card px-2.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-accent-300 hover:text-accent-700 disabled:opacity-50"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-control-border bg-card px-2.5 py-1.5 text-xs text-ink-secondary transition-colors hover:border-accent-600 hover:text-accent-700 disabled:opacity-50"
               title="综合测验：全部复习卡随机抽卷模拟考试，按概念出分定位薄弱"
             >
               <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5"><path d="M5 3h7l3 3v11H5V3Zm7 0v4h3M8 10h4m-4 3h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -339,7 +339,7 @@ export function SpaceMapPanel({
             type="button"
             disabled={disabled}
             onClick={() => setCardsOpen(true)}
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-stone-200 bg-card px-2.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-secondary-300 hover:text-secondary-700 disabled:opacity-50"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-control-border bg-card px-2.5 py-1.5 text-xs text-ink-secondary transition-colors hover:border-secondary-600 hover:text-secondary-700 disabled:opacity-50"
             title="卡片管理：查看/手写补充/编辑/删除复习卡（复习与测验共用题库）"
           >
             <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5"><path d="M3 6h14v10H3V6Zm3-3h10M6 9h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -350,7 +350,7 @@ export function SpaceMapPanel({
               type="button"
               disabled={disabled}
               onClick={onJumpToDoc}
-              className="inline-flex min-h-9 items-center rounded-lg border border-secondary-200 bg-secondary-50 px-2.5 py-1.5 text-xs text-secondary-700 transition-colors hover:border-secondary-400 disabled:opacity-50"
+              className="inline-flex min-h-9 items-center rounded-lg border border-secondary-600 bg-secondary-50 px-2.5 py-1.5 text-xs text-secondary-700 transition-colors hover:border-secondary-700 disabled:opacity-50"
               title="跳转到下方当前讲解"
             >
               ⤓ 讲解
@@ -358,7 +358,7 @@ export function SpaceMapPanel({
           )}
         </div>
       </div>
-      <div role="group" aria-label="学习状态图例" className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-stone-100 pt-3 text-xs text-stone-600">
+      <div role="group" aria-label="学习状态图例" className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-divider pt-3 text-xs text-ink-secondary">
         {(["weak", "new", "learning", "practiced", "explained"] as const).map((status) => (
           <span key={status} className="flex items-center gap-1.5" title={STATUS_META[status].hint}>
             <span className={`h-2 w-2 rounded-full ${STATUS_META[status].dot}`} />
@@ -367,13 +367,13 @@ export function SpaceMapPanel({
         ))}
       </div>
 
-      <p className="mb-4 mt-2 text-xs leading-6 text-stone-500">待练习：已有讲解，尚无作答。待巩固：已有作答，练习证据尚未达标。</p>
+      <p className="mb-4 mt-2 text-xs leading-6 text-ink-muted">待练习：已有讲解，尚无作答。待巩固：已有作答，练习证据尚未达标。</p>
       {(note || map?.space.note) && (
-        <p className="mt-1 text-xs leading-5 text-stone-500">{note || map?.space.note}</p>
+        <p className="mt-1 text-xs leading-5 text-ink-muted">{note || map?.space.note}</p>
       )}
 
       {map && map.concepts.length === 0 && (
-        <p className="mt-4 rounded-xl border border-dashed border-stone-200 bg-paper/70 px-4 py-8 text-center text-sm leading-6 text-stone-600">
+        <p className="mt-4 rounded-xl border border-dashed border-divider bg-paper/70 px-4 py-8 text-center text-sm leading-6 text-ink-secondary">
           {map.summary.sources === 0
             ? "还没有资料——用上方「资料」面板导入本空间的讲义/真题，然后在各资料上「提炼讲解点」"
             : "资料还没有提炼讲解点——在「资料」面板点各资料的「提炼讲解点」，概念会自动出现在这张地图上"}
@@ -396,7 +396,7 @@ export function SpaceMapPanel({
               disabled={disabled}
               className={`group flex min-w-0 flex-col items-start rounded-xl border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-500 disabled:opacity-50 ${meta.chip}`}
             >
-              <span className="max-w-full text-sm font-medium leading-6 text-stone-800 [overflow-wrap:anywhere]">{concept.text}</span>
+              <span className="max-w-full text-sm font-medium leading-6 text-ink [overflow-wrap:anywhere]">{concept.text}</span>
               <span className="mt-2 flex max-w-full flex-wrap items-center gap-1.5 text-xs leading-5">
                 <span className={`whitespace-nowrap rounded-md border px-2 py-0.5 ${meta.badge}`}>{meta.label}</span>
                 <span className="max-w-full rounded-md border border-secondary-100 bg-secondary-50/70 px-2 py-0.5 text-secondary-700">
@@ -413,16 +413,16 @@ export function SpaceMapPanel({
         })}
       </div>
       {map && map.concepts.length > 0 && (
-        <details className="mt-4 rounded-xl border border-stone-200 bg-paper/50 text-xs leading-5 text-stone-600">
-          <summary className="min-h-11 cursor-pointer rounded-xl px-4 py-3 font-medium text-stone-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-500">
-            学习依据<span className="ml-2 font-normal text-stone-500">判题与自评记录{forgotten.length > 0 ? ` · ${forgotten.length} 张建议回顾` : ""}</span>
+        <details className="mt-4 rounded-xl border border-divider bg-paper/50 text-xs leading-5 text-ink-secondary">
+          <summary className="min-h-11 cursor-pointer rounded-xl px-4 py-3 font-medium text-ink-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-500">
+            学习依据<span className="ml-2 font-normal text-ink-muted">判题与自评记录{forgotten.length > 0 ? ` · ${forgotten.length} 张建议回顾` : ""}</span>
           </summary>
-          <div className="border-t border-stone-200 px-4 pb-2">
+          <div className="border-t border-divider px-4 pb-2">
             <p className="py-3">至少 3 次讲解内练习且正确率不低于 60% 计为练习达标。自评不替代练习判题。</p>
             <dl className="divide-y divide-stone-200">
               {map.concepts.map((concept) => (
                 <div key={concept.text} className="grid gap-1 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] sm:gap-4">
-                  <dt className="font-medium text-stone-800 [overflow-wrap:anywhere]">{concept.text}</dt>
+                  <dt className="font-medium text-ink [overflow-wrap:anywhere]">{concept.text}</dt>
                   <dd>
                     <p>讲解内练习：{concept.practice.total} 次，正确 {concept.practice.correct} 次。</p>
                     <p>卡片最近自评：记得 {concept.recall.easy} · 模糊 {concept.recall.fuzzy} · 忘记 {concept.recall.again}。</p>
@@ -434,24 +434,24 @@ export function SpaceMapPanel({
           </div>
         </details>
       )}
-      {loading && <p className="mt-2 text-xs text-stone-300">刷新中…</p>}
+      {loading && <p className="mt-2 text-xs text-ink-muted">刷新中…</p>}
 
       {/* 学习路线：概念按依赖/难度编排的攻克路径（LLM 快照，重生成覆盖；完成度由概念状态推出） */}
       {map && (map.roadmap || map.concepts.length >= 2) && (
-        <div className="mt-6 border-t border-stone-200 pt-5">
+        <div className="mt-6 border-t border-divider pt-5">
           {roadmapError && <p role="alert" className="mb-2 text-sm text-red-700">{roadmapError}，原路线已保留。<button type="button" disabled={roadmapBusy} onClick={handleGenRoadmap} className="ml-2 underline">重试编排</button></p>}
           {map.space.roadmapStale && map.roadmap && <p className="mb-2 text-xs text-amber-800">资料或概念已变更，当前路线为旧快照，建议重新生成。已移除概念不会再触发无资料生成。</p>}
-          <p className="mb-2 text-xs text-stone-500">推进依据：站内概念的讲解练习均达标；自评回顾单独提示。</p>
+          <p className="mb-2 text-xs text-ink-muted">推进依据：站内概念的讲解练习均达标；自评回顾单独提示。</p>
           <div className="flex items-center gap-2">
-            <h3 className="font-display text-base font-semibold text-stone-900">🗺 学习路线</h3>
+            <h3 className="font-display text-base font-semibold text-ink">🗺 学习路线</h3>
             {map.roadmap && map.roadmapAt && (
-              <span className="text-xs text-stone-500">生成于 {map.roadmapAt.slice(5, 16)}</span>
+              <span className="text-xs text-ink-muted">生成于 {map.roadmapAt.slice(5, 16)}</span>
             )}
             <button
               type="button"
               disabled={disabled || roadmapBusy}
               onClick={handleGenRoadmap}
-              className="ml-auto rounded-full border border-stone-200 px-2.5 py-1 text-[11px] text-stone-500 transition-colors hover:border-secondary-300 hover:text-secondary-600 disabled:opacity-50"
+              className="ml-auto rounded-full border border-divider px-2.5 py-1 text-[11px] text-ink-muted transition-colors hover:border-secondary-300 hover:text-secondary-600 disabled:opacity-50"
               title="把空间内概念按学习依赖与难度编排成 3~8 站的攻克路径"
             >
               {roadmapBusy ? "编排中…" : map.roadmap ? "重新生成" : "生成学习路线"}
@@ -473,27 +473,27 @@ export function SpaceMapPanel({
                     <div
                       key={`${stage.title}-${i}`}
                       className={`rounded-xl border p-3 transition-colors ${
-                        isCurrent ? "border-accent-300 bg-accent-50" : "border-stone-200 bg-paper/50"
+                        isCurrent ? "border-accent-300 bg-accent-50" : "border-divider bg-paper/50"
                       }`}
                     >
                       <div className="flex flex-wrap items-center gap-2">
                         <span
                           className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
-                            isCurrent ? "bg-accent-600 text-white" : "bg-stone-100 text-stone-500"
+                            isCurrent ? "bg-accent-600 text-white" : "bg-warm-surface text-ink-muted"
                           }`}
                         >
                           第 {i + 1} 站
                         </span>
-                        <span className="text-sm font-medium text-stone-800">{stage.title}</span>
+                        <span className="text-sm font-medium text-ink">{stage.title}</span>
                         {isCurrent && (
-                          <span className="text-[10px] font-medium text-accent-600">当前站</span>
+                          <span className="text-[10px] font-medium text-accent-700">当前站</span>
                         )}
-                        <span className="ml-auto text-[10px] tabular-nums text-stone-400">
+                        <span className="ml-auto text-[10px] tabular-nums text-ink-muted">
                           {done}/{stage.concepts.length} 练习达标
                         </span>
                       </div>
                       {stage.goal && (
-                        <p className="mt-1 text-xs leading-5 text-stone-600">{stage.goal}</p>
+                        <p className="mt-1 text-xs leading-5 text-ink-secondary">{stage.goal}</p>
                       )}
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {stage.concepts.map((text) => (
@@ -518,7 +518,7 @@ export function SpaceMapPanel({
             </div>
           ) : (
             !roadmapBusy && (
-              <p className="mt-1.5 text-[11px] leading-5 text-stone-400">
+              <p className="mt-1.5 text-[11px] leading-5 text-ink-muted">
                 把空间内的概念按学习依赖与难度编排成逐站攻克路径
               </p>
             )

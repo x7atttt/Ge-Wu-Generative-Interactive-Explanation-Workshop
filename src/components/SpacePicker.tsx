@@ -107,13 +107,10 @@ export function SpacePicker({
       <button
         type="button"
         onClick={() => setHubOpen((v) => !v)}
+        aria-expanded={hubOpen}
         disabled={disabled}
         title="空间管理：查看所有空间与资料归属、新建/重命名/删除/移动"
-        className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs transition-colors disabled:opacity-50 ${
-          hubOpen
-            ? "bg-secondary-50 text-secondary-700"
-            : "text-stone-600 hover:bg-stone-100"
-        }`}
+        className={`home-tool shrink-0 ${hubOpen ? "bg-secondary-50 text-secondary-700" : ""}`}
       >
         <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4"><path d="M2 5a1 1 0 0 1 1-1h5l2 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5Z" stroke="currentColor" strokeWidth="1.3"/><path d="M6 10h8M6 13h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
         空间管理
@@ -133,7 +130,7 @@ export function SpacePicker({
               placeholder="空间名，如：期末·操作系统"
               maxLength={60}
               autoFocus
-              className="min-w-0 flex-1 rounded-full border border-stone-200 bg-card px-3 py-1 text-xs text-stone-600 outline-none focus:border-secondary-400"
+              className="min-w-0 flex-1 rounded-full home-field border px-3 py-1 text-xs"
             />
             <button
               type="button"
@@ -146,7 +143,7 @@ export function SpacePicker({
           </motion.div>
         )}
       </AnimatePresence>
-      {error && <span role="alert" className="text-xs text-red-500">{error}</span>}
+      {error && <span role="alert" className="text-xs text-red-700">{error}</span>}
 
       <AnimatePresence>
         {hubOpen && (
@@ -260,9 +257,9 @@ function SpaceHub({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -6 }}
         transition={{ duration: 0.16 }}
-        className="absolute right-0 top-full z-40 mt-2 w-[420px] max-w-full rounded-xl border border-stone-200 bg-card p-4 shadow-lg"
+        className="absolute right-0 top-full z-40 mt-2 w-[420px] max-w-full rounded-xl border border-panel-border bg-card text-ink p-4 shadow-lg"
       >
-        <h3 className="font-display text-base font-semibold text-stone-800">空间管理</h3>
+        <h3 className="font-display text-base font-semibold text-ink">空间管理</h3>
         <div className="mt-2 flex items-center gap-1.5">
           <input
             value={newName}
@@ -270,7 +267,7 @@ function SpaceHub({
             onKeyDown={(e) => e.key === "Enter" && handleCreate()}
             placeholder="新建空间，如：期末·操作系统"
             maxLength={60}
-            className="h-8 flex-1 rounded-lg border border-stone-200 px-2.5 text-xs outline-none focus:border-secondary-400"
+            className="h-8 flex-1 rounded-lg home-field border px-2.5 text-xs"
           />
           <button
             type="button"
@@ -284,14 +281,14 @@ function SpaceHub({
 
         <div className="mt-2 max-h-64 overflow-y-auto">
           {spaces.length === 0 && !loading && (
-            <p className="py-4 text-center text-xs text-stone-400">还没有空间——创建一个，把一场考试的资料圈起来</p>
+            <p className="py-4 text-center text-xs text-ink-muted">还没有空间——创建一个，把一场考试的资料圈起来</p>
           )}
           {spaces.map((space) => {
             const mine = sources.filter((s) => s.spaceId === space.id);
             const current = space.id === spaceId;
             const expanded = expandedId === space.id;
             return (
-              <div key={space.id} className="rounded-lg border border-stone-100 px-2.5 py-2">
+              <div key={space.id} data-space-id={space.id} className="rounded-lg border border-divider px-2.5 py-2">
                 <div className="flex items-center gap-2">
                   {renamingId === space.id ? (
                     <>
@@ -307,7 +304,7 @@ function SpaceHub({
                         }}
                         autoFocus
                         maxLength={60}
-                        className="h-7 flex-1 rounded-md border border-secondary-300 px-2 text-xs outline-none"
+                        className="h-7 flex-1 rounded-md home-field border px-2 text-xs"
                       />
                       <button
                         type="button"
@@ -328,13 +325,13 @@ function SpaceHub({
                         type="button"
                         onClick={() => onEnter(space.id)}
                         disabled={disabled}
-                        className={`truncate text-sm hover:underline ${current ? "font-semibold text-secondary-700" : "text-stone-800"}`}
+                        className={`truncate text-sm hover:underline ${current ? "font-semibold text-secondary-700" : "text-ink"}`}
                         title="进入该空间"
                       >
                         {space.name}
                       </button>
-                      {current && <span className="shrink-0 text-[10px] text-secondary-500">当前</span>}
-                      <span className="ml-auto shrink-0 text-[10px] text-stone-400">
+                      {current && <span className="shrink-0 text-[10px] text-secondary-700">当前</span>}
+                      <span className="ml-auto shrink-0 text-[10px] text-ink-muted">
                         {space.sourceCount} 资料 · {space.docCount} 讲解
                         {space.examDate ? ` · ${space.examDate}` : ""}
                       </span>
@@ -342,7 +339,7 @@ function SpaceHub({
                         type="button"
                         disabled={busyId === space.id}
                         onClick={() => setExpandedId(expanded ? null : space.id)}
-                        className="shrink-0 text-xs text-stone-400 transition-colors hover:text-stone-700 disabled:opacity-50"
+                        className="shrink-0 text-xs text-ink-muted transition-colors hover:text-ink-secondary disabled:opacity-50"
                         title="展开资料归属"
                       >
                         {expanded ? "▾" : "▸"}
@@ -353,7 +350,7 @@ function SpaceHub({
                             type="date"
                             value={dateText}
                             onChange={(e) => setDateText(e.target.value)}
-                            className="h-6 rounded-md border border-secondary-300 px-1 text-[10px] outline-none"
+                            className="h-6 rounded-md home-field border px-1 text-[10px]"
                           />
                           <button
                             type="button"
@@ -371,7 +368,7 @@ function SpaceHub({
                           <button
                             type="button"
                             onClick={() => setDatingId(null)}
-                            className="text-[10px] text-stone-400 hover:underline"
+                            className="text-[10px] text-ink-muted hover:underline"
                           >
                             取消
                           </button>
@@ -384,7 +381,7 @@ function SpaceHub({
                             setDatingId(space.id);
                             setDateText(space.examDate ?? "");
                           }}
-                          className="shrink-0 text-xs text-stone-400 transition-colors hover:text-orange-600 disabled:opacity-50"
+                          className="shrink-0 text-xs text-ink-muted transition-colors hover:text-orange-600 disabled:opacity-50"
                           title="设置考试日期（概念地图显示倒计时）"
                         >
                           日期
@@ -399,8 +396,8 @@ function SpaceHub({
                         }}
                         className={`shrink-0 text-xs transition-colors disabled:opacity-50 ${
                           space.note
-                            ? "text-secondary-500 hover:text-secondary-700"
-                            : "text-stone-400 hover:text-secondary-600"
+                            ? "text-secondary-700 hover:text-secondary-700"
+                            : "text-ink-muted hover:text-secondary-600"
                         }`}
                         title="编辑备注（科目/范围，概念地图头部展示）"
                       >
@@ -413,7 +410,7 @@ function SpaceHub({
                           setRenamingId(space.id);
                           setRenameText(space.name);
                         }}
-                        className="shrink-0 text-xs text-stone-400 transition-colors hover:text-secondary-600 disabled:opacity-50"
+                        className="shrink-0 text-xs text-ink-muted transition-colors hover:text-secondary-600 disabled:opacity-50"
                       >
                         改名
                       </button>
@@ -421,7 +418,7 @@ function SpaceHub({
                         type="button"
                         disabled={disabled || busyId !== null || deletingId !== null}
                         onClick={() => onDelete(space)}
-                        className="shrink-0 text-xs text-stone-400 transition-colors hover:text-red-500 disabled:opacity-50"
+                        className="shrink-0 text-xs text-ink-muted transition-colors hover:text-red-700 disabled:opacity-50"
                       >
                         {deletingId === space.id ? "删除中…" : "删除"}
                       </button>
@@ -429,7 +426,7 @@ function SpaceHub({
                   )}
                 </div>
                 {notingId === space.id && (
-                  <div className="mt-1.5 flex items-start gap-1.5 border-t border-stone-100 pt-1.5">
+                  <div className="mt-1.5 flex items-start gap-1.5 border-t border-divider pt-1.5">
                     <textarea
                       value={noteText}
                       onChange={(e) => setNoteText(e.target.value)}
@@ -437,7 +434,7 @@ function SpaceHub({
                       rows={2}
                       maxLength={200}
                       autoFocus
-                      className="flex-1 resize-none rounded-md border border-secondary-300 px-2 py-1 text-xs outline-none"
+                      className="home-field flex-1 resize-none rounded-md border px-2 py-1 text-xs"
                     />
                     <span className="flex shrink-0 flex-col gap-1">
                       <button
@@ -454,7 +451,7 @@ function SpaceHub({
                       <button
                         type="button"
                         onClick={() => setNotingId(null)}
-                        className="text-[10px] text-stone-400 hover:underline"
+                        className="text-[10px] text-ink-muted hover:underline"
                       >
                         取消
                       </button>
@@ -462,18 +459,18 @@ function SpaceHub({
                   </div>
                 )}
                 {expanded && (
-                  <div className="mt-1.5 border-t border-stone-100 pt-1.5">
-                    {mine.length === 0 && <p className="px-1 text-[10px] text-stone-400">空间内还没有资料</p>}
+                  <div className="mt-1.5 border-t border-divider pt-1.5">
+                    {mine.length === 0 && <p className="px-1 text-[10px] text-ink-muted">空间内还没有资料</p>}
                     {mine.map((source) => (
                       <div key={source.id} className="flex items-center gap-2 py-1">
-                        <span className="truncate text-xs text-stone-600" title={source.title}>
+                        <span className="truncate text-xs text-ink-secondary" title={source.title}>
                           {source.title}
                         </span>
                         <button
                           type="button"
                           disabled={busyId !== null}
                           onClick={() => run(() => moveSource(source.id, null), source.id)}
-                          className="ml-auto shrink-0 text-[10px] text-stone-400 transition-colors hover:text-secondary-600 disabled:opacity-50"
+                          className="ml-auto shrink-0 text-[10px] text-ink-muted transition-colors hover:text-secondary-600 disabled:opacity-50"
                         >
                           移出
                         </button>
@@ -486,11 +483,11 @@ function SpaceHub({
           })}
 
           {ungrouped.length > 0 && (
-            <div className="mt-2 border-t border-stone-100 pt-2">
-              <p className="px-0.5 pb-1 text-[10px] text-stone-400">未分组资料（选择移入的空间）</p>
+            <div className="mt-2 border-t border-divider pt-2">
+              <p className="px-0.5 pb-1 text-[10px] text-ink-muted">未分组资料（选择移入的空间）</p>
               {ungrouped.map((source) => (
                 <div key={source.id} className="flex items-center gap-2 py-1">
-                  <span className="truncate text-xs text-stone-600" title={source.title}>
+                  <span className="truncate text-xs text-ink-secondary" title={source.title}>
                     {source.title}
                   </span>
                   <select
@@ -502,7 +499,7 @@ function SpaceHub({
                         run(() => moveSource(source.id, target), source.id);
                       }
                     }}
-                    className="ml-auto shrink-0 rounded-md border border-stone-200 px-1.5 py-0.5 text-[10px] text-stone-500 outline-none"
+                    className="home-field ml-auto shrink-0 rounded-md border px-1.5 py-0.5 text-[10px]"
                   >
                     <option value="">移入…</option>
                     {spaces.map((space) => (

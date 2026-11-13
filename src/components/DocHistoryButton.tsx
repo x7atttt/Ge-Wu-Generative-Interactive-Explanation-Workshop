@@ -114,7 +114,7 @@ export function DocHistoryButton({
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={disabled}
-        className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="home-tool"
       >
         <svg
           viewBox="0 0 24 24"
@@ -129,7 +129,7 @@ export function DocHistoryButton({
         </svg>
         历史讲解
         {docs.length > 0 && (
-          <span className="rounded-full bg-accent-50 px-1.5 py-px font-mono text-[10px] text-accent-600">
+          <span className="rounded-full bg-accent-50 px-1.5 py-px font-mono text-[10px] text-accent-700">
             {docs.length}
           </span>
         )}
@@ -142,16 +142,16 @@ export function DocHistoryButton({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 320, damping: 26 }}
-            className="absolute right-0 top-11 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-stone-200 bg-card shadow-xl"
+            className="absolute right-0 top-11 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-panel-border bg-card text-ink shadow-xl"
           >
-            <div className="border-b border-stone-100 p-2">
+            <div className="border-b border-divider p-2">
               <div className="flex items-center gap-2">
                 <input
                   ref={inputRef}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="搜索标题或编号…"
-                  className="min-w-0 flex-1 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 outline-none transition-colors focus:border-accent-400 focus:bg-card"
+                  className="min-w-0 flex-1 rounded-lg home-field border px-3 py-2 text-sm transition-colors"
                 />
                 {!batch && docs.length > 1 && (
                   <button
@@ -160,7 +160,7 @@ export function DocHistoryButton({
                       setBatch(true);
                       setPicked(new Set());
                     }}
-                    className="shrink-0 rounded-lg border border-stone-200 px-2.5 py-2 text-xs text-stone-500 transition-colors hover:border-red-300 hover:text-red-500"
+                    className="shrink-0 rounded-lg border border-control-border px-2.5 py-2 text-xs text-ink-muted transition-colors hover:border-red-700 hover:text-red-700"
                     title="勾选多篇后一次删除"
                   >
                     批量删除
@@ -179,7 +179,7 @@ export function DocHistoryButton({
                           : new Set(filtered.map((d) => d.id))
                       )
                     }
-                    className="rounded-lg border border-stone-200 px-2 py-1 text-stone-500 transition-colors hover:border-stone-400 disabled:opacity-50"
+                    className="rounded-lg border border-divider px-2 py-1 text-ink-muted transition-colors hover:border-stone-400 disabled:opacity-50"
                   >
                     {picked.size === filtered.length && filtered.length > 0 ? "清除勾选" : "全选"}
                   </button>
@@ -187,7 +187,7 @@ export function DocHistoryButton({
                     type="button"
                     disabled={batchBusy || picked.size === 0}
                     onClick={handleBatchDelete}
-                    className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 font-medium text-red-600 transition-colors hover:border-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 font-medium text-red-700 transition-colors hover:border-red-400 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {batchBusy ? "删除中…" : `删除所选 (${picked.size})`}
                   </button>
@@ -198,7 +198,7 @@ export function DocHistoryButton({
                       setBatch(false);
                       setPicked(new Set());
                     }}
-                    className="ml-auto rounded-lg px-2 py-1 text-stone-400 transition-colors hover:text-stone-700 disabled:opacity-50"
+                    className="ml-auto rounded-lg px-2 py-1 text-ink-muted transition-colors hover:text-ink-secondary disabled:opacity-50"
                   >
                     退出批量
                   </button>
@@ -207,7 +207,7 @@ export function DocHistoryButton({
             </div>
             <ul className="max-h-[60vh] overflow-y-auto p-1">
               {filtered.length === 0 ? (
-                <li className="px-3 py-8 text-center text-xs text-stone-400">
+                <li className="px-3 py-8 text-center text-xs text-ink-muted">
                   没有匹配的讲解
                 </li>
               ) : (
@@ -230,7 +230,7 @@ export function DocHistoryButton({
                           ? "bg-red-50 text-red-700"
                           : d.versions.some(version => version.id === currentId)
                             ? "bg-accent-50 text-accent-700"
-                            : "text-stone-700 hover:bg-stone-50",
+                            : "text-ink-secondary hover:bg-warm-surface",
                       ].join(" ")}
                     >
                       {batch && (
@@ -238,14 +238,14 @@ export function DocHistoryButton({
                           className={`shrink-0 self-center rounded border px-1 text-[10px] leading-4 ${
                             picked.has(d.id)
                               ? "border-red-400 bg-red-500 text-white"
-                              : "border-stone-300 text-transparent"
+                              : "border-control-border text-transparent"
                           }`}
                         >
                           ✓
                         </span>
                       )}
                       <span className="min-w-0 flex-1 truncate">{d.title}</span>
-                      <span className="shrink-0 font-mono text-[11px] text-stone-400">
+                      <span className="shrink-0 font-mono text-[11px] text-ink-muted">
                         #{d.id}
                         {d.createdAt ? ` · ${formatDay(d.createdAt)}` : ""}
                       </span>
@@ -256,18 +256,18 @@ export function DocHistoryButton({
                         disabled={deletingId === d.id}
                         onClick={() => handleDelete(d.id, d.title)}
                         title="删除该讲解及其深化版本（不可恢复）"
-                        className="shrink-0 rounded-lg px-2 py-2 text-xs text-stone-300 transition-colors hover:bg-red-50 hover:text-red-500 group-hover:text-stone-400 disabled:opacity-50"
+                        className="shrink-0 rounded-lg px-2 py-2 text-xs text-ink-muted transition-colors hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
                       >
                         {deletingId === d.id ? "…" : "✕"}
                       </button>
                     )}
                     </div>
-                    {d.versions.length > 1 && !batch && <details className="mx-3 mb-2 border-l border-stone-200 pl-3 text-xs text-stone-500">
+                    {d.versions.length > 1 && !batch && <details className="mx-3 mb-2 border-l border-divider pl-3 text-xs text-ink-muted">
                       <summary className="w-fit cursor-pointer py-1.5">版本记录 · {d.versions.length} 个版本</summary>
                       <div className="flex flex-col gap-1 pb-1">
-                        {d.versions.map((version, index) => <button key={version.id} type="button" aria-current={version.id === currentId ? "page" : undefined} onClick={() => { setOpen(false); onSelect(version.id); }} className={`rounded-md px-2 py-2 text-left ${version.id === currentId ? "bg-accent-50 text-accent-700" : "hover:bg-stone-100"}`}>
+                        {d.versions.map((version, index) => <button key={version.id} type="button" aria-current={version.id === currentId ? "page" : undefined} onClick={() => { setOpen(false); onSelect(version.id); }} className={`rounded-md px-2 py-2 text-left ${version.id === currentId ? "bg-accent-50 text-accent-700" : "hover:bg-warm-surface"}`}>
                           <span className="block truncate">{index === d.versions.length - 1 ? "原始讲解" : `第 ${d.versions.length - index} 版 · ${version.instruction ?? "深化讲解"}`}{index === 0 ? " · 最新" : ""}</span>
-                          <span className="mt-0.5 block font-mono text-[10px] text-stone-400">#{version.id} · {formatDay(version.createdAt)}</span>
+                          <span className="mt-0.5 block font-mono text-[10px] text-ink-muted">#{version.id} · {formatDay(version.createdAt)}</span>
                         </button>)}
                       </div>
                     </details>}
@@ -276,9 +276,9 @@ export function DocHistoryButton({
               )}
             </ul>
             {error && (
-              <p className="border-t border-red-100 bg-red-50 px-3 py-1.5 text-[11px] text-red-600">{error}</p>
+              <p className="border-t border-red-100 bg-red-50 px-3 py-1.5 text-[11px] text-red-700">{error}</p>
             )}
-            <div className="border-t border-stone-100 px-3 py-1.5 text-[11px] text-stone-400">
+            <div className="border-t border-divider px-3 py-1.5 text-[11px] text-ink-muted">
               共 {docs.length} 篇
               {q && filtered.length !== docs.length ? ` · 匹配 ${filtered.length} 篇` : ""}
             </div>
