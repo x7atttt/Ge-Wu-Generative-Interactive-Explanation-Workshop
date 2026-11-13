@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "motion/react";
 import { BuildProgressPanel } from "@/components/BuildProgressPanel";
 import { DocHistoryButton } from "@/components/DocHistoryButton";
@@ -12,10 +13,9 @@ import { SpacePicker } from "@/components/SpacePicker";
 import { HoverSelect } from "@/components/HoverSelect";
 import { StatsPanel } from "@/components/StatsPanel";
 import { compressImage } from "@/lib/imageCompress";
-import { AskPanel, type AskItem } from "@/components/dsl/AskPanel";
+import type { AskItem } from "@/components/dsl/AskPanel";
 import { AttemptContext, postAttempt } from "@/components/dsl/attempt-context";
 import { ensureAudio, playComplete, playDone } from "@/lib/audio/sound";
-import { ExplainDocView } from "@/components/dsl/ExplainDocView";
 import { listDocs, loadDoc as loadDocById, streamExplanation, type DocSummary, type VersionPayload } from "@/lib/api/explanation";
 import { makeCardsFromDoc } from "@/lib/api/cards";
 import {
@@ -37,6 +37,11 @@ import { computeDeepens, isAppendVersion } from "@/lib/dsl/deepen";
 import type { ExplainDoc } from "@/lib/dsl/schema";
 import type { GenerationStage } from "@/lib/generation-progress";
 import { EFFORT_STORAGE_KEY, EFFORTS, isReasoningEffort, type ReasoningEffort } from "@/lib/effort";
+
+const ExplainDocView = dynamic(() => import("@/components/dsl/ExplainDocView").then((mod) => mod.ExplainDocView), {
+  loading: () => <p role="status" className="text-sm text-ink-muted">正在加载讲解…</p>,
+});
+const AskPanel = dynamic(() => import("@/components/dsl/AskPanel").then((mod) => mod.AskPanel));
 
 // 示例概念覆盖四类交互形态：波形滑块（数学/信号）、填空配对（语言）、分类自测（计算机）、图表（经济）
 const EXAMPLE_CONCEPTS = ["正弦波的频率", "英语名词复数", "快速排序", "供需与价格"];

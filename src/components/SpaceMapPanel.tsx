@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { getSpaceMap, generateRoadmap, SpaceApiError, type SpaceMap } from "@/lib/api/spaces";
 import { localDay } from "@/lib/fsrs";
-import { ReviewPanel } from "@/components/ReviewPanel";
-import { ExamPanel } from "@/components/ExamPanel";
-import { CardManagerPanel } from "@/components/CardManagerPanel";
+
+const ReviewPanel = dynamic(() => import("@/components/ReviewPanel").then((mod) => mod.ReviewPanel));
+const ExamPanel = dynamic(() => import("@/components/ExamPanel").then((mod) => mod.ExamPanel));
+const CardManagerPanel = dynamic(() => import("@/components/CardManagerPanel").then((mod) => mod.CardManagerPanel));
 
 const STATUS_META: Record<
   string,

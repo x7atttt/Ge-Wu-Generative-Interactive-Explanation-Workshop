@@ -3,7 +3,6 @@
 import type { Block } from "@/lib/dsl/schema";
 import dynamic from "next/dynamic";
 import { BlockSkeleton } from "./BlockSkeleton";
-import { ChartView } from "./ChartView";
 import { FillBlankView } from "./FillBlankView";
 import { FormulaBlockView } from "./FormulaBlockView";
 import { HeadingBlockView } from "./HeadingBlockView";
@@ -12,8 +11,9 @@ import { QuizView } from "./QuizView";
 import { SliderControl } from "./SliderControl";
 import { SortView } from "./SortView";
 import { TextBlockView } from "./TextBlockView";
-import { WavePlotView } from "./WavePlotView";
 
+const ChartView = dynamic(() => import("./ChartView").then((mod) => mod.ChartView), { loading: () => <BlockSkeleton type="chart" /> });
+const WavePlotView = dynamic(() => import("./WavePlotView").then((mod) => mod.WavePlotView), { loading: () => <BlockSkeleton type="wavePlot" /> });
 const DiagramView = dynamic(() => import("./DiagramView"), { ssr: false, loading: () => <BlockSkeleton type="diagram" /> });
 
 /**

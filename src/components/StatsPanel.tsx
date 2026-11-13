@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "motion/react";
 import type * as echarts from "echarts/core";
-import { useEChart } from "@/components/useEChart";
 import type { StatsPayload } from "@/lib/db/attempts";
+
+const StatsChart = dynamic(() => import("./StatsChart").then((mod) => mod.StatsChart), {
+  loading: () => <div className="h-40" role="status">图表加载中…</div>,
+});
 
 const TYPE_LABELS: Record<string, string> = {
   quiz: "自测题",
@@ -87,8 +91,6 @@ export function StatsPanel({
     };
   }, [stats]);
 
-  const containerRef = useEChart(option ?? {});
-
   const weakSpots = useMemo(
     () =>
       (stats?.concepts ?? []).filter(
@@ -150,7 +152,7 @@ export function StatsPanel({
                 </div>
 
                 <div className="rounded-lg border border-divider p-1">
-                  <div ref={containerRef} className="h-40 w-full" />
+                  {option && <StatsChart option={option} />}
                   <p className="pb-1 text-center text-[11px] text-ink-muted">近 14 天练习与正确率</p>
                 </div>
 
