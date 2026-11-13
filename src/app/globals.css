@@ -13,7 +13,7 @@
 @theme {
   /* 纸（页面底色，暖白微黄） */
   --color-paper: #faf7f2;
-  --color-home-paper: #f5f0e7;
+  --color-home-paper: #f4f4f1;
   --color-card: #fffdf9;
   --color-warm-surface: #f2e9dc;
   --color-ink: #292524;
@@ -46,6 +46,54 @@
 }
 
 @layer components {
+  .home-backdrop {
+    --color-divider: #d6dad8;
+    --color-panel-border: #c8d0cc;
+    --color-control-border: #7b8986;
+    background-image:
+      radial-gradient(ellipse 40rem 21rem at 25% 11rem, #dce8e4 0%, transparent 100%),
+      radial-gradient(ellipse 34rem 19rem at 78% 15rem, #e6e9f0 0%, transparent 100%);
+  }
+
+  .home-glass {
+    background-color: #f9fbfa;
+    box-shadow: inset 0 1px 0 #fff, 0 10px 28px -20px #263e39a6;
+  }
+
+  @supports (backdrop-filter: blur(14px)) {
+    .home-glass {
+      isolation: isolate;
+      background-color: transparent;
+    }
+
+    /* Filter the surface so fixed overlays inside the toolbar still use the viewport. */
+    .home-glass::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      border-radius: inherit;
+      background: rgb(255 255 255 / 66%);
+      backdrop-filter: blur(14px);
+      pointer-events: none;
+    }
+  }
+
+  .home-header-tools .home-tool,
+  .home-example {
+    @apply rounded-lg border px-2.5 text-slate-700 transition-colors duration-150;
+    border-color: #9aa8a4;
+    background-color: #ffffffa6;
+  }
+
+  .home-header-tools .home-tool:enabled:hover,
+  .home-header-tools .home-tool[aria-expanded="true"],
+  .home-example:enabled:hover {
+    border-color: #657975;
+    background-color: #eaf1ef;
+    color: #243e3a;
+  }
+
   .home-focus :is(button, input, textarea, select, summary, a):focus-visible {
     outline: 2px solid var(--color-accent-600);
     outline-offset: 2px;

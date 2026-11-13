@@ -547,11 +547,11 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-home-paper px-4 pb-10 font-sans text-ink">
+    <div className="home-backdrop flex flex-1 flex-col items-center bg-home-paper px-4 pb-10 font-sans text-ink">
       {/* 右上角标签组：学习统计 + 历史讲解 + 音效开关 */}
       <div className="home-focus relative z-40 mb-8 flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 border-b border-divider py-4">
         <div className="flex items-baseline gap-2 font-display text-xl tracking-widest text-ink">格物<span className="font-sans text-xs tracking-wider text-ink-muted">GEWU</span></div>
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="home-header-tools flex items-center gap-1 sm:gap-2">
         <SoundToggle />
         <StatsPanel key={`stats-${contentRevision}`} onPractice={startPractice} spaceId={spaceId ?? undefined} />
         <DocHistoryButton
@@ -579,7 +579,7 @@ export default function Home() {
         <section
           {...heroDrop.handlers}
           className={`home-focus relative rounded-2xl border p-4 shadow-sm transition-colors ${
-            heroDrop.isOver ? "border-accent-600 bg-accent-50" : "border-panel-border bg-card"
+            heroDrop.isOver ? "border-accent-600 bg-accent-50" : "home-glass border-panel-border"
           }`}
         >
           {heroDrop.isOver && (
@@ -632,7 +632,7 @@ export default function Home() {
             <button
               onClick={handleGenerate}
               disabled={busy !== null || (!concept.trim() && attachedSourceIds.length === 0 && genImages.length === 0)}
-              className="ml-auto h-11 shrink-0 whitespace-nowrap rounded-xl border border-ink bg-ink px-4 text-sm font-semibold text-card transition-colors enabled:hover:border-ink-secondary enabled:hover:bg-ink-secondary disabled:cursor-not-allowed disabled:border-panel-border disabled:bg-disabled-surface disabled:text-ink-muted sm:ml-0 sm:px-5"
+              className="ml-auto h-11 shrink-0 whitespace-nowrap rounded-xl border border-secondary-700 bg-secondary-700 px-4 text-sm font-semibold text-white transition-colors duration-150 enabled:hover:border-secondary-600 enabled:hover:bg-secondary-600 disabled:cursor-not-allowed disabled:border-panel-border disabled:bg-slate-100 disabled:text-slate-600 sm:ml-0 sm:px-5"
             >
               生成讲解
             </button>
@@ -676,7 +676,7 @@ export default function Home() {
                   setOriginConcept(null);
                 }}
                 disabled={busy === "generate"}
-                className="min-h-8 rounded-md bg-warm-surface px-2.5 py-1 text-[13px] text-ink-secondary transition-colors enabled:hover:bg-accent-100 enabled:hover:text-accent-700 disabled:cursor-not-allowed disabled:text-ink-muted"
+                className="home-example min-h-8 py-1 text-[13px] disabled:cursor-not-allowed disabled:text-slate-500"
               >
                 {example}
               </button>
