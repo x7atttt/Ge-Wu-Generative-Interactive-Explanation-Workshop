@@ -139,7 +139,7 @@ export function HoverSelect({ value, options, onChange, label, description, pref
     </button>
     {expanded && placement && createPortal(
       <div ref={panel} style={placement.style} className={`fixed z-[60] ${placement.above ? "pb-2" : "pt-2"}`} onPointerEnter={keepOpen} onPointerLeave={(event) => leave(event.pointerType)}>
-        <div style={{ maxHeight: placement.height }} className="flex flex-col overflow-hidden rounded-2xl border border-panel-border bg-card text-ink shadow-[0_12px_40px_-10px_rgba(41,37,36,0.24)]">
+        <div style={{ maxHeight: placement.height }} className="home-palette flex flex-col overflow-hidden rounded-2xl border border-panel-border bg-card text-ink shadow-[0_12px_40px_-10px_rgba(41,37,36,0.24)]">
           <div className="shrink-0 border-b border-divider px-4 py-3"><p className="text-sm font-semibold text-ink">{label}</p><p className="mt-0.5 text-xs leading-5 text-ink-muted">{description}</p></div>
           <div role="listbox" aria-label={label} id={`${id}-list`} className="min-h-0 overflow-y-auto overscroll-contain p-1.5">
             {options.map((option, index) => <button key={option.value} id={`${id}-option-${index}`} type="button" role="option" aria-label={option.label}

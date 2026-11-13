@@ -244,7 +244,6 @@ export default function Home() {
   // 切回原空间即时恢复，不用重新拉取
   const docVisible = doc !== null && docId !== null && docSpaceId === spaceId;
   // 双栏布局需要横向空间：可见文档/流式文档存在时放宽容器
-  const wide = docVisible || streamDoc !== null;
 
   // 深化链分段：由版本链派生（refine 追加语义下各轮 fromIndex 坐标一致）
   const deepens = useMemo(() => computeDeepens(versions), [versions]);
@@ -547,10 +546,10 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-home-paper px-4 pb-10 font-sans text-ink">
+    <div className="home-palette home-page flex flex-1 flex-col items-center bg-home-paper px-4 pb-8 font-sans text-ink sm:px-6">
       {/* 右上角标签组：学习统计 + 历史讲解 + 音效开关 */}
-      <div className="home-focus relative z-40 mb-8 flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 border-b border-divider py-4">
-        <div className="flex items-baseline gap-2 font-display text-xl tracking-widest text-ink">格物<span className="font-sans text-xs tracking-wider text-ink-muted">GEWU</span></div>
+      <div className="home-focus relative z-40 flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 border-b border-divider py-4">
+        <div className="font-display text-2xl font-semibold tracking-[0.12em] text-ink">格物</div>
         <div className="flex items-center gap-1 sm:gap-2">
         <SoundToggle />
         <StatsPanel key={`stats-${contentRevision}`} onPractice={startPractice} spaceId={spaceId ?? undefined} />
@@ -564,13 +563,13 @@ export default function Home() {
         />
         </div>
       </div>
-      <main className={`w-full ${wide ? "max-w-5xl" : "max-w-3xl"} transition-[max-width] duration-300`}>
-        <header className="mb-8 text-center">
-          <h1 className="font-display text-3xl font-bold tracking-wide text-ink">
+      <main className="flex w-full max-w-5xl flex-1 flex-col pt-12 lg:pt-[72px]">
+        <header className="mx-auto mb-8 w-full max-w-[800px] text-center">
+          <h1 className="font-display text-3xl leading-[1.2] font-bold tracking-[0.02em] text-ink sm:text-[clamp(40px,4.6vw,56px)]">
             输入一个概念，
-            <span className="relative text-accent-600">玩着懂</span>
+            <span className="text-[var(--home-accent)]">玩着懂</span>
           </h1>
-          <p className="mt-2 text-base leading-6 text-ink-secondary">
+          <p className="mt-4 text-base leading-6 text-ink-secondary">
             拖动参数建立直觉，追问深入细节，一句话继续改造。
           </p>
         </header>
@@ -578,7 +577,7 @@ export default function Home() {
         {/* 生成入口（整卡为拖放区：图片→附图，txt/md/pdf/doc→资料库并自动附加） */}
         <section
           {...heroDrop.handlers}
-          className={`home-focus relative rounded-2xl border p-4 shadow-sm transition-colors ${
+          className={`home-composer home-focus relative mx-auto w-full max-w-[800px] rounded-3xl border p-4 transition-colors sm:p-6 ${
             heroDrop.isOver ? "border-accent-600 bg-accent-50" : "border-panel-border bg-card"
           }`}
         >
@@ -602,10 +601,10 @@ export default function Home() {
               placeholder={
                 attachedSourceIds.length > 0 || genImages.length > 0
                   ? "留空则围绕第一份资料/图片生成，或输入具体概念"
-                  : "想搞懂什么概念？如：正弦波的频率、英语名词复数、快速排序"
+                  : "想搞懂什么概念？"
               }
               maxLength={200}
-              className="home-field h-11 min-w-0 basis-full rounded-xl border px-4 text-base transition-colors sm:flex-1 sm:basis-auto"
+              className="home-field h-[52px] min-w-0 basis-full rounded-xl border px-4 text-base transition-[border-color] duration-180 sm:flex-1 sm:basis-auto"
               disabled={busy === "generate"}
             />
             <input
@@ -625,14 +624,14 @@ export default function Home() {
               aria-label="添加讲解图片"
               disabled={busy !== null || genImgBusy || genImages.length >= 3}
               title={`拍题/截图生成（最多 3 张，可直接拖入本区域；概念可留空）`}
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-control-border bg-card text-ink-secondary transition-colors enabled:hover:border-accent-600 enabled:hover:bg-accent-50 enabled:hover:text-accent-700 disabled:cursor-not-allowed disabled:bg-disabled-surface disabled:text-ink-muted"
+              className="inline-flex size-[52px] shrink-0 items-center justify-center rounded-xl border border-control-border bg-card text-ink-secondary transition-[background-color,border-color,color] duration-180 enabled:hover:border-accent-600 enabled:hover:bg-warm-surface enabled:hover:text-ink disabled:cursor-not-allowed disabled:bg-disabled-surface disabled:text-ink-muted"
             >
               <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4"><path d="M11 4H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-5M13 4h5m-2.5-2.5v5M3 13l4-4 4 4 2-2 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
             <button
               onClick={handleGenerate}
               disabled={busy !== null || (!concept.trim() && attachedSourceIds.length === 0 && genImages.length === 0)}
-              className="ml-auto h-11 shrink-0 whitespace-nowrap rounded-xl border border-ink bg-ink px-4 text-sm font-semibold text-card transition-colors enabled:hover:border-ink-secondary enabled:hover:bg-ink-secondary disabled:cursor-not-allowed disabled:border-panel-border disabled:bg-disabled-surface disabled:text-ink-muted sm:ml-0 sm:px-5"
+              className="home-generate ml-auto h-[52px] shrink-0 whitespace-nowrap rounded-xl border border-ink bg-ink px-4 text-sm font-semibold text-card transition-[background-color,border-color,color,transform] duration-180 enabled:hover:border-ink-secondary enabled:hover:bg-ink-secondary disabled:cursor-not-allowed disabled:border-panel-border disabled:bg-disabled-surface disabled:text-ink-muted motion-reduce:transition-none sm:ml-0 sm:px-5"
             >
               生成讲解
             </button>
@@ -666,7 +665,7 @@ export default function Home() {
               {droppingBusy ? "资料导入中…" : dropNote}
             </p>
           )}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-1">
             <span className="text-[13px] text-ink-muted">试一试</span>
             {EXAMPLE_CONCEPTS.map((example) => (
               <button
@@ -676,7 +675,7 @@ export default function Home() {
                   setOriginConcept(null);
                 }}
                 disabled={busy === "generate"}
-                className="min-h-8 rounded-md bg-warm-surface px-2.5 py-1 text-[13px] text-ink-secondary transition-colors enabled:hover:bg-accent-100 enabled:hover:text-accent-700 disabled:cursor-not-allowed disabled:text-ink-muted"
+                className="min-h-8 rounded-md px-2.5 py-1 text-[13px] text-ink-secondary transition-[background-color,color] duration-180 enabled:hover:bg-warm-surface enabled:hover:text-ink disabled:cursor-not-allowed disabled:text-ink-muted"
               >
                 {example}
               </button>
@@ -802,7 +801,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 140, damping: 18 }}
-            className="mt-6 rounded-2xl border border-panel-border bg-card p-6 text-ink shadow-sm"
+            className="home-reading-surface mt-8 rounded-3xl border border-panel-border bg-card p-6 text-ink"
           >
             <ExplainDocView
               doc={streamDoc}
@@ -815,7 +814,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 140, damping: 18 }}
-            className="mt-6 rounded-2xl border border-panel-border bg-card p-6 text-ink shadow-sm"
+            className="home-reading-surface mt-8 rounded-3xl border border-panel-border bg-card p-6 text-ink"
           >
             <AttemptContext.Provider value={attemptValue}>
             {versions.length > 1 && <div className="home-focus mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-divider bg-warm-surface px-3 py-2 text-xs text-ink-secondary" aria-label="当前讲解版本">
@@ -917,7 +916,7 @@ export default function Home() {
         ) : null}
         </div>
 
-        <footer className="mt-10 text-center text-xs text-ink-muted">
+        <footer className="mt-auto pt-14 text-center text-xs text-ink-muted">
           格物 Gewu · 传智杯 AI 创新应用挑战赛（Vibe Coding）作品
         </footer>
       </main>

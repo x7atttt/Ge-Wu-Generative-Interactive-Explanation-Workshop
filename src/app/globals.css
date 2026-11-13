@@ -13,7 +13,7 @@
 @theme {
   /* 纸（页面底色，暖白微黄） */
   --color-paper: #faf7f2;
-  --color-home-paper: #f5f0e7;
+  --color-home-paper: #f6f2eb;
   --color-card: #fffdf9;
   --color-warm-surface: #f2e9dc;
   --color-ink: #292524;
@@ -46,13 +46,39 @@
 }
 
 @layer components {
+  .home-palette {
+    --color-ink: #282623;
+    --color-ink-secondary: #625b51;
+    --color-ink-muted: #6b6257;
+    --color-warm-surface: #f1ebe2;
+    --color-divider: #ded6ca;
+    --color-panel-border: #d2c8ba;
+    --color-control-border: #8a7d6f;
+    --color-disabled-surface: #eae4da;
+    --home-accent: #8b4034;
+  }
+
+  .home-page {
+    background-image: url("/paper-grain.png");
+    background-size: 192px 192px;
+  }
+
+  .home-composer {
+    box-shadow: 0 2px 5px rgb(55 42 28 / 4%), 0 18px 48px -24px rgb(55 42 28 / 21%);
+  }
+
+  .home-reading-surface {
+    box-shadow: 0 4px 18px -12px rgb(55 42 28 / 17%);
+  }
+
   .home-focus :is(button, input, textarea, select, summary, a):focus-visible {
-    outline: 2px solid var(--color-accent-600);
+    outline: 2px solid var(--home-accent, var(--color-accent-600));
     outline-offset: 2px;
   }
 
   .home-tool {
-    @apply inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-medium text-ink-secondary transition-colors;
+    @apply inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-medium text-ink-secondary;
+    transition-property: color, background-color;
   }
 
   .home-tool:enabled:hover,
@@ -69,7 +95,17 @@
   }
 
   .home-field:focus {
-    @apply border-accent-600;
+    border-color: var(--home-accent, var(--color-accent-600));
+  }
+
+  .home-palette .home-tool {
+    transition-duration: 180ms;
+  }
+
+  @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .home-generate:enabled:hover {
+      transform: translateY(-1px);
+    }
   }
 }
 
