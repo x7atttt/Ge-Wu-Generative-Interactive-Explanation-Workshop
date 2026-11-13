@@ -26,7 +26,7 @@
 
 ### 1. 环境要求（约 1 分钟确认）
 
-- **Node.js ≥ 22.5**（使用内置 `node:sqlite`，实测 24.x）
+- **Node.js 24.x**（使用内置 `node:sqlite`，预置演示导入和测试也使用此版本）
 - **pnpm ≥ 10**
 - 一个 **OpenAI 兼容**的大模型服务（GLM / DeepSeek / OpenAI 等均可；建议多模态型号以启用拍题功能）
 
@@ -42,10 +42,12 @@ cp .env.example .env.local
 编辑 `.env.local`，**必填**三项：
 
 ```ini
-LLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4   # 你的 OpenAI 兼容端点
+LLM_BASE_URL=https://api.deepseek.com
 LLM_API_KEY=你的密钥
-LLM_MODEL=你的模型名                                  # 建议多模态型号
+LLM_MODEL=deepseek-flash
 ```
+
+评审包可按包内密钥说明填写 `LLM_API_KEY`，然后启动应用。只体验预置演示时可将密钥留空。
 
 可选：`MINERU_API_TOKEN`（PDF/Word 解析，[mineru.net](https://mineru.net) API 管理页创建）、`BOCHA_API_KEY`（生成前联网检索补充事实依据）。留空不影响核心功能。
 
@@ -110,7 +112,7 @@ pnpm demo:import --file=精选案例.json
 - **PDF 导入提示未配置 token**：填入 `MINERU_API_TOKEN` 后重启 `pnpm dev`；
 - **生成偏慢**：先在工具栏把思考强度切到 `low`；`LLM_MODEL_FAST` 可单独配置改造/追问所用模型。页面显式选择会覆盖 `LLM_REASONING_EFFORT`；
 - **high 等待与超时**：首段正文最多等待 180 秒，单次流式最多 360 秒；保存前复核固定 low，整阶段最多 90 秒。达到处理时限后结束请求，网络故障仍最多重试两次。各档上限与阶段日志见[超时策略](docs/teaching-quality-acceptance.md#超时与重试2026-10-28-修正)；
-- **换模型**：改 `LLM_BASE_URL / LLM_MODEL` 即可，协议层只依赖 `/chat/completions` 一个端点；
+- **换模型**：更新 `LLM_BASE_URL / LLM_API_KEY / LLM_MODEL`，再重启应用。协议层使用 `/chat/completions`；
 - **重置数据**：删除 `data/gewu.db` 后刷新。
 
 ## 更多
