@@ -47,7 +47,7 @@ LLM_API_KEY=你的密钥
 LLM_MODEL=deepseek-flash
 ```
 
-评审包可按包内密钥说明填写 `LLM_API_KEY`，然后启动应用。只体验预置演示时可将密钥留空。
+填写所用模型服务的 `LLM_API_KEY` 后启动应用。只体验预置演示时可将密钥留空。
 
 可选：`MINERU_API_TOKEN`（PDF/Word 解析，[mineru.net](https://mineru.net) API 管理页创建）、`BOCHA_API_KEY`（生成前联网检索补充事实依据）。留空不影响核心功能。
 
@@ -99,7 +99,7 @@ pnpm demo:import --file=精选案例.json
 
 ## 项目目录
 
-以下以仓库根目录为起点。开发工作区中是 `app/`，评审压缩包中是 `项目源码/`。
+以下路径均相对于仓库根目录。
 
 ```text
 .
@@ -130,7 +130,7 @@ pnpm demo:import --file=精选案例.json
 └── package.json           # 依赖与开发、构建、演示命令
 ```
 
-运行后，本地配置在 `.env.local`，学习数据库在 `data/gewu.db`，依赖和构建产物分别在 `node_modules/` 与 `.next/`。这些路径由本地配置、安装或运行生成，均在 Git 忽略范围内。评审源码附带的 `.env.local` 是空密钥模板。
+本地配置在 `.env.local`，学习数据库在 `data/gewu.db`，依赖和构建产物分别在 `node_modules/` 与 `.next/`。这些路径由本地配置、安装或运行生成，均在 Git 忽略范围内。
 
 ## 环境变量速查
 
